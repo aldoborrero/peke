@@ -57,8 +57,10 @@ class UpdateChecker
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
     ) {
         companion object {
-            const val ASSET_NAME = "Wholphin"
+            const val ASSET_NAME = "Peke"
             const val APK_NAME = "$ASSET_NAME.apk"
+
+            private const val LATEST_RELEASE_URL = "https://api.github.com/repos/aldoborrero/peke/releases/latest"
 
             private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 
@@ -72,10 +74,7 @@ class UpdateChecker
          *
          * This is safe to call many times because it will only show the toast at most once every 12 hours
          */
-        suspend fun maybeShowUpdateToast(
-            updateUrl: String,
-            showNegativeToast: Boolean = false,
-        ) {
+        suspend fun maybeShowUpdateToast(showNegativeToast: Boolean = false) {
             val pref = PreferenceManager.getDefaultSharedPreferences(context)
             val now = Date()
             val lastUpdateCheckThreshold =
@@ -90,7 +89,7 @@ class UpdateChecker
             val timeSince = (now.time - lastUpdateCheck).milliseconds
             Timber.v("Last successful update check was $timeSince ago")
             val installedVersion = getInstalledVersion()
-            val latestRelease = getLatestRelease(updateUrl)
+            val latestRelease = getLatestRelease()
             if (latestRelease != null && latestRelease.version.isGreaterThan(installedVersion)) {
                 Timber.v("Update available $installedVersion => ${latestRelease.version}")
                 pref.edit {
@@ -129,7 +128,7 @@ class UpdateChecker
 
         suspend fun getRelease(version: Version): Release? {
             val url =
-                "https://api.github.com/repos/damontecres/Wholphin/releases/tags/v${version.major}.${version.minor}.${version.patch}"
+                "https://api.github.com/repos/aldoborrero/peke/releases/tags/v${version.major}.${version.minor}.${version.patch}"
             return withContext(PekeDispatchers.IO) {
                 val request =
                     Request
@@ -144,12 +143,12 @@ class UpdateChecker
         /**
          * Get the latest released version
          */
-        suspend fun getLatestRelease(updateUrl: String): Release? =
+        suspend fun getLatestRelease(): Release? =
             withContext(PekeDispatchers.IO) {
                 val request =
                     Request
                         .Builder()
-                        .url(updateUrl)
+                        .url(LATEST_RELEASE_URL)
                         .get()
                         .build()
                 getRelease(request)

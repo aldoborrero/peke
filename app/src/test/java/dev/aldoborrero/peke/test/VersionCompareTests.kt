@@ -82,4 +82,15 @@ class VersionCompareTests {
         Assert.assertEquals("v0.2.0-1-gabc1234", Version(0, 2, 0, 1, "abc1234").toString())
         Assert.assertEquals("v0.2.0-7-gabc1234", V_0_2_0_7.toString())
     }
+
+    @Test
+    fun pekeVersions() {
+        // versionName on the tag commit, a later commit, and the release title the updater reads
+        val tagged = Version.fromString("0.1.0-0-gabc1234")
+        val later = Version.fromString("0.1.0-3-gabc1234")
+        val release = Version.fromString("v0.2.0")
+        Assert.assertTrue(later.isGreaterThan(tagged))
+        Assert.assertTrue(release.isGreaterThan(later))
+        Assert.assertFalse(Version.fromString("v0.1.0").isGreaterThan(tagged))
+    }
 }

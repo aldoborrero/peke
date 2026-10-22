@@ -125,7 +125,7 @@ fun PreferencesContent(
 
     val updateState by updateVM.state.collectAsState()
     val release = updateState.release
-    LaunchedEffect(preferences.updateUrl, preferences.autoCheckForUpdates) {
+    LaunchedEffect(preferences.autoCheckForUpdates) {
         if (UpdateChecker.ACTIVE && preferences.autoCheckForUpdates) {
             updateVM.init()
         }

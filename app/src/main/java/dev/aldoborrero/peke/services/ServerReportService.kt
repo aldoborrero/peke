@@ -92,7 +92,7 @@ class ServerReportService
                 $title
                 serverVersion=$serverVersion
                 clientInfo=$clientInfo
-                flavor=${BuildConfig.FLAVOR}
+                buildType=${BuildConfig.BUILD_TYPE}
                 deviceInfo=$deviceInfo
                 manufacturer=${Build.MANUFACTURER}
                 model=${Build.MODEL}

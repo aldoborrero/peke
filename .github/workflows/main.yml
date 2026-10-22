@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: read
     steps:
       - name: Checkout the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -33,17 +34,19 @@ jobs:
 
       - name: Get version names
         run: |
-          LATEST_TAG=$(git describe --tags --match 'v*' --abbrev=0)
-          VERSION_NAME=$(git describe --tags --match 'v*' --long)
+          LATEST_TAG=$(git describe --tags --match 'v*' --abbrev=0 || echo v0.0.0)
+          VERSION_NAME=$(git describe --tags --match 'v*' --long || echo v0.0.0)
           if [[ $BRANCH_NAME == "main" ]]; then
             TAG_NAME="develop"
           else
             TAG_NAME="${BRANCH_NAME/\//-}"
           fi
 
-          echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
-          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
+          {
+            echo "LATEST_TAG=$LATEST_TAG"
+            echo "VERSION_NAME=$VERSION_NAME"
+            echo "TAG_NAME=$TAG_NAME"
+          } >> "$GITHUB_ENV"
       - name: Build release app
         id: build
         env:
@@ -51,11 +54,12 @@ jobs:
           KEY_PASSWORD: "${{ secrets.KEY_PASSWORD }}"
           KEY_STORE_PASSWORD: "${{ secrets.KEY_STORE_PASSWORD }}"
           SIGNING_KEY: "${{ secrets.SIGNING_KEY }}"
-          ORG_GRADLE_PROJECT_WholphinExtensionsUsername: "${{ secrets.EXTENSIONS_USERNAME }}"
-          ORG_GRADLE_PROJECT_WholphinExtensionsPassword: "${{ secrets.EXTENSIONS_PASSWORD }}"
+          # A classic PAT with read:packages; GITHUB_TOKEN is only a fallback, it may not read another owner's packages
+          ORG_GRADLE_PROJECT_WholphinExtensionsUsername: "${{ secrets.EXTENSIONS_USERNAME || github.actor }}"
+          ORG_GRADLE_PROJECT_WholphinExtensionsPassword: "${{ secrets.EXTENSIONS_PASSWORD || secrets.GITHUB_TOKEN }}"
         run: |
-          ./gradlew clean assembleDefaultDebug
-          ./gradlew assembleDefaultRelease
+          ./gradlew clean assembleDebug
+          ./gradlew assembleRelease
 
       - name: Verify signatures
         run: |
@@ -67,8 +71,8 @@ jobs:
         run: |
           find app/build/outputs/apk -name '*.apk' -print0 |
             while IFS= read -r -d '' line; do
-              # Wholphin-release-0.2.9-62-g5c12e03-16-arm64-v8a.apk => Wholphin-arm64-v8a.apk
-              short_name="$(echo $line | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-g[a-fA-F0-9]+-[0-9]+//' | sed -E 's/-default//')"
+              # Peke-release-0.2.9-62-g5c12e03-16-arm64-v8a.apk => Peke-release-arm64-v8a.apk
+              short_name="$(echo "$line" | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-g[a-fA-F0-9]+-[0-9]+//')"
               echo "$line => $short_name"
               cp "$line" "$short_name"
             done
@@ -92,15 +96,15 @@ jobs:
           gh release delete "${{ env.TAG_NAME }}" --cleanup-tag -y || true
 
 
+          # The backticks are Markdown; Actions fills in the env expressions before the shell runs.
+          # shellcheck disable=SC2016
           echo '### `${{ env.BRANCH_NAME }}` development build
 
-          This pre-release tracks the development build of Wholphin from the `${{ env.BRANCH_NAME }}` unstable branch.
+          This pre-release tracks the development build of Peke for Jellyfin from the `${{ env.BRANCH_NAME }}` unstable branch. Install it by sideloading; the in-app updater only follows stable releases.
 
-          See https://github.com/damontecres/Wholphin/releases/latest for the latest stable release.
+          See https://github.com/aldoborrero/peke/releases/latest for the latest stable release.
 
-          If you want to update to this version in-app, change Settings->Advanced->Update URL to https://api.github.com/repos/damontecres/Wholphin/releases/tags/${{ env.TAG_NAME }} (replace `latest` with `tags/${{ env.TAG_NAME }}`).
-
-          [See changes since `${{ env.LATEST_TAG }}`](https://github.com/damontecres/Wholphin/compare/${{ env.LATEST_TAG }}...${{ env.TAG_NAME }})' > ci_release_note.txt
+          [See changes since `${{ env.LATEST_TAG }}`](https://github.com/aldoborrero/peke/compare/${{ env.LATEST_TAG }}...${{ env.TAG_NAME }})' > ci_release_note.txt
 
 
            gh release create "${{ env.TAG_NAME }}" \

@@ -520,17 +520,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val UpdateUrl =
-            AppStringPreference<AppPreferences>(
-                title = R.string.update_url,
-                defaultValue = "https://api.github.com/repos/damontecres/Wholphin/releases/latest",
-                getter = { it.updateUrl },
-                setter = { prefs, value ->
-                    prefs.update { updateUrl = value }
-                },
-                summary = R.string.update_url_summary,
-            )
-
         val OssLicenseInfo =
             AppDestinationPreference<AppPreferences>(
                 title = R.string.license_info,
@@ -1215,7 +1204,6 @@ val advancedPreferences =
                     preferences =
                         listOf(
                             AppPreference.AutoCheckForUpdates,
-                            AppPreference.UpdateUrl,
                         ),
                 ),
             )
@@ -1393,19 +1381,6 @@ data class AppSwitchPreference<Pref>(
             summaryOff != null && value == false -> context.getString(summaryOff)
             else -> summary?.let { context.getString(summary) }
         }
-}
-
-open class AppStringPreference<Pref>(
-    @param:StringRes override val title: Int,
-    override val defaultValue: String,
-    override val getter: (Pref) -> String,
-    override val setter: (Pref, String) -> Pref,
-    @param:StringRes val summary: Int?,
-) : AppPreference<Pref, String> {
-    override fun summary(
-        context: Context,
-        value: String?,
-    ): String? = summary?.let { context.getString(it) } ?: value
 }
 
 data class AppChoicePreference<Pref, T>(

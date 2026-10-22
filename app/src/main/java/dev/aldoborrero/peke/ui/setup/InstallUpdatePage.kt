@@ -52,7 +52,6 @@ import dev.aldoborrero.peke.services.DownloadCallback
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.Release
 import dev.aldoborrero.peke.services.UpdateChecker
-import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.ui.OneTimeLaunchedEffect
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.components.BasicDialog
@@ -79,7 +78,6 @@ import javax.inject.Inject
 class UpdateViewModel
     @Inject
     constructor(
-        private val userPreferencesService: UserPreferencesService,
         val updater: UpdateChecker,
         val navigationManager: NavigationManager,
     ) : ViewModel(),
@@ -95,9 +93,8 @@ class UpdateViewModel
         fun init() {
             _state.update { it.copy(loading = LoadingState.Loading) }
             viewModelScope.launchIO {
-                val updateUrl = userPreferencesService.getCurrent().appPreferences.updateUrl
                 try {
-                    val release = updater.getLatestRelease(updateUrl)
+                    val release = updater.getLatestRelease()
                     _state.update {
                         it.copy(
                             loading = LoadingState.Success,
@@ -106,7 +103,7 @@ class UpdateViewModel
                         )
                     }
                 } catch (ex: Exception) {
-                    Timber.e(ex, "Error fetching release from %s", updateUrl)
+                    Timber.e(ex, "Error fetching the latest release")
                     _state.update { it.copy(loading = LoadingState.Error(ex)) }
                 }
             }

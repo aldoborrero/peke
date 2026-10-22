@@ -30,7 +30,6 @@ import dev.aldoborrero.peke.preferences.AppDestinationPreference
 import dev.aldoborrero.peke.preferences.AppMultiChoicePreference
 import dev.aldoborrero.peke.preferences.AppPreference
 import dev.aldoborrero.peke.preferences.AppSliderPreference
-import dev.aldoborrero.peke.preferences.AppStringPreference
 import dev.aldoborrero.peke.preferences.AppSwitchPreference
 import dev.aldoborrero.peke.ui.components.DialogParams
 import dev.aldoborrero.peke.ui.components.DialogPopup
@@ -128,39 +127,6 @@ fun <T> ComposablePreference(
                 value = value as Boolean,
                 onClick = { onValueChange.invoke(!value as T) },
                 summary = preference.summary(context, value),
-                interactionSource = interactionSource,
-                modifier = modifier,
-            )
-        }
-
-        is AppStringPreference -> {
-            ClickPreference(
-                title = title,
-                onClick = {
-                    showStringDialog =
-                        StringInput(
-                            title = title,
-                            value = value as String?,
-                            keyboardOptions =
-                                KeyboardOptions(
-                                    autoCorrectEnabled = false,
-//                                    keyboardType =
-//                                        if (preference == AppPreference.UpdateUrl) {
-//                                            KeyboardType.Uri
-//                                        } else {
-//                                            KeyboardType.Unspecified
-//                                        },
-                                    imeAction = ImeAction.Done,
-                                ),
-                            onSubmit = { input ->
-                                onValueChange.invoke(input as T)
-                                showStringDialog = null
-                            },
-                        )
-                },
-                summary =
-                    preference.summary(context, value)
-                        ?: preference.summary?.let { stringResource(it) },
                 interactionSource = interactionSource,
                 modifier = modifier,
             )

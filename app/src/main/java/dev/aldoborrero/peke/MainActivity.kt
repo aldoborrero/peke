@@ -81,6 +81,7 @@ import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.requestSerializersModule
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -364,11 +365,11 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launchDefault {
             val appPreferences = userPreferencesDataStore.data.first()
-            if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates) {
+            // Update notices are for grown-ups only: never while the TV is locked to kids or a kid is using it
+            val grownUp = kidsModeService.lockEngaged.filterNotNull().first() == false && !kidsModeService.isActive
+            if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates && grownUp) {
                 try {
-                    updateChecker.maybeShowUpdateToast(
-                        appPreferences.updateUrl,
-                    )
+                    updateChecker.maybeShowUpdateToast()
                 } catch (ex: Exception) {
                     Timber.w(
                         ex,

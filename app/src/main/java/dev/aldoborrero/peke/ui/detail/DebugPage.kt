@@ -141,7 +141,6 @@ class DebugViewModel
                         "Version Code: ${pkgInfo.versionCodeLong}",
                         "ClientInfo:  $clientInfo",
                         "Build type: ${BuildConfig.BUILD_TYPE}",
-                        "Build flavor: ${BuildConfig.FLAVOR}",
                         "Build time: $buildTime",
                         "FFMPEG included: $ffmpegIncluded",
                         "AV1 included: $av1Included",

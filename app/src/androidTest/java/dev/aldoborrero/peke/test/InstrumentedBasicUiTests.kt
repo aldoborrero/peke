@@ -53,7 +53,7 @@ class InstrumentedBasicUiTests {
                 MainContent(
                     backStack = mutableListOf(SetupDestination.ServerList),
                     navigationManager = navigationManager,
-                    appPreferences = mockk(relaxed = true),
+                    userPreferences = mockk(relaxed = true),
                     backdropService = mockk(relaxed = true),
                     screensaverService = screensaverService,
                     modifier = Modifier,
