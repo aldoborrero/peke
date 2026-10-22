@@ -31,6 +31,8 @@ import com.github.damontecres.wholphin.ui.detail.livetv.DvrSchedule
 import com.github.damontecres.wholphin.ui.detail.livetv.TvGuideGrid
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -90,6 +92,15 @@ fun CollectionFolderLiveTv(
     modifier: Modifier = Modifier,
     viewModel: LiveTvCollectionViewModel = hiltViewModel(),
 ) {
+    if (!LocalInterfaceCustomization.current.allows(RestrictedFeature.LIVE_TV_RECORDINGS)) {
+        // The guide alone: no DVR schedule and no recording folders
+        TvGuideGrid(
+            preferences = preferences,
+            onRowPosition = {},
+            modifier = modifier.fillMaxSize(),
+        )
+        return
+    }
     val state by viewModel.state.collectAsState()
 
     when (val st = state.folders) {

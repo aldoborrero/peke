@@ -115,6 +115,8 @@ import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.LocalClock
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.util.ApiRequestPager
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
@@ -821,6 +823,7 @@ fun PlaylistItems(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
+    val customization = LocalInterfaceCustomization.current
     when (loadingState) {
         is LoadingState.Error -> {
             ErrorMessage(loadingState, modifier)
@@ -862,7 +865,7 @@ fun PlaylistItems(
                                     item?.id,
                                 ),
                             isQueued = item?.id in musicState.queuedIds,
-                            canMove = canMove,
+                            canMove = canMove && customization.allows(RestrictedFeature.EDIT_PLAYLISTS),
                             moveUpAllowed = index > 0,
                             moveDownAllowed = index < items.lastIndex,
                             onClickMove = { direction ->
@@ -872,7 +875,12 @@ fun PlaylistItems(
                                     MoveDirection.DOWN -> focusManager.moveFocus(FocusDirection.Down)
                                 }
                             },
-                            onClickMore = { onShowContextMenu.invoke(index, item, false) },
+                            onClickMore =
+                                if (customization.allows(RestrictedFeature.ITEM_MENUS)) {
+                                    { onShowContextMenu.invoke(index, item, false) }
+                                } else {
+                                    null
+                                },
                             modifier =
                                 Modifier
                                     .animateItem()
@@ -917,7 +925,7 @@ fun PlaylistItem(
     moveUpAllowed: Boolean,
     moveDownAllowed: Boolean,
     onClickMove: (MoveDirection) -> Unit,
-    onClickMore: () -> Unit,
+    onClickMore: (() -> Unit)?,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     isPlaying: Boolean = false,
@@ -1063,15 +1071,17 @@ fun PlaylistItem(
                     )
                 }
             }
-            Button(
-                onClick = onClickMore,
-                enabled = true,
-                contentHeight = contentHeight,
-            ) {
-                Text(
-                    text = stringResource(R.string.fa_ellipsis_vertical),
-                    fontFamily = FontAwesome,
-                )
+            if (onClickMore != null) {
+                Button(
+                    onClick = onClickMore,
+                    enabled = true,
+                    contentHeight = contentHeight,
+                ) {
+                    Text(
+                        text = stringResource(R.string.fa_ellipsis_vertical),
+                        fontFamily = FontAwesome,
+                    )
+                }
             }
         }
     }

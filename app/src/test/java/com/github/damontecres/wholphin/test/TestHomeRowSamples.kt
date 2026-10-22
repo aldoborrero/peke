@@ -4,6 +4,7 @@ import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.services.ProfilePolicy
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.components.ViewOptionImageType
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
@@ -132,6 +133,7 @@ class TestHomeRowSamples {
                 imageUrlService = mockk(),
                 suggestionService = mockk(),
                 displayPreferencesService = mockk(),
+                profilePolicy = ProfilePolicy.None,
             )
 
         val str = """{

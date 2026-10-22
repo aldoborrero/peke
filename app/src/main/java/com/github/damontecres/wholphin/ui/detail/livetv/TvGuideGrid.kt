@@ -58,6 +58,8 @@ import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import eu.wewox.programguide.ProgramGuide
@@ -85,6 +87,10 @@ fun TvGuideGrid(
     val tvPrefs = preferences.interfacePreferences.liveTvPreferences
     var showViewOptions by remember { mutableStateOf(false) }
     var showChannelDialog by remember { mutableStateOf<Pair<Int, TvChannel>?>(null) }
+    val customization = LocalInterfaceCustomization.current
+    // The view options change the app's settings
+    val viewOptions = customization.allows(RestrictedFeature.SETTINGS)
+    val channelMenu = customization.allows(RestrictedFeature.ITEM_MENUS)
 
     when (val st = state.loading) {
         is LoadingState.Error -> {
@@ -143,7 +149,7 @@ fun TvGuideGrid(
                         )
                     }
                     AnimatedVisibility(
-                        focusedPosition.row < 1,
+                        viewOptions && focusedPosition.row < 1,
                         enter = expandVertically(),
                         exit = shrinkVertically(),
                     ) {
@@ -165,7 +171,16 @@ fun TvGuideGrid(
                         channelProgramCount = state.channelProgramCount,
                         guideTimes = state.guideTimes,
                         onClickChannel = { index, channel ->
-                            showChannelDialog = index to channel
+                            if (channelMenu) {
+                                showChannelDialog = index to channel
+                            } else {
+                                viewModel.navigationManager.navigateTo(
+                                    Destination.Playback(
+                                        itemId = channel.id,
+                                        positionMs = 0L,
+                                    ),
+                                )
+                            }
                         },
                         onFocus = {
                             focusedPosition = it

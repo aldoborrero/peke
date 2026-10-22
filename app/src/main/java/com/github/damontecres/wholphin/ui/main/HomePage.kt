@@ -85,6 +85,8 @@ import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
@@ -224,7 +226,7 @@ fun HomePage(
                 showClock = preferences.appPreferences.interfacePreferences.showClock,
                 onUpdateBackdrop = viewModel::updateBackdrop,
                 showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                showViewMore = true,
+                showViewMore = LocalInterfaceCustomization.current.allows(RestrictedFeature.VIEW_MORE),
                 onClickViewMore = onClickViewMore,
                 modifier = modifier,
             )

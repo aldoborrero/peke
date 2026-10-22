@@ -150,6 +150,19 @@ class PlaylistCreator
         }
 
         /**
+         * The episode to play for a series: its next up episode, or else the first one
+         */
+        suspend fun nextUpEpisode(seriesId: UUID): BaseItemDto? {
+            val result by api.tvShowsApi.getNextUp(seriesId = seriesId)
+            return result.items.firstOrNull() ?: api.tvShowsApi
+                .getEpisodes(
+                    seriesId,
+                    limit = 1,
+                ).content.items
+                .firstOrNull()
+        }
+
+        /**
          * Create a [Playlist] contextually based on the given item.
          *
          * For example, an episode creates a queue of next up episodes in the series, or a movie creates one for its parts if needed
@@ -243,14 +256,7 @@ class PlaylistCreator
                                 PlaylistCreationResult.Success(Playlist(it))
                             }
                     } else {
-                        val result by api.tvShowsApi.getNextUp(seriesId = item.id)
-                        val nextUp =
-                            result.items.firstOrNull() ?: api.tvShowsApi
-                                .getEpisodes(
-                                    item.id,
-                                    limit = 1,
-                                ).content.items
-                                .firstOrNull()
+                        val nextUp = nextUpEpisode(item.id)
                         if (nextUp != null) {
                             PlaylistCreationResult.Success(
                                 createFromEpisode(

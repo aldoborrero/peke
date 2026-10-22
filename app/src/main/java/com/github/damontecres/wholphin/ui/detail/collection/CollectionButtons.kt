@@ -29,6 +29,8 @@ import com.github.damontecres.wholphin.ui.components.FilterByButton
 import com.github.damontecres.wholphin.ui.components.SortByButton
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import kotlin.time.Duration
 
 @Composable
@@ -48,6 +50,7 @@ fun CollectionButtons(
     val sortOptions = MovieSortOptions
     val filterOptions = DefaultFilterOptions
     val firstFocus = remember { FocusRequester() }
+    val itemMenus = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier,
@@ -108,14 +111,16 @@ fun CollectionButtons(
             }
 
             // More button
-            item("more") {
-                ExpandablePlayButton(
-                    title = R.string.more,
-                    resume = Duration.ZERO,
-                    icon = Icons.Default.MoreVert,
-                    onClick = { moreOnClick.invoke() },
-                    modifier = Modifier,
-                )
+            if (itemMenus) {
+                item("more") {
+                    ExpandablePlayButton(
+                        title = R.string.more,
+                        resume = Duration.ZERO,
+                        icon = Icons.Default.MoreVert,
+                        onClick = { moreOnClick.invoke() },
+                        modifier = Modifier,
+                    )
+                }
             }
         }
         LazyRow(

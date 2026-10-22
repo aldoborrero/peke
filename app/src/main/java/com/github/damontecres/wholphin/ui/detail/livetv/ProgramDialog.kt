@@ -41,6 +41,8 @@ import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.seasonEpisode
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.util.DataLoadingState
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -55,6 +57,7 @@ fun ProgramDialog(
     onCancelRecord: (BaseItem, series: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val recordAllowed = canRecord && LocalInterfaceCustomization.current.allows(RestrictedFeature.LIVE_TV_RECORDINGS)
     Dialog(
         onDismissRequest = onDismissRequest,
     ) {
@@ -166,7 +169,7 @@ fun ProgramDialog(
                                     }
                                 }
                             }
-                            if (canRecord) {
+                            if (recordAllowed) {
                                 val recordFocusRequester = remember { FocusRequester() }
                                 LazyRow(
                                     horizontalArrangement =

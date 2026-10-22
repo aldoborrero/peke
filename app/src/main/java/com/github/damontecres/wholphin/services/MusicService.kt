@@ -172,6 +172,20 @@ class MusicService
         }
 
         /**
+         * Pause music if it was started, without creating the player otherwise
+         */
+        suspend fun pauseIfStarted() {
+            if (mediaSession != null) onMain { player.pause() }
+        }
+
+        /**
+         * Stop music if it was started, without creating the player otherwise
+         */
+        suspend fun stopIfStarted() {
+            if (mediaSession != null) stop()
+        }
+
+        /**
          * Fetches instant mix items, replaces the queue, and begins playback
          */
         suspend fun startInstantMix(itemId: UUID) =

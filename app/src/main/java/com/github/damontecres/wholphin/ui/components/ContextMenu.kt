@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,8 @@ import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.util.supportedPlayableTypes
 import com.github.damontecres.wholphin.util.supportedShufflableTypes
 import org.jellyfin.sdk.model.UUID
@@ -148,6 +151,10 @@ fun ContextMenuDialog(
     getMediaSource: ((dto: BaseItemDto, itemPlayback: ItemPlayback?) -> MediaSourceInfo?)?,
     preferredSubtitleLanguage: String?,
 ) {
+    if (!LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)) {
+        LaunchedEffect(Unit) { onDismissRequest() }
+        return
+    }
     when (contextMenu) {
         is ContextMenu.ForBaseItem -> {
             ContextMenu(
