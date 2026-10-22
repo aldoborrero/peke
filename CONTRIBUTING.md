@@ -1,32 +1,43 @@
-# Contributing to Wholphin
+# Contributing to Peke
 
-We appreciate your interest in contributing to Wholphin!
+Thanks for helping. Peke is a small project, so a clear issue is often as useful as a pull request.
 
-## Code of Conduct
+## Code of conduct
 
-We follow Jellyfin's example by adhering to their [Code of Conduct](https://jellyfin.org/docs/general/community-standards/#code-of-conduct).
+Peke follows Jellyfin's [Code of Conduct](https://jellyfin.org/docs/general/community-standards/#code-of-conduct).
 
-## How to contribute
+## Issues
 
-You can contribute in several ways:
-* File bug reports
-* Request new features
-* Propose code changes via pull request
-* Submit translations to https://translate.codeberg.org/engage/wholphin/
+- Bugs: say what you did, what you expected and what happened, with the device, the Peke version, the Jellyfin
+  version and the Jellyfin Kids plugin version. Logs help (for example from `adb logcat`); check them for personal
+  information before posting.
+- Server-side rules (allowances, the parent code, enforcement, live TV channels) live in the
+  [Jellyfin Kids](https://github.com/aldoborrero/jellyfin-kids) plugin. Report those there.
+- Feature ideas: describe the problem for a kid or a grown-up first, then the change you have in mind.
+- If you used an AI tool to write the issue, say so at the end of it, under "AI usage".
 
-In all cases, be sure to fully explain the issue.
+## Pull requests
 
-### Code change proposals
+Open an issue before a large change, so we can agree on it first. Peke is built for one audience, so features for
+grown-ups watching (rather than setting the TV up) usually belong in another Jellyfin client.
 
-You acknowledge that, if applicable, submitting and subsequent acceptance of any pull request you, the code contributor of the pull request, agree and acknowledge that the code will be licensed under [GPLv2](LICENSE).
+Before you open the pull request:
 
-Please be thoughtful when contributing code and consider the long term maintenance/support aspect for any new features.
+1. Work in the Nix devshell (`direnv allow`, or `nix develop`). See [DEVELOPMENT.md](DEVELOPMENT.md).
+2. Run the tests: `nix develop -c ./gradlew testDebugUnitTest`.
+3. Format: `nix fmt`. `nix flake check` fails on unformatted files.
+4. Test on an Android TV device or emulator with the remote's D-pad, and add screenshots if the change touches the
+   interface.
+5. Add English and Spanish strings for any new text. A unit test fails when a Spanish translation is missing.
 
-See the [developer's guide](./DEVELOPMENT.md) for more information.
+Larger features are planned with [spec-kit](https://github.com/github/spec-kit) under `specs/`, following the project
+constitution in `.specify/memory/constitution.md`.
 
+By submitting a pull request, you agree that your contribution is licensed under the [GPLv2](LICENSE), like the rest
+of Peke.
 
-#### Policy for AI or LLMs
+### AI-assisted contributions
 
-Wholphin has adopted the [Jellyfin LLM/"AI" Development Policy](https://jellyfin.org/docs/general/contributing/llm-policies/). AI/LLM assisted code contributions are permitted under the policy, but the author must undertand and be able to explain the code changes in their own words.
-
-At a minimum, you must disclose the usage any of AI/LLM assistance and you must write the pull request description _without_ AI assistance.
+You may use AI tools for issues and pull requests. In an issue, say so at the end, under "AI usage". In a pull
+request, you must understand the change and be able to explain it in your own words, and say which parts were
+AI-assisted. Agents working in this repository follow [AGENTS.md](AGENTS.md).

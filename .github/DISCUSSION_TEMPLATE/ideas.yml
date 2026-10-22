@@ -11,3 +11,10 @@ body:
       placeholder: "I would like to see..."
     validations:
       required: true
+  - type: textarea
+    id: ai-usage
+    attributes:
+      label: "AI usage"
+      description: If you wrote this with an AI tool, say so here and which parts.
+    validations:
+      required: false

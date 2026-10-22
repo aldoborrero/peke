@@ -1,105 +1,109 @@
-# Wholphin developer's guide
+# Peke developer's guide
 
-See also the [Contributing](CONTRIBUTING.md) guide for general information on contributing to the project.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose a change, and [AGENTS.md](AGENTS.md) for the rules AI
+agents follow in this repository.
 
-##  Overview
+## Overview
 
-This project is an Android TV client for Jellyfin. It is written in Kotlin and uses the official [Jellyfin Kotlin SDK](https://github.com/jellyfin/jellyfin-sdk-kotlin) to interact with the server.
+Peke is a kids-only Android TV client for Jellyfin, forked from [Wholphin](https://github.com/damontecres/Wholphin).
+It is written in Kotlin and talks to the server through the official
+[Jellyfin Kotlin SDK](https://github.com/jellyfin/jellyfin-sdk-kotlin). Household rules (kid profiles, the parent
+code, screen time, live TV channels) come from the [Jellyfin Kids](https://github.com/aldoborrero/jellyfin-kids)
+server plugin through its `/Kids` API.
 
-The app is a single Activity (`MainActivity`) with MVVM architecture.
+The app is a single activity (`MainActivity`) with an MVVM architecture. It uses:
 
-The app uses:
-* [Compose](https://developer.android.com/jetpack/compose) for the UI
-* [Navigation 3](https://developer.android.com/guide/navigation/navigation-3) for navigating app screen
-* [Room](https://developer.android.com/training/data-storage/room) & [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) for local data storage
-* [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) for dependency injection
-* [Media3/ExoPlayer](https://developer.android.com/media/media3/exoplayer) for media playback
-* [MPV/libmpv](https://github.com/mpv-player/mpv) for media playback
-* [Coil](https://coil-kt.github.io/coil/) for image loading
-* [OkHttp](https://square.github.io/okhttp/) for HTTP requests
+- [Compose for TV](https://developer.android.com/training/tv/playback/compose) for the UI
+- [Navigation 3](https://developer.android.com/guide/navigation/navigation-3) for navigation
+- [Room](https://developer.android.com/training/data-storage/room) and
+  [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) for local data
+- [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) for dependency injection
+- [Media3/ExoPlayer](https://developer.android.com/media/media3/exoplayer) and [MPV](https://github.com/mpv-player/mpv)
+  for playback
+- [Coil](https://coil-kt.github.io/coil/) for images and [OkHttp](https://square.github.io/okhttp/) for HTTP
 
-## Getting started
+## Development environment
 
-We follow GitHub's fork & pull request model for contributions.
+Everything runs from the Nix devshell (`direnv allow`, or `nix develop`). It provides the JDK, the Android SDK, adb,
+ktlint and the other tools listed in `nix/devshell.nix`.
 
-After forking and cloning your fork, you can import the project into Android Studio.
+```sh
+nix develop -c ./gradlew assembleDebug           # build the debug APKs
+nix develop -c ./gradlew testDebugUnitTest       # unit tests (JUnit4, Robolectric, MockK)
+nix develop -c ./gradlew compileDebugAndroidTestKotlin
+nix fmt                                          # treefmt: ktlint, nixfmt, deadnix, actionlint
+nix flake check                                  # includes the format check
+```
 
-### Development environment
+Android Studio works too: open the project after `direnv allow` so it picks up the same SDK. Code follows
+[ktlint](https://github.com/pinterest/ktlint) 1.8.0, the version in `.pre-commit-config.yaml` and the devshell.
+[pre-commit](https://pre-commit.com) runs ktlint and a few other checks on each commit.
 
-It is recommended to use a recent version of [Android Studio](https://developer.android.com/studio). Make sure the [version is compatible](https://developer.android.com/build/releases/gradle-plugin#android_gradle_plugin_and_android_studio_compatibility) with Wholphin's AGP version.
+### Playback extensions
 
-Code formatting should follow [ktlint's](https://github.com/pinterest/ktlint) rules. Find the `ktlint` version in [`.pre-commit-config.yaml`](./.pre-commit-config.yaml). Optionally, install the [ktlint plugin](https://plugins.jetbrains.com/plugin/15057-ktlint) in Android Studio to run automatically. Configure the version in `Settings->Tools->KtLint->Ruleset Version`.
+MPV and the Media3 FFmpeg and AV1 decoders come from
+[wholphin-extensions](https://github.com/damontecres/wholphin-extensions) on GitHub Packages. The README explains the
+`read:packages` token they need. You can also build them locally and put the AARs in `app/libs`; Gradle prefers those
+files over the remote ones.
 
-Also, it's recommend to add an extra ruleset jar for Compose-specific KtLint: https://mrmans0n.github.io/compose-rules/ktlint/#using-with-ktlint-cli-or-the-ktlint-intellij-plugin
+Without the extensions, debug builds use the `wholphin-mpv-stub` module, which compiles but throws when MPV is used,
+and leave the decoders out. Release builds refuse to build without them, since Peke plays files directly instead of
+asking the server to transcode.
 
-Also setup [pre-commit](https://github.com/pre-commit/pre-commit) which will run `ktlint` as well on each commit, plus check for other common issues.
-
-#### Extensions
-
-Wholphin uses several native components for extra playback compatibility. This includes Media3 ffmpeg/av1 decoders and `libmpv`. These extensions are not required to build the app, but without them some functionality will not work.
-
-If you want to include these in a local build, see the [instructions here](https://github.com/damontecres/wholphin-extensions?tab=readme-ov-file#usage) for configuring the repository.
-
-You can also build the extensions locally from https://github.com/damontecres/wholphin-extensions and include them in `app/libs`. The gradle build dependency resolution prefers these local files over fetching from the remote maven registry.
-
-Finally, if no `wholphin-mpv` implementation is found, `wholphin-mpv-stub` will be used. This allows the app to compile, but any runtime usage of MPV will throw an exception.
+The `com.github.damontecres.wholphin.mpv` package is the API of that external library. Its native code binds those
+class names, so the package keeps Wholphin's name while the rest of the app lives under `dev.aldoborrero.peke`.
 
 ## Code organization
 
-Code is split into several packages:
-- `data` - app-specific data models and services
-- `preferences` - Non-UI related code for user settings and preferences
-- `services` - hilt injectable services often used by ViewModels for API calls
-- `ui` - User interface code and ViewModels
-- `util` - Utility classes and functions
+Everything is under `dev.aldoborrero.peke`:
 
-### Settings
+- `kids` - Peke's own code: kid profiles and the plugin client (`server`), the parent gate (`gate`), the kids' home
+  and live TV (`home`, `livetv`), screen time (`timer`), autoplay and refused playback (`playback`), the kids
+  database (`data`) and its screens (`ui`)
+- `data` - app data models and the Room database for servers, users and display settings
+- `preferences` - settings that aren't UI code
+- `services` - Hilt-injected services, often used by ViewModels for API calls
+- `ui` - screens and ViewModels
+- `util` - utility classes and functions
 
-There are a few different ways user settings are stored:
-1. `AppPreferences` via DataStore
-2. Room database
-3. Key-Value DataStore
+Specifications for each feature are in `specs/`, written with [spec-kit](https://github.com/github/spec-kit). The
+project constitution in `.specify/memory/constitution.md` sets the rules every feature follows.
 
-#### App preferences
+## Settings
 
-These are generally settings that apply across the whole app regardless of the currently active user.
+Peke stores settings in four places.
 
-The `AppPreferences` object can be retrieved from the `UserPreferencesService` or directly via injecting `DataStore<AppPreferences>`.
+### App preferences
 
-The `AppPreference` (note the `s` differences) objects are used to create the UI for configuring settings using the composable functions in `com.github.damontecres.wholphin.ui.preferences`.
+Settings that apply to the whole app, whatever the current user. They live in `AppPreferences`, a proto DataStore
+defined in `app/src/main/proto/PekeDataStore.proto`, and are read through `UserPreferencesService` or by injecting
+`DataStore<AppPreferences>`. The `AppPreference` objects in `AppPreference.kt` build the settings screens with the
+composables in `dev.aldoborrero.peke.ui.preferences`.
 
-##### How to add a new app setting
+Only grown-ups see Settings. A kid's options (autoplay, search, home sections) come from their plugin profile, not
+from these preferences.
 
-1. Add entry in `WholphinDataStore.proto` & build to generate classes
-2. Add new `AppPreference` object in `AppPreference.kt`
-3. Add new object to a `PreferenceGroup` (listed in `AppPreference.kt`)
-4. Update `AppPreferencesSerializer` to set the default value for new installs
-5. If needed, update `AppUpgradeHandler` to set the default value for app upgrades
-    - Since preferences use proto3, the [default values](https://protobuf.dev/programming-guides/proto3/#default) are zero, false, or the first enum, so only need this step if the default value is different
+To add an app setting:
 
-#### Room settings
+1. Add the field to `PekeDataStore.proto` and build to generate the classes.
+2. Add an `AppPreference` object in `AppPreference.kt` and put it in a `PreferenceGroup`.
+3. Set its default for new installs in `AppPreferencesSerializer`. Proto3 defaults are zero, false or the first enum
+   value, so this is only needed when the default is something else.
 
-These are settings were generally are applied per user. They are stored in several different tables. The entities are defined in `com.github.damontecres.wholphin.data.model`.
+### Room
 
-Additionally, all server and user info for both Jellyfin and Seerr are stored in Room tables.
+`AppDatabase` holds servers, users, per-library display settings and playback state. Some values, such as
+`GetItemsFilter` or `ViewOptions`, are stored as JSON in a column; use that sparingly.
 
-Some examples are:
-- `JellyfinServer`
-- `JellyfinUser`
-- `SeerrServer`
-- `LibraryDisplayInfo`
-- `ItemPlayback`
+`KidsDatabase` (`peke_kids`) holds what Peke caches from the plugin: kid profiles and the plugin's state for each
+server. It is a separate database, and `KidsDataCleaner` removes kids data when a server or user goes away.
 
-Some of the models, such as `GetItemsFilter` or `ViewOptions`, are stored as JSON in a column instead of defined entities. This should be used sparingly.
+### Key-value settings
 
-#### Key-value settings
+Small per-user values saved as JSON `@Serializable` objects through `KeyValueService`. Use sparingly.
 
-These settings are similar to Room ones and are usually stored per user. These can be accessed via `KeyValueService`. The values are `@Serializable` objects saved as JSON.
+### Experimental
 
-This should be used sparingly.
-
-#### Experimental
-
-Some settings are considered "experimental". These may cause instabilities or may need further testing. They may be changed or removed any time.
-
-These are stored in the `ExperimentalPreferences` object in `AppPreferences`. Accessing them should always be gated with `ExperimentalPreferences.enabled`. There are a few helper functions for this purpose.
+Settings that may be unstable or need more testing live in `ExperimentalPreferences` inside `AppPreferences`, and
+may change or go away at any time. Check `ExperimentalPreferences.enabled` before reading them; there are helper
+functions for that.

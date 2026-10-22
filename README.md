@@ -1,142 +1,117 @@
-# Wholphin - an OSS Android TV client for Jellyfin
+<div align="center">
 
-> "Never half-phin two jellies. Always wholphin one jelly."
+<img src="docs/assets/banner.svg" alt="Peke for Jellyfin: a kids-only Android TV app for your Jellyfin server" width="100%" />
 
-Wholphin is an open-source Android TV client for Jellyfin. It aims to provide a different app UI that's inspired by Plex for users interested in migrating to Jellyfin.
+### A TV app made only for kids, run by the rules on your Jellyfin server.
 
-This is not a fork of the [official client](https://github.com/jellyfin/jellyfin-androidtv). Wholphin's user interface and controls have been written completely from scratch. Wholphin supports playing media using either ExoPlayer or MPV.
+**Kids get their own home, picks and channels on the big screen. Grown-ups set the rules once, on the server.**
 
-<p align="center">
-<a href="https://github.com/damontecres/Wholphin/releases">
-<img alt="Current Release" src="https://img.shields.io/github/release/damontecres/wholphin.svg"/>
-</a>
-<a href="https://translate.codeberg.org/engage/wholphin/">
-<img src="https://translate.codeberg.org/widget/wholphin/wholphin/svg-badge.svg" alt="Translation status" />
-</a>
-<br/>
-<a href="https://play.google.com/store/apps/details?id=com.github.damontecres.wholphin">
-<img width="180" alt="Get Wholphin on Google Play" src="https://github.com/user-attachments/assets/2550a4cb-ce46-47a1-ae24-f33a169234b7"/>
-</a>
-<a href="https://www.amazon.com/gp/product/B0G8RQQR9T/ref=mas_pm_wholphin">
-<img width="180" alt="Get Wholphin on Amazon AppStore" src="https://github.com/user-attachments/assets/1f3a3b26-4b4f-44b1-9741-f4c895c8a53b"/>
-</a>
+[![CI](https://img.shields.io/github/actions/workflow/status/aldoborrero/peke/main.yml?branch=main&style=flat-square&label=CI)](https://github.com/aldoborrero/peke/actions/workflows/main.yml)
+[![Android TV](https://img.shields.io/badge/Android%20TV-6.0%2B-3ddc84?style=flat-square&logo=android&logoColor=white)](https://www.android.com/tv/)
+[![Jellyfin 12.x](https://img.shields.io/badge/Jellyfin-12.x-aa5cc3?style=flat-square)](https://jellyfin.org/)
+[![GPLv2 license](https://img.shields.io/badge/license-GPLv2-f4c430?style=flat-square)](LICENSE)
 
+[Install](#install) · [What it does](#what-it-does) · [How it works](#how-it-works) · [Building](#building) · [Contributing](#contributing) · [Credits](#credits)
 
-</p>
+</div>
 
-![v0_5_1_home](https://github.com/user-attachments/assets/62bb1703-abdf-4154-9054-e00b6ceb57b5)
+---
 
-## Features
+Peke is an Android TV app for children, for households that run their own [Jellyfin](https://jellyfin.org) server with
+the [Jellyfin Kids](https://github.com/aldoborrero/jellyfin-kids) plugin. A kid picks their profile and lands on a
+home with their own picks, shows and live channels, all reachable with a D-pad remote. When the time a grown-up set
+runs out, Peke stops and tells the kid why.
 
-### User interface
+Grown-ups use Peke only to set the TV up and watch with another Jellyfin client.
 
-- Customize the home page to see the content you are interested in
-    - Use poster or thumb images, show/hide titles, add/remove/re-order different types of rows!
-    - Option to combine the Continue Watching & Next Up into a single row
-    - Pin collections, playlists, favorites, genres, and studios
-    - Remove series from next up
-- A navigation drawer for quick access to libraries, favorites, search, and settings from almost anywhere in the app
-- Integration with [Seerr](https://github.com/seerr-team/seerr) to discover new movies and TV shows
-    - Note: only available when installed from [GitHub](https://github.com/damontecres/Wholphin/releases/latest) or the [Play store](https://play.google.com/store/apps/details?id=com.github.damontecres.wholphin)
-- Customize library display
-  - Option to show Movie/TV Show titles
-  - Choose image types & size
-  - Choose from grid or list layouts
-- Play theme music, if available
-- Customize subtitle style for plain text subtitles with separate HDR settings
-- Search & download subtitles (requires compatible server plugin such as [OpenSubtitles](https://github.com/jellyfin/jellyfin-plugin-opensubtitles))
-- Multiple app color themes
-- Protect user profile switches with PIN code or require server login
-- Change the user interface language per user
-- In-app & Android OS screensaver support
+Peke is a fork of [Wholphin](https://github.com/damontecres/Wholphin) by damontecres. It keeps Wholphin's player
+and much of its code, and turns it into an app for one audience: kids. Peke is not an official Jellyfin app.
 
-### Playback
+> [!NOTE]
+> Early development. The first release, v0.1.0, is on its way.
 
-- Different media playback engines:
-  - **ExoPlayer** w/ optional extra audio, SSA/ASS, & AV1 software decoding
-  - **MPV** for direct playing anything with great SSA/ASS subtitle support
-- Plex inspired playback controls:
-  - Using D-Pad left/right for seeking during playback
-  - Quickly access video chapters & queue during playback
-  - Optionally skip back a few seconds when resuming playback
-- Live TV & DVR support
-- Music & music video support
-- Cinema mode/pre-roll intro support (requires compatible server plugin such as [Intros](https://github.com/jellyfin/jellyfin-plugin-intros))
-- Auto play next episodes with pass out protection
-- Option for automatic refresh rate & resolution switching on supported displays
-- Trickplay (video preview) support
-- Subtly show playback position along the bottom of the screen while seeking w/ D-Pad
+## Install
 
-### Roadmap
+You need:
 
-See [here for the roadmap](https://github.com/damontecres/Wholphin/wiki#roadmap)
+- an Android TV, Google TV or Fire TV device running Android 6 or later;
+- a Jellyfin 12.x server with the [Jellyfin Kids](https://github.com/aldoborrero/jellyfin-kids) plugin 0.0.7.0 or
+  later. Without the plugin, Peke only shows the grown-up setup screen and explains what is missing.
 
-## Installation
+Peke is installed by sideloading:
 
-Using [Google Play](https://play.google.com/store/apps/details?id=com.github.damontecres.wholphin) or [Amazon appstore](https://www.amazon.com/gp/product/B0G8RQQR9T/ref=mas_pm_wholphin) are the fastest way to install. But you can follow these instructions to install without needing an app store
+1. Allow installing apps from unknown sources on the TV.
+2. Download the APK for your TV from the [latest release](https://github.com/aldoborrero/peke/releases/latest):
+   `Peke-armeabi-v7a.apk` for most TVs (many run 32-bit apps even on 64-bit chips), `Peke-arm64-v8a.apk` for
+   64-bit ones, or `Peke.apk`, which works everywhere and is larger.
+3. Install it with a file manager, the Send files to TV app, or `adb install`.
 
-Downloader Code: `8668671`
+Peke checks its own GitHub releases for updates, and a grown-up installs them from Settings. Its application id is
+`dev.aldoborrero.peke`, so it installs next to Wholphin or any other Jellyfin client.
 
-1. Enable side-loading "unknown" apps
-    - https://androidtvnews.com/unknown-sources-chromecast-google-tv/
-    - https://www.xda-developers.com/how-to-sideload-apps-android-tv/
-    - https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources
-    - https://www.aftvnews.com/how-to-enable-apps-from-unknown-sources-on-an-amazon-fire-tv-or-fire-tv-stick/
-2. Install the APK on your Android TV device with one of these options:
-    - Install a browser program such as [Downloader](https://www.aftvnews.com/downloader/), use it to get the latest apk with short code `8668671` or URL: http://aftv.news/8668671
-    - Download the latest APK release from the [releases page](https://github.com/damontecres/Wholphin/releases/latest) or http://aftv.news/8668671
-        - Put the APK on an SD Card/USB stick/network share and use a file manager app from the Google Play Store / Amazon AppStore (e.g. `FX File Explorer`). Android's preinstalled file manager probably will not work!
-        - Use `Send files to TV` from the Google Play Store on your phone & TV
-        - (Expert) Use [ADB](https://developer.android.com/studio/command-line/adb) to install the APK from your computer ([guide](https://fossbytes.com/side-load-apps-android-tv/#h-how-to-sideload-apps-on-your-android-tv-using-adb))
+## What it does
 
-### Upgrading the app
+| | |
+|---|---|
+| **A home for each kid** | Picks, favourites, shows and films from the libraries the kid's Jellyfin account allows, plus their live TV channels when a grown-up chose some. |
+| **Only what kids need** | Video only: no music, people or photo pages, no player debug options, no trailers before films and no theme music. Search and voice search appear only for kids allowed to search. |
+| **Screen time from the server** | Daily allowance, time per sitting and breaks are counted by the plugin across every TV in the house. Peke shows the time left, warns before it ends and explains a stop. |
+| **Parent gate** | One household code, typed with the remote's arrows or digits. It opens the kid's settings, adds time, or leaves the kids' side. |
+| **Grown-up setup screen** | A grown-up profile opens a short screen: kids settings, Peke's settings, Quick Connect, the user list and licenses. It never opens browsing or playback. |
+| **Direct play first** | ExoPlayer with the FFmpeg and AV1 decoders, and MPV, so most files play without server transcoding. |
+| **English and Spanish** | The whole app, kids' screens included. |
 
-After the initial install above, the app will automatically check for updates. The updates can be installed in settings.
+## How it works
 
-The first time you attempt an update, the OS should guide you through enabling the required additional permissions for the app to install updates.
+The server decides. Kid profiles, the parent code, the daily allowance, sitting limits, breaks, picks and live TV
+channels all come from the Jellyfin Kids plugin, which counts screen time across every TV, so switching TVs doesn't
+reset it. With the plugin's enforcement turned on, the server also stops kids on other Jellyfin apps. What a kid can
+see comes from their Jellyfin account (libraries, parental rating, allowed hours).
 
-Note: if installed via an app store, the app store will handle updates.
+Peke caches the rules for offline use and fails closed: if it can't read them, the kids' side stays locked.
 
-## Compatibility
+## Building
 
-Requires Android 6+ (or Fire TV OS 6+) and Jellyfin server `10.10.x` or `10.11.x` (tested on primarily `10.11`).
+Everything builds in the Nix devshell (`direnv allow`, or `nix develop`):
 
-The app is tested on a variety of Android TV/Fire TV OS devices, but if you encounter issues, please file an issue!
+```sh
+nix develop -c ./gradlew assembleDebug testDebugUnitTest
+nix develop -c ./gradlew assembleRelease
+nix fmt
+```
 
-Seerr integration is generally tested with the latest stable version. Older versions may not work as expected. The Seerr server should configured with integration to your Jellyfin server for full compatibility.
+MPV and the Media3 FFmpeg and AV1 decoders come from the
+[wholphin-extensions](https://github.com/damontecres/wholphin-extensions) package feed on GitHub Packages, which
+needs a GitHub token even for public packages. Create a classic personal access token with only the `read:packages`
+scope and give it to Gradle, never to the repository:
 
-## Contributions
+```properties
+# ~/.gradle/gradle.properties
+WholphinExtensionsUsername=<your GitHub login>
+WholphinExtensionsPassword=<classic token with read:packages>
+```
 
-Issues and pull requests are always welcome! Please check before submitting that your issue or pull request is not a duplicate.
+You can also set `ORG_GRADLE_PROJECT_WholphinExtensionsUsername` and
+`ORG_GRADLE_PROJECT_WholphinExtensionsPassword`. Debug builds work without the token, with an MPV stub and no
+decoders; release builds refuse to build without it. CI reads the same values from the repository secrets
+`EXTENSIONS_USERNAME` and `EXTENSIONS_PASSWORD`.
 
-If you plan to contribute, please read the [contributing guide](CONTRIBUTING.md)!
+Releases are tagged `vMAJOR.MINOR.PATCH`, and the number of tags is the version code.
 
-You can [help translate Wholphin](https://translate.codeberg.org/engage/wholphin/)!
+## Contributing
 
-## Acknowledgements
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up, test and format a
+change, and [DEVELOPMENT.md](DEVELOPMENT.md) for how the code is laid out.
 
-- Thanks to the Jellyfin team for creating and maintaining such a great open-source media server
-- Thanks to the official Jellyfin Android TV client developers, some code for creating the device direct play profile is adapted from there
-- Thanks to the Jellyfin Kotlin SDK developers for making it easier to interact with the Jellyfin server API
-- Thanks to numerous other libraries that make app development even possible
+## Credits
 
-## Additional screenshots
+- damontecres and the Wholphin contributors. Peke is a fork of [Wholphin](https://github.com/damontecres/Wholphin)
+  and is built on its player, data layer and interface.
+- The Jellyfin team for the server, and the developers of the official Jellyfin Android TV client, whose device
+  direct play profile code Wholphin adapted.
+- The Jellyfin Kotlin SDK developers and the authors of every library Peke uses. The license screen in the app lists
+  them all.
 
-### Customized home page
-![customize_home_example](https://github.com/user-attachments/assets/9a4f04b7-9604-4ea7-b352-50f2b15dc2f1)
+## License
 
-### Movie library browsing
-![v0_5_1_library](https://github.com/user-attachments/assets/fad0424b-0631-4438-a8bc-d4fbb95a5bf3)
-
-### Movie page
-![v0_5_1_movie](https://github.com/user-attachments/assets/849aad34-49d5-4864-8de7-005bbcb68ac6)
-
-### Series page
-![v0_5_1_series](https://github.com/user-attachments/assets/655389e1-6a6f-43bc-85e1-e2feffb20429)
-
-### Genres in library
-![v0_5_1_genres](https://github.com/user-attachments/assets/5bbcbeb6-edc9-42c7-a1d8-d92fa432a498)
-
-
-### Playlist
-![v0_5_1_playlist](https://github.com/user-attachments/assets/98268f7d-479d-41c6-b47b-3e67bbe661bc)
+Peke is licensed under the GNU General Public License version 2 only, like Wholphin. See [LICENSE](LICENSE).

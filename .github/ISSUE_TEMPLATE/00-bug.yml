@@ -60,8 +60,15 @@ body:
     id: logs
     attributes:
       label: "Logs"
-      description: Please [gather any logs or crash reports](https://github.com/damontecres/Wholphin/wiki/Gathering-app-logs) and include them here.
+      description: Include logs if you can, for example from `adb logcat`.
       placeholder: Review logs for personal information before sharing them here publicly!
       render: bash
+    validations:
+      required: false
+  - type: textarea
+    id: ai-usage
+    attributes:
+      label: "AI usage"
+      description: If you wrote this with an AI tool, say so here and which parts.
     validations:
       required: false

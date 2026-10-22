@@ -1,17 +1,16 @@
-<!-- By submitting this pull request, you acknowledge that you have read the [contributing guide](https://github.com/damontecres/Wholphin/blob/main/CONTRIBUTING.md, including the AI/LLM policy, and [developer's guide](https://github.com/damontecres/Wholphin/blob/main/DEVELOPMENT.md) -->
+<!-- By opening this pull request you confirm you have read CONTRIBUTING.md and DEVELOPMENT.md, and that your change is licensed under the GPLv2. -->
 
 ## Description
-<!-- Describe the changes in detail -->
+<!-- What changes and why -->
 
 ### Related issues
-<!-- If this is a new feature or a change, there must be a discussion in an issue first, reference the issue here -->
-<!-- If fixing a bug, reference the bug issue here, or describe the bug, including steps to reproduce -->
+<!-- Reference the issue this fixes or implements. Larger changes need an issue first. -->
 
 ### Testing
-<!-- Describe how this change was tested and on what device(s) -->
+<!-- How you tested it, and on which device or emulator (D-pad included) -->
 
 ## Screenshots
-<!-- Please include screenshots if the PR alters any UI elements -->
+<!-- Required if the change touches the interface -->
 
-## AI or LLM usage
-<!-- If you used any AI or LLM assistance, please list where in the code and how you tested it -->
+## AI usage
+<!-- Which parts were AI-assisted, if any -->
