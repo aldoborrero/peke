@@ -192,6 +192,7 @@ configure<ApplicationExtension> {
     }
     androidResources {
         generateLocaleConfig = true
+        localeFilters += listOf("en", "es")
     }
 }
 
