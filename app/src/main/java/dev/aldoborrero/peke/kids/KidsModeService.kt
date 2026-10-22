@@ -102,6 +102,16 @@ class KidsModeService
                 kidCount > 0 && flag != false
             }.stateIn(scope, SharingStarted.Eagerly, null)
 
+        /**
+         * Whether the kids lock is engaged as stored, null until read. Unlike [locked] it doesn't depend on the cached
+         * kid profiles, so it stays engaged if they are lost: the grown-up shell is only shown when this is false.
+         */
+        val lockEngaged: StateFlow<Boolean?> =
+            keyValueService
+                .get<Boolean>(LOCK_KEY)
+                .map { it == true }
+                .stateIn(scope, SharingStarted.Eagerly, null)
+
         @Volatile
         private var lastProfileRefresh: Long? = null
 

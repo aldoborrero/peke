@@ -336,14 +336,11 @@
     <string name="install_update">Install update</string>
     <string name="installed_version">Installed version</string>
     <string name="max_homepage_items">Max items on home page rows</string>
-    <string name="nav_drawer_switch_on_focus_summary_off">Click to switch pages</string>
-    <string name="nav_drawer_switch_on_focus">Switch nav drawer pages on focus</string>
     <string name="pass_out_protection">Passout Protection</string>
     <string name="play_theme_music">Play theme music</string>
     <string name="playback_overrides">Playback overrides</string>
     <string name="remember_selected_tab">Remember selected tabs</string>
     <string name="rewatch_next_up">Enable rewatching in next up</string>
-    <string name="seek_bar_steps">Seek bar steps</string>
     <string name="send_app_logs_summary">Useful for debugging</string>
     <string name="send_app_logs">Send app logs to current server</string>
     <string name="send_crash_reports_summary">Will try to send to last connected server</string>
@@ -561,7 +558,6 @@
     <string name="settings_saved">Settings saved</string>
     <string name="display_presets">Display presets</string>
     <string name="display_presets_description">Built-in presets to quickly style all rows</string>
-    <string name="customize_home_summary">Choose rows and images on the home page</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transcode non-stereo audio to AC3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Use AC3 for surround sound audio</string>
     <string name="start_after">Start after</string>
@@ -1051,5 +1047,8 @@
     <string name="kids_session_limit_summary">Counted on the server across every device, then a break</string>
     <string name="kids_household_code">Household parent code</string>
     <string name="kids_household_code_summary">The same code on every TV of this server</string>
+    <string name="peke_shell_subtitle">Set up this TV for the kids. Grown-ups watch with another Jellyfin app.</string>
+    <string name="peke_shell_switch_user">Switch user</string>
+    <string name="peke_plugin_needed">Peke needs the Jellyfin Kids plugin (0.0.7.0 or later) on this server. Ask the server\'s administrator to install or update it.</string>
     <string name="peke_license_credit">Peke for Jellyfin is a fork of Wholphin by damontecres, licensed under the GNU GPL version 2. Source: github.com/aldoborrero/peke. Wholphin: github.com/damontecres/Wholphin. Peke is not an official Jellyfin app.</string>
 </resources>

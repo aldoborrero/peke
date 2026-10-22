@@ -39,9 +39,10 @@ enum class PreferenceScreenOption {
     SKIP_SEGMENTS,
     EXPERIMENTAL,
     HDR_FORMATS,
+    PEKE,
     ;
 
     companion object {
-        fun fromString(name: String?) = entries.firstOrNull { it.name == name } ?: BASIC
+        fun fromString(name: String?) = entries.firstOrNull { it.name == name } ?: PEKE
     }
 }

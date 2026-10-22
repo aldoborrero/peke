@@ -137,20 +137,6 @@ sealed interface AppPreference<Pref, T> {
                 },
             )
 
-        val SeekBarSteps =
-            AppSliderPreference<AppPreferences>(
-                title = R.string.seek_bar_steps,
-                defaultValue = 16,
-                min = 4,
-                max = 64,
-                interval = 1,
-                getter = { it.playbackPreferences.seekBarSteps.toLong() },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { seekBarSteps = value.toInt() }
-                },
-                summarizer = { value -> value?.toString() },
-            )
-
         val HomePageItems =
             AppSliderPreference<AppPreferences>(
                 title = R.string.max_homepage_items,
@@ -782,13 +768,6 @@ sealed interface AppPreference<Pref, T> {
                 setter = { prefs, _ -> prefs },
             )
 
-        val CustomizeHome =
-            AppDestinationPreference<AppPreferences>(
-                title = R.string.customize_home,
-                destination = Destination.HomeSettings,
-                summary = R.string.customize_home_summary,
-            )
-
         val UserInterfaceLanguage =
             AppClickablePreference<AppPreferences>(
                 title = R.string.user_interface_language,
@@ -822,18 +801,6 @@ sealed interface AppPreference<Pref, T> {
                 summary = R.string.send_app_logs_summary,
                 getter = { },
                 setter = { prefs, _ -> prefs },
-            )
-
-        val NavDrawerSwitchOnFocus =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.nav_drawer_switch_on_focus,
-                defaultValue = true,
-                getter = { it.interfacePreferences.navDrawerSwitchOnFocus },
-                setter = { prefs, value ->
-                    prefs.updateInterfacePreferences { navDrawerSwitchOnFocus = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.nav_drawer_switch_on_focus_summary_off,
             )
 
         val ShowNextUpTiming =
@@ -1188,7 +1155,6 @@ val basicPreferences =
             preferences =
                 listOf(
                     AppPreference.ProtectProfilePreference,
-                    AppPreference.CustomizeHome,
                     AppPreference.UserInterfaceLanguage,
                     AppPreference.UserProfileSettings,
                     AppPreference.KidsMode,
@@ -1291,8 +1257,6 @@ val advancedPreferences =
                         AppPreference.ShowLogos,
                         AppPreference.ManageMedia,
                         AppPreference.DisplayTogglesPref,
-                        // Temporarily disabled, see https://github.com/damontecres/Wholphin/pull/127#issuecomment-3478058418
-//                    AppPreference.NavDrawerSwitchOnFocus,
                         AppPreference.SlideshowDuration,
                         AppPreference.SlideshowPlayVideos,
                     ),
@@ -1377,6 +1341,96 @@ val advancedPreferences =
             ),
         )
     }
+
+/**
+ * Peke's settings, shown only to grown-ups in the grown-up shell: every app setting that makes sense for a kids TV
+ */
+val pekePreferences =
+    listOf(
+        PreferenceGroup(
+            title = R.string.ui_interface,
+            preferences =
+                listOf(
+                    AppPreference.UserInterfaceLanguage,
+                    AppPreference.SubtitleStyle,
+                    AppPreference.ThemeColors,
+                    AppPreference.ScreensaverSettings,
+                    AppPreference.ShowClock,
+                    AppPreference.SignInAuto,
+                ),
+        ),
+        PreferenceGroup(
+            title = R.string.playback,
+            preferences =
+                listOf(
+                    AppPreference.SkipForward,
+                    AppPreference.SkipBack,
+                    AppPreference.SkipBackOnResume,
+                    AppPreference.OneClickPause,
+                    AppPreference.ControllerTimeout,
+                    AppPreference.DpadSeekModePref,
+                    AppPreference.SkipSegments,
+                    AppPreference.GlobalContentScale,
+                    AppPreference.MaxResolutionPref,
+                    AppPreference.MaxBitrate,
+                    AppPreference.RefreshRateSwitching,
+                    AppPreference.ResolutionSwitching,
+                    AppPreference.PlaybackDebugInfo,
+                ),
+        ),
+        PreferenceGroup(
+            title = R.string.player_backend,
+            preferences = listOf(AppPreference.PlayerBackendPref),
+            conditionalPreferences =
+                listOf(
+                    ConditionalPreferences(
+                        { it.playbackPreferences.playerBackend == PlayerBackend.EXO_PLAYER },
+                        ExoPlayerSettings,
+                    ),
+                    ConditionalPreferences(
+                        { it.playbackPreferences.playerBackend == PlayerBackend.MPV },
+                        MpvSettings,
+                    ),
+                    ConditionalPreferences(
+                        { it.playbackPreferences.playerBackend == PlayerBackend.PREFER_MPV },
+                        listOf(
+                            AppPreference.ExoPlayerSettings,
+                            AppPreference.MpvSettings,
+                        ),
+                    ),
+                ),
+        ),
+        PreferenceGroup(
+            title = R.string.about,
+            preferences =
+                listOf(
+                    AppPreference.InstalledVersion,
+                    AppPreference.Update,
+                    AppPreference.AutoCheckForUpdates,
+                ),
+        ),
+        PreferenceGroup(
+            title = R.string.more,
+            preferences =
+                listOf(
+                    AppPreference.QuickConnect,
+                    AppPreference.SendAppLogs,
+                    AppPreference.SendCrashReports,
+                    AppPreference.DebugLogging,
+                    AppPreference.ImageDiskCacheSize,
+                    AppPreference.ClearImageCache,
+                    ExperimentalPreference.Enable,
+                    AppPreference.OssLicenseInfo,
+                ),
+            conditionalPreferences =
+                listOf(
+                    ConditionalPreferences(
+                        condition = { it.experimentalPreferences.enabled },
+                        preferences = listOf(ExperimentalPreference.ExperimentalSettings),
+                    ),
+                ),
+        ),
+    )
 
 val liveTvPreferences =
     listOf(

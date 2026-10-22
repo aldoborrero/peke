@@ -34,7 +34,6 @@ class AppPreferencesSerializer
                                 skipBackMs =
                                     AppPreference.SkipBack.defaultValue.seconds.inWholeMilliseconds
                                 controllerTimeoutMs = AppPreference.ControllerTimeout.defaultValue
-                                seekBarSteps = AppPreference.SeekBarSteps.defaultValue.toInt()
                                 showDebugInfo = AppPreference.PlaybackDebugInfo.defaultValue
                                 autoPlayNext = AppPreference.AutoPlayNextUp.defaultValue
                                 autoPlayNextDelaySeconds =
@@ -93,8 +92,6 @@ class AppPreferencesSerializer
                             .apply {
                                 playThemeSongs = AppPreference.PlayThemeMusic.defaultValue
                                 appThemeColors = AppPreference.ThemeColors.defaultValue
-                                navDrawerSwitchOnFocus =
-                                    AppPreference.NavDrawerSwitchOnFocus.defaultValue
                                 showClock = AppPreference.ShowClock.defaultValue
                                 backdropStyle = AppPreference.BackdropStylePref.defaultValue
                                 showLogos = AppPreference.ShowLogos.defaultValue

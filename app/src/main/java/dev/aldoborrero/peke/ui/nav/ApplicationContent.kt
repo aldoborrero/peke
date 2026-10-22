@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -17,12 +20,18 @@ import androidx.tv.material3.rememberDrawerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.ui.GrownUpRoute
+import dev.aldoborrero.peke.kids.ui.GrownUpShell
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
+import dev.aldoborrero.peke.kids.ui.grownUpRoute
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
+import dev.aldoborrero.peke.services.SetupDestination
+import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchIO
@@ -37,7 +46,15 @@ class ApplicationContentViewModel
     @Inject
     constructor(
         val backdropService: BackdropService,
+        kidsModeService: KidsModeService,
+        private val setupNavigationManager: SetupNavigationManager,
     ) : ViewModel() {
+        val lockEngaged = kidsModeService.lockEngaged
+
+        fun toKidsUserList(server: JellyfinServer) {
+            setupNavigationManager.navigateTo(SetupDestination.UserList(server))
+        }
+
         fun clearBackdrop() {
             viewModelScope.launchIO { backdropService.clearBackdrop() }
         }
@@ -72,6 +89,9 @@ fun ApplicationContent(
         val navDrawerListState = rememberLazyListState()
         // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown
         val kidsLoading = LocalKidsMode.current == KidsModeState.Loading
+        // Peke is for kids: anyone else only gets the grown-up shell
+        val grownUp = LocalKidsMode.current == KidsModeState.Inactive
+        val lockEngaged by viewModel.lockEngaged.collectAsState()
         NavDisplay(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
@@ -86,6 +106,30 @@ fun ApplicationContent(
                 NavEntry(key, contentKey = contentKey) {
                     if (kidsLoading) {
                         LoadingPage(Modifier.fillMaxSize())
+                    } else if (grownUp) {
+                        when (val route = grownUpRoute(key, lockEngaged)) {
+                            GrownUpRoute.Loading -> {
+                                LoadingPage(Modifier.fillMaxSize())
+                            }
+
+                            GrownUpRoute.KidsUserList -> {
+                                LaunchedEffect(Unit) { viewModel.toKidsUserList(server) }
+                                LoadingPage(Modifier.fillMaxSize())
+                            }
+
+                            GrownUpRoute.Shell -> {
+                                GrownUpShell(Modifier.fillMaxSize())
+                            }
+
+                            is GrownUpRoute.Show -> {
+                                DestinationContent(
+                                    destination = route.destination,
+                                    preferences = preferences,
+                                    onClearBackdrop = viewModel::clearBackdrop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
                     } else if (key.fullScreen) {
                         DestinationContent(
                             destination = key,

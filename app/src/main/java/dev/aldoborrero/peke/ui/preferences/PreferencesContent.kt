@@ -57,6 +57,7 @@ import dev.aldoborrero.peke.preferences.advancedPreferences
 import dev.aldoborrero.peke.preferences.basicPreferences
 import dev.aldoborrero.peke.preferences.experimentalPreferences
 import dev.aldoborrero.peke.preferences.lazyListWrapScrolling
+import dev.aldoborrero.peke.preferences.pekePreferences
 import dev.aldoborrero.peke.preferences.screensaverPreferences
 import dev.aldoborrero.peke.preferences.updatePlaybackPreferences
 import dev.aldoborrero.peke.services.Release
@@ -147,6 +148,7 @@ fun PreferencesContent(
             PreferenceScreenOption.SKIP_SEGMENTS -> SkipSegmentPreferences
             PreferenceScreenOption.EXPERIMENTAL -> experimentalPreferences
             PreferenceScreenOption.HDR_FORMATS -> HdrFormatPreferences
+            PreferenceScreenOption.PEKE -> pekePreferences
         }
     val screenTitle =
         when (preferenceScreenOption) {
@@ -158,6 +160,7 @@ fun PreferencesContent(
             PreferenceScreenOption.SKIP_SEGMENTS -> R.string.skip_behavior
             PreferenceScreenOption.EXPERIMENTAL -> R.string.experimental_settings
             PreferenceScreenOption.HDR_FORMATS -> R.string.hdr_formats
+            PreferenceScreenOption.PEKE -> R.string.settings
         }
 
     var visible by remember { mutableStateOf(false) }
@@ -184,7 +187,7 @@ fun PreferencesContent(
 
     val showUpdate =
         UpdateChecker.ACTIVE &&
-            preferenceScreenOption == PreferenceScreenOption.BASIC &&
+            preferenceScreenOption in setOf(PreferenceScreenOption.BASIC, PreferenceScreenOption.PEKE) &&
             preferences.autoCheckForUpdates &&
             updateAvailable
 
@@ -679,6 +682,7 @@ fun PreferencesPage(
             PreferenceScreenOption.SKIP_SEGMENTS,
             PreferenceScreenOption.EXPERIMENTAL,
             PreferenceScreenOption.HDR_FORMATS,
+            PreferenceScreenOption.PEKE,
             -> {
                 PreferencesContent(
                     initialPreferences,
