@@ -12,7 +12,6 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.MostRecentServerProvider
 import dev.aldoborrero.peke.data.MostRecentServerSharedPreferences
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.services.SeerrApi
 import dev.aldoborrero.peke.util.CoroutineContextApiClientFactory
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineDispatcher
@@ -183,12 +182,6 @@ object AppModule {
     fun workManager(
         @ApplicationContext context: Context,
     ): WorkManager = WorkManager.getInstance(context)
-
-    @Provides
-    @Singleton
-    fun seerrApi(
-        @StandardOkHttpClient okHttpClient: OkHttpClient,
-    ) = SeerrApi(okHttpClient)
 
     @Provides
     @Singleton

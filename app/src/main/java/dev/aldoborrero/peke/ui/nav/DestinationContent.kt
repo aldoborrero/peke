@@ -5,19 +5,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.filter.DefaultForGenresFilterOptions
 import dev.aldoborrero.peke.data.filter.DefaultForStudiosFilterOptions
-import dev.aldoborrero.peke.data.model.SeerrItemType
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlayPage
 import dev.aldoborrero.peke.kids.ui.KidsTimesUpPage
 import dev.aldoborrero.peke.kids.ui.settings.KidsSettingsPage
-import dev.aldoborrero.peke.preferences.PlayerBackend
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.ItemGrid
@@ -38,9 +35,6 @@ import dev.aldoborrero.peke.ui.detail.HomeRowGrid
 import dev.aldoborrero.peke.ui.detail.PersonPage
 import dev.aldoborrero.peke.ui.detail.PlaylistDetails
 import dev.aldoborrero.peke.ui.detail.collection.CollectionDetails
-import dev.aldoborrero.peke.ui.detail.discover.DiscoverMovieDetails
-import dev.aldoborrero.peke.ui.detail.discover.DiscoverPersonPage
-import dev.aldoborrero.peke.ui.detail.discover.DiscoverSeriesDetails
 import dev.aldoborrero.peke.ui.detail.episode.EpisodeDetails
 import dev.aldoborrero.peke.ui.detail.livetv.TvGuideGrid
 import dev.aldoborrero.peke.ui.detail.movie.MovieDetails
@@ -50,11 +44,8 @@ import dev.aldoborrero.peke.ui.detail.music.NowPlayingPage
 import dev.aldoborrero.peke.ui.detail.music.SongDetailsPage
 import dev.aldoborrero.peke.ui.detail.series.SeriesDetails
 import dev.aldoborrero.peke.ui.detail.series.SeriesOverview
-import dev.aldoborrero.peke.ui.discover.DiscoverPage
-import dev.aldoborrero.peke.ui.discover.DiscoverRequestGrid
 import dev.aldoborrero.peke.ui.main.HomePage
 import dev.aldoborrero.peke.ui.main.settings.HomeSettingsPage
-import dev.aldoborrero.peke.ui.playback.PlayExternalPage
 import dev.aldoborrero.peke.ui.playback.PlaybackPage
 import dev.aldoborrero.peke.ui.preferences.PreferencesPage
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleStylePage
@@ -85,7 +76,6 @@ fun DestinationContent(
         KidsDirectPlayPage(destination, modifier)
         return
     }
-    val externalPlayer = LocalInterfaceCustomization.current.allows(RestrictedFeature.EXTERNAL_PLAYER)
     when (destination) {
         is Destination.Home -> {
             HomePage(
@@ -99,37 +89,19 @@ fun DestinationContent(
         }
 
         is Destination.Playback -> {
-            val backend =
-                destination.backend ?: preferences.appPreferences.playbackPreferences.playerBackend
-            if (backend == PlayerBackend.EXTERNAL_PLAYER && externalPlayer) {
-                PlayExternalPage(
-                    preferences = preferences,
-                    destination = destination,
-                    modifier = modifier,
-                )
-            } else {
-                PlaybackPage(
-                    preferences = preferences,
-                    destination = destination,
-                    modifier = modifier,
-                )
-            }
+            PlaybackPage(
+                preferences = preferences,
+                destination = destination,
+                modifier = modifier,
+            )
         }
 
         is Destination.PlaybackList -> {
-            if (preferences.appPreferences.playbackPreferences.playerBackend == PlayerBackend.EXTERNAL_PLAYER && externalPlayer) {
-                PlayExternalPage(
-                    preferences = preferences,
-                    destination = destination,
-                    modifier = modifier,
-                )
-            } else {
-                PlaybackPage(
-                    preferences = preferences,
-                    destination = destination,
-                    modifier = modifier,
-                )
-            }
+            PlaybackPage(
+                preferences = preferences,
+                destination = destination,
+                modifier = modifier,
+            )
         }
 
         is Destination.Settings -> {
@@ -411,60 +383,6 @@ fun DestinationContent(
 
         Destination.Debug -> {
             DebugPage(preferences, modifier)
-        }
-
-        Destination.Discover -> {
-            LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-            DiscoverPage(
-                preferences = preferences,
-                modifier = modifier,
-            )
-        }
-
-        is Destination.DiscoveredItem -> {
-            when (destination.item.type) {
-                SeerrItemType.MOVIE -> {
-                    DiscoverMovieDetails(
-                        preferences = preferences,
-                        destination = destination,
-                        modifier = modifier,
-                    )
-                }
-
-                SeerrItemType.TV -> {
-                    DiscoverSeriesDetails(
-                        preferences = preferences,
-                        destination = destination,
-                        modifier = modifier,
-                    )
-                }
-
-                SeerrItemType.PERSON -> {
-                    LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-                    DiscoverPersonPage(
-                        person = destination.item,
-                        startIndex = destination.startIndex,
-                        modifier = modifier,
-                    )
-                }
-
-                SeerrItemType.UNKNOWN -> {
-                    Text(
-                        text = "Unknown discover type",
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
-        }
-
-        is Destination.DiscoverMoreResult -> {
-            LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-            DiscoverRequestGrid(
-                destination = destination,
-                showTitle = true,
-                positionCallback = { _, _ -> },
-                modifier = modifier,
-            )
         }
     }
 }

@@ -25,9 +25,6 @@ enum class RestrictedFeature {
     /** Debug info, playback speed and subtitle downloads in the player */
     ADVANCED_PLAYBACK,
 
-    /** Playing in another app, which this app can't control */
-    EXTERNAL_PLAYER,
-
     /** The settings entry in the nav drawer */
     SETTINGS,
 

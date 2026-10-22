@@ -5,7 +5,6 @@ import androidx.annotation.ArrayRes
 import androidx.annotation.StringRes
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
-import dev.aldoborrero.peke.BuildConfig
 import dev.aldoborrero.peke.PekeApplication
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.services.UpdateChecker
@@ -957,17 +956,6 @@ sealed interface AppPreference<Pref, T> {
                 valueToIndex = { if (it != PlayerBackend.UNRECOGNIZED) it.number else PlayerBackend.EXO_PLAYER.number },
             )
 
-        val ExternalPlayerApp =
-            AppStringPreference<AppPreferences>(
-                title = R.string.external_player,
-                defaultValue = "",
-                getter = { it.playbackPreferences.externalPlayer },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { externalPlayer = value }
-                },
-                summary = null,
-            )
-
         val ExoPlayerSettings =
             AppDestinationPreference<AppPreferences>(
                 title = R.string.exoplayer_options,
@@ -1114,13 +1102,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val SeerrIntegration =
-            AppClickablePreference<AppPreferences>(
-                title = R.string.seerr_integration,
-                getter = { },
-                setter = { prefs, _ -> prefs },
-            )
-
         val QuickConnect =
             AppClickablePreference<AppPreferences>(
                 title = R.string.quick_connect,
@@ -1236,9 +1217,6 @@ val basicPreferences =
             title = R.string.more,
             preferences =
                 buildList {
-                    if (BuildConfig.DISCOVER_ENABLED) {
-                        add(AppPreference.SeerrIntegration)
-                    }
                     add(AppPreference.AdvancedSettings)
                 },
         ),
@@ -1368,10 +1346,6 @@ val advancedPreferences =
                                 AppPreference.ExoPlayerSettings,
                                 AppPreference.MpvSettings,
                             ),
-                        ),
-                        ConditionalPreferences(
-                            { it.playbackPreferences.playerBackend == PlayerBackend.EXTERNAL_PLAYER },
-                            listOf(AppPreference.ExternalPlayerApp),
                         ),
                     ),
             ),

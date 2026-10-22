@@ -14,7 +14,6 @@ import dev.aldoborrero.peke.data.ItemPlaybackRepository
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Chapter
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.data.model.ItemPlayback
 import dev.aldoborrero.peke.data.model.Person
 import dev.aldoborrero.peke.data.model.Trailer
@@ -24,7 +23,6 @@ import dev.aldoborrero.peke.services.FavoriteWatchManager
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
-import dev.aldoborrero.peke.services.SeerrService
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
 import dev.aldoborrero.peke.services.ThemeSongPlayer
@@ -56,7 +54,6 @@ class MovieViewModel
     @AssistedInject
     constructor(
         private val api: ApiClient,
-        private val seerrService: SeerrService,
         @param:ApplicationContext private val context: Context,
         private val navigationManager: NavigationManager,
         val serverRepository: ServerRepository,
@@ -149,14 +146,6 @@ class MovieViewModel
                     _state.update {
                         it.copy(
                             extras = extras,
-                        )
-                    }
-                }
-                viewModelScope.launchIO {
-                    val results = seerrService.similar(movie).orEmpty()
-                    _state.update {
-                        it.copy(
-                            discovered = results,
                         )
                     }
                 }
@@ -299,7 +288,6 @@ data class MovieState(
     val chapters: List<Chapter> = emptyList(),
     val extras: List<ExtrasItem> = emptyList(),
     val similar: List<BaseItem> = emptyList(),
-    val discovered: List<DiscoverItem> = emptyList(),
     val chosenStreams: ChosenStreams? = null,
     val canDelete: Boolean = false,
 ) {

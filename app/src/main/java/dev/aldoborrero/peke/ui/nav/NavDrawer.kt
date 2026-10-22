@@ -135,13 +135,6 @@ class NavDrawerViewModel
                     setShowMore(!state.value.moreExpanded)
                 }
 
-                NavDrawerItem.Discover -> {
-                    setIndex(index)
-                    navigationManager.navigateToFromDrawer(
-                        Destination.Discover,
-                    )
-                }
-
                 NavDrawerItem.LiveTv -> {
                     setIndex(index)
                     navigationManager.navigateToFromDrawer(Destination.KidsLiveTv)
@@ -183,7 +176,6 @@ class NavDrawerViewModel
                         when (it) {
                             is ServerNavDrawerItem -> it.destination
                             is NavDrawerItem.Favorites -> Destination.Favorites
-                            is NavDrawerItem.Discover -> Destination.Discover
                             is NavDrawerItem.LiveTv -> Destination.KidsLiveTv
                             else -> null
                         }
@@ -251,13 +243,6 @@ sealed interface NavDrawerItem {
             get() = "a_more"
 
         override fun name(context: Context): String = context.getString(R.string.more)
-    }
-
-    object Discover : NavDrawerItem {
-        override val id: String
-            get() = "a_discover"
-
-        override fun name(context: Context): String = context.getString(R.string.discover)
     }
 
     /**
@@ -730,10 +715,6 @@ fun NavigationDrawerScope.NavItem(
 
                 NavDrawerItem.More -> {
                     R.string.fa_ellipsis
-                }
-
-                NavDrawerItem.Discover -> {
-                    R.string.fa_magnifying_glass_plus
                 }
 
                 NavDrawerItem.LiveTv -> {

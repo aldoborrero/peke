@@ -48,7 +48,6 @@ import dev.aldoborrero.peke.data.model.NavPinType
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavDrawerService
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SeerrServerRepository
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.components.BasicDialog
@@ -61,7 +60,6 @@ import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -304,7 +302,6 @@ class NavDrawerPreferencesViewModel
         private val serverRepository: ServerRepository,
         private val navDrawerService: NavDrawerService,
         private val serverPreferencesDao: ServerPreferencesDao,
-        private val seerrServerRepository: SeerrServerRepository,
     ) : ViewModel() {
         val state = MutableStateFlow<List<NavDrawerPin>>(listOf())
 
@@ -312,8 +309,7 @@ class NavDrawerPreferencesViewModel
             viewModelScope.launchDefault {
                 val state = navDrawerService.state.value
                 val user = serverRepository.currentUser
-                val seerr = seerrServerRepository.active.firstOrNull()
-                if (user == null || seerr == null) {
+                if (user == null) {
                     return@launchDefault
                 }
                 val navDrawerPins =
@@ -327,19 +323,15 @@ class NavDrawerPreferencesViewModel
                     allItems
                         .sortedBy {
                             navDrawerPins[it.id]?.order?.takeIf { it >= 0 } ?: Int.MAX_VALUE
-                        }.mapNotNull {
-                            if (!seerr && it is NavDrawerItem.Discover) {
-                                null
-                            } else {
-                                // Assume pinned if unknown
-                                val pinned = navDrawerPins[it.id]?.type ?: NavPinType.PINNED
-                                NavDrawerPin(
-                                    it.id,
-                                    it.name(context),
-                                    pinned == NavPinType.PINNED,
-                                    it,
-                                )
-                            }
+                        }.map {
+                            // Assume pinned if unknown
+                            val pinned = navDrawerPins[it.id]?.type ?: NavPinType.PINNED
+                            NavDrawerPin(
+                                it.id,
+                                it.name(context),
+                                pinned == NavPinType.PINNED,
+                                it,
+                            )
                         }
                 this@NavDrawerPreferencesViewModel.state.value = pins
             }
@@ -364,8 +356,7 @@ class NavDrawerPreferencesViewModel
                                     )
                                 }
                             serverPreferencesDao.saveNavDrawerPinnedItems(*toSave.toTypedArray())
-                            val discoverActive = seerrServerRepository.active.firstOrNull() == true
-                            navDrawerService.updateNavDrawer(user, userDto, discoverActive)
+                            navDrawerService.updateNavDrawer(user, userDto)
                         } else {
                             throw IllegalStateException("User IDs do not match")
                         }

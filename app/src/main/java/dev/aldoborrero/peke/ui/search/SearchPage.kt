@@ -5,11 +5,9 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,16 +51,12 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.preferences.UserPreferences
-import dev.aldoborrero.peke.ui.cards.DiscoverItemCard
 import dev.aldoborrero.peke.ui.cards.GridCard
 import dev.aldoborrero.peke.ui.cards.ItemRow
 import dev.aldoborrero.peke.ui.cards.ItemRowTitle
 import dev.aldoborrero.peke.ui.components.ExpandableFaButton
 import dev.aldoborrero.peke.ui.components.SearchEditTextBox
-import dev.aldoborrero.peke.ui.components.TabDetails
-import dev.aldoborrero.peke.ui.components.TabRow
 import dev.aldoborrero.peke.ui.components.VoiceSearchButton
 import dev.aldoborrero.peke.ui.components.rememberContextMenu
 import dev.aldoborrero.peke.ui.data.RowColumn
@@ -84,9 +77,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 internal const val SEARCH_ROW = 0
 internal const val TAB_ROW = SEARCH_ROW + 1
-internal const val SEERR_ROW = TAB_ROW + 1
-internal const val COMBINED_ROW = SEERR_ROW
-internal const val RESULTS_START = SEERR_ROW + 1
+internal const val COMBINED_ROW = TAB_ROW + 1
+internal const val RESULTS_START = COMBINED_ROW + 1
 
 @Composable
 fun SearchPage(
@@ -113,8 +105,6 @@ fun SearchPage(
     val focusRequesters =
         remember(state.includedSearchableTypes.size) { List(RESULTS_START + state.includedSearchableTypes.size) { FocusRequester() } }
 
-    val seerrActive by viewModel.seerrActive.collectAsState()
-    var selectedTab by rememberSaveable(seerrActive, state.discoverEnabled) { mutableIntStateOf(0) }
     var showViewOptions by rememberSaveable { mutableStateOf(false) }
     var showFilterTypeDialog by rememberSaveable { mutableStateOf(false) }
     var searchClicked by rememberSaveable(query) { mutableStateOf(false) }
@@ -174,69 +164,34 @@ fun SearchPage(
         viewModel.navigationManager.navigateTo(Destination.Playback(item))
     }
 
-    val onClickDiscover = { _: Int, item: DiscoverItem ->
-        val dest =
-            if (item.jellyfinItemId != null && item.type.baseItemKind != null) {
-                Destination.MediaItem(
-                    itemId = item.jellyfinItemId,
-                    type = item.type.baseItemKind,
-                )
-            } else {
-                Destination.DiscoveredItem(item)
-            }
-        viewModel.navigationManager.navigateTo(dest)
-    }
-
-    var showHeader by rememberSaveable { mutableStateOf(true) }
-    val positionCallback = { columns: Int, index: Int ->
-        showHeader = index < columns
-    }
-    val showTabs =
-        seerrActive && state.discoverEnabled && query.isNotBlank() && showHeader && combinedMode
-    val isLibraryTab = selectedTab == 0
-
-    LaunchedEffect(seerrActive, query) {
-        if (!seerrActive || query.isBlank()) {
-            selectedTab = 0
-        }
-    }
+    val positionCallback = { _: Int, _: Int -> }
 
     LaunchedEffect(
         searchClicked,
         state,
         combinedMode,
-        selectedTab,
-        seerrActive,
     ) {
         if (!searchClicked || position.row > TAB_ROW) return@LaunchedEffect
 
         withContext(PekeDispatchers.IO) {
             // Want to focus on the first successful row after all the ones before it are finished searching
             val results =
-                if (isLibraryTab) {
-                    if (combinedMode) {
-                        listOf(state.combinedResults)
-                    } else {
-                        state.includedSearchableTypes.map { state.results[it] }
-                    }
+                if (combinedMode) {
+                    listOf(state.combinedResults)
                 } else {
-                    listOf(state.seerrResults)
+                    state.includedSearchableTypes.map { state.results[it] }
                 }
             val firstSuccess =
-                results.indexOfFirst { it is SearchResult.Success || it is SearchResult.SuccessSeerr }
+                results.indexOfFirst { it is SearchResult.Success }
             if (firstSuccess >= 0) {
                 val anyBeforeSearching =
                     results.subList(0, firstSuccess).any { it is SearchResult.Searching }
                 if (!anyBeforeSearching) {
                     val targetRow =
-                        if (isLibraryTab) {
-                            if (combinedMode) {
-                                COMBINED_ROW
-                            } else {
-                                firstSuccess
-                            }
+                        if (combinedMode) {
+                            COMBINED_ROW
                         } else {
-                            SEERR_ROW
+                            firstSuccess
                         }
 //                    setPosition(RowColumn(targetRow, 0))
                     onMain { focusRequesters.getOrNull(targetRow)?.tryRequestFocus() }
@@ -244,16 +199,6 @@ fun SearchPage(
             }
         }
     }
-
-    val tabs =
-        remember(seerrActive, state.discoverEnabled) {
-            buildList {
-                add(TabDetails(R.string.library))
-                if (seerrActive && state.discoverEnabled) {
-                    add(TabDetails(R.string.discover))
-                }
-            }
-        }
 
     Column(
         modifier = modifier.fillMaxSize(),
@@ -340,40 +285,11 @@ fun SearchPage(
                 )
             }
         }
-        AnimatedVisibility(
-            visible = showTabs,
-            enter = expandVertically(),
-            exit = shrinkVertically(),
-        ) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                tabs = tabs,
-                onClick = {
-                    selectedTab = it
-                    val row =
-                        when (selectedTab) {
-                            0 -> COMBINED_ROW
-                            else -> SEERR_ROW
-                        }
-                    setPosition(RowColumn(row, 0))
-                },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp)
-                        .onFocusChanged {
-                            if (it.hasFocus) setPosition(RowColumn(TAB_ROW, 0))
-                        },
-            )
-        }
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-//            SideEffect {
-//                Timber.v("isLibraryTab=%s, combinedMode=%s", isLibraryTab, combinedMode)
-//            }
             when {
-                isLibraryTab && combinedMode -> {
+                combinedMode -> {
                     SearchCombinedResults(
                         result = state.combinedResults,
                         focusRequester = focusRequesters[COMBINED_ROW],
@@ -383,27 +299,12 @@ fun SearchPage(
                         },
                         onPlayItem = onPlayItem,
                         onClickPosition = { setPosition(it) },
-                        onClickDiscover = onClickDiscover,
                         positionCallback = positionCallback,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
 
-                !isLibraryTab && combinedMode -> {
-                    SearchCombinedResults(
-                        result = state.seerrResults,
-                        focusRequester = focusRequesters[SEERR_ROW],
-                        onClickItem = onClickItem,
-                        onLongClickItem = { _, _ -> },
-                        onPlayItem = onPlayItem,
-                        onClickPosition = { setPosition(it) },
-                        onClickDiscover = onClickDiscover,
-                        positionCallback = positionCallback,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-
-                isLibraryTab -> {
+                else -> {
                     LazyColumn(
                         contentPadding =
                             PaddingValues(
@@ -448,24 +349,6 @@ fun SearchPage(
                                 },
                             )
                         }
-
-                        if (seerrActive && state.discoverEnabled) {
-                            item {
-                                SearchRowResult(
-                                    title = R.string.discover,
-                                    result = state.seerrResults,
-                                    rowIndex = SEERR_ROW,
-                                    position = position,
-                                    focusRequester = focusRequesters[SEERR_ROW],
-                                    onClickItem = onClickItem,
-                                    onLongClickItem = { _, _ -> },
-                                    onClickDiscover = onClickDiscover,
-                                    onClickPosition = { setPosition(it) },
-                                    cardContent = { _, _, _, _, _ -> },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -489,10 +372,7 @@ fun SearchPage(
             onDismissRequest = { showFilterTypeDialog = false },
             searchableTypes = state.possibleSearchableTypes,
             excludedSearchableTypes = state.excludedSearchableTypes,
-            discoverAvailable = seerrActive,
-            discoverEnabled = state.discoverEnabled,
             onClick = viewModel::onClickExcludeSearchableType,
-            onClickDiscover = viewModel::onClickExcludeDiscover,
         )
     }
 
@@ -543,7 +423,6 @@ fun SearchCombinedResults(
     onLongClickItem: (Int, BaseItem) -> Unit,
     onPlayItem: (Int, BaseItem) -> Unit,
     onClickPosition: (RowColumn) -> Unit,
-    onClickDiscover: (Int, DiscoverItem) -> Unit,
     positionCallback: (columns: Int, position: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -590,35 +469,6 @@ fun SearchCombinedResults(
                             onLongClick = details.onLongClick,
                             modifier = details.mod,
                             fillWidth = details.widthPx,
-                        )
-                    },
-                    modifier = modifier,
-                )
-            }
-        }
-
-        is SearchResult.SuccessSeerr -> {
-            if (result.items.isEmpty()) {
-                SearchResultPlaceholder(
-                    title = stringResource(R.string.results),
-                    message = stringResource(R.string.no_results),
-                    modifier = modifier.padding(16.dp),
-                )
-            } else {
-                SearchGrid(
-                    items = result.items,
-                    focusRequester = focusRequester,
-                    onClickItem = onClickDiscover,
-                    onLongClickItem = { _, _ -> },
-                    onPlayItem = { _, _ -> },
-                    onClickPosition = onClickPosition,
-                    positionCallback = positionCallback,
-                    cardContent = { details ->
-                        DiscoverItemCard(
-                            item = details.item,
-                            onClick = details.onClick,
-                            onLongClick = details.onLongClick,
-                            modifier = details.mod,
                         )
                     },
                     modifier = modifier,
@@ -679,7 +529,6 @@ fun SearchRowResult(
     onLongClickItem: (Int, BaseItem) -> Unit,
     onClickPosition: (RowColumn) -> Unit,
     modifier: Modifier = Modifier,
-    onClickDiscover: ((Int, DiscoverItem) -> Unit)? = null,
     cardContent: @Composable (
         index: Int,
         item: BaseItem?,
@@ -719,30 +568,6 @@ fun SearchRowResult(
                     onLongClickItem = onLongClickItem,
                     modifier = modifier.focusRequester(focusRequester),
                     cardContent = cardContent,
-                )
-            }
-        }
-
-        is SearchResult.SuccessSeerr -> {
-            if (r.items.isNotEmpty()) {
-                ItemRow(
-                    title = stringResource(title),
-                    items = r.items,
-                    onClickItem = { index, item ->
-                        onClickPosition.invoke(RowColumn(rowIndex, index))
-                        onClickDiscover?.invoke(index, item)
-                    },
-                    onLongClickItem = { _, _ -> },
-                    modifier = modifier.focusRequester(focusRequester),
-                    cardContent = { index: Int, item: DiscoverItem?, mod: Modifier, onClick: () -> Unit, onLongClick: () -> Unit ->
-                        DiscoverItemCard(
-                            item = item,
-                            onClick = onClick,
-                            onLongClick = onLongClick,
-                            showOverlay = true,
-                            modifier = mod,
-                        )
-                    },
                 )
             }
         }

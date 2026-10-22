@@ -3,10 +3,8 @@
 package dev.aldoborrero.peke.ui.nav
 
 import androidx.navigation3.runtime.NavKey
-import dev.aldoborrero.peke.data.filter.DiscoverFilter
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.CollectionFolderFilter
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.data.model.GetItemsFilter
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.preferences.PlayerBackend
@@ -15,9 +13,7 @@ import dev.aldoborrero.peke.ui.data.SortAndDirection
 import dev.aldoborrero.peke.ui.detail.series.SeasonEpisodeIds
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.util.StringProvider
-import dev.aldoborrero.peke.util.DiscoverRequestType
 import dev.aldoborrero.peke.util.RequestHandler
-import dev.aldoborrero.peke.util.SEERR_PAGE_SIZE
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
@@ -144,24 +140,6 @@ sealed class Destination(
 
     @Serializable
     data object Favorites : Destination(false)
-
-    @Serializable
-    data object Discover : Destination(false)
-
-    @Serializable
-    data class DiscoveredItem(
-        val item: DiscoverItem,
-        // Index to scroll to on the person page grid
-        val startIndex: Int = 0,
-    ) : Destination(false)
-
-    @Serializable
-    data class DiscoverMoreResult(
-        val type: DiscoverRequestType,
-        val startIndex: Int = SEERR_PAGE_SIZE,
-        val initialFilter: DiscoverFilter = DiscoverFilter(),
-        val titleOverride: StringProvider? = null,
-    ) : Destination(false)
 
     @Serializable
     data object NowPlaying : Destination(true)

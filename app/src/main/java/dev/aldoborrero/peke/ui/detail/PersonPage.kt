@@ -45,11 +45,9 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.FavoriteWatchManager
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SeerrService
 import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.ItemRowFields
@@ -64,8 +62,6 @@ import dev.aldoborrero.peke.ui.components.OverviewText
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialog
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialogInfo
 import dev.aldoborrero.peke.ui.data.RowColumn
-import dev.aldoborrero.peke.ui.discover.DiscoverRow
-import dev.aldoborrero.peke.ui.discover.DiscoverRowData
 import dev.aldoborrero.peke.ui.formatDate
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
@@ -74,10 +70,8 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberPosition
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.tryRequestFocus
-import dev.aldoborrero.peke.ui.util.ResStringProvider
 import dev.aldoborrero.peke.util.ApiRequestPager
 import dev.aldoborrero.peke.util.DataLoadingState
-import dev.aldoborrero.peke.util.DiscoverRequestType
 import dev.aldoborrero.peke.util.GetItemsRequestHandler
 import dev.aldoborrero.peke.util.RowLoadingState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,7 +95,6 @@ class PersonViewModel
         private val api: ApiClient,
         val navigationManager: NavigationManager,
         private val favoriteWatchManager: FavoriteWatchManager,
-        private val seerrService: SeerrService,
         @Assisted val itemId: UUID,
     ) : ViewModel() {
         @AssistedFactory
@@ -151,15 +144,6 @@ class PersonViewModel
                         }
                     } else {
                         _state.update { it.copy(episodes = RowLoadingState.Success(emptyList())) }
-                    }
-                    viewModelScope.launchIO {
-                        val results = seerrService.similar(person).orEmpty()
-                        _state.update {
-                            it.copy(
-                                discovered = results,
-                                discoverPerson = seerrService.discoverPerson(person),
-                            )
-                        }
                     }
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error fetching person %s", itemId)
@@ -221,8 +205,6 @@ data class PersonState(
     val movies: RowLoadingState = RowLoadingState.Pending,
     val series: RowLoadingState = RowLoadingState.Pending,
     val episodes: RowLoadingState = RowLoadingState.Pending,
-    val discovered: List<DiscoverItem> = emptyList(),
-    val discoverPerson: DiscoverItem? = null,
 )
 
 @Composable
@@ -260,11 +242,6 @@ fun PersonPage(
                         tag = person.data.imageTags?.get(ImageType.PRIMARY),
                     )
                 }
-            // A long filmography is hard to navigate as a row, so it is cut at the same
-            // limit as the home page rows and the rest is left to the full grid
-            val maxItems = preferences.appPreferences.homePagePreferences.maxItemsPerRow
-            val discovered =
-                remember(state.discovered, maxItems) { state.discovered.take(maxItems) }
 
             PersonPageContent(
                 preferences = preferences,
@@ -285,18 +262,6 @@ fun PersonPage(
                 favoriteOnClick = {
                     viewModel.setFavorite(!person.favorite)
                 },
-                discovered = discovered,
-                onClickDiscover = { index, item ->
-                    viewModel.navigationManager.navigateTo(item.destination)
-                },
-                onClickViewMoreDiscover = {
-                    state.discoverPerson?.let {
-                        viewModel.navigationManager.navigateTo(
-                            Destination.DiscoveredItem(it, maxItems),
-                        )
-                    }
-                },
-                enableViewMoreDiscover = state.discovered.size > discovered.size,
                 modifier = modifier,
             )
             AnimatedVisibility(showOverviewDialog) {
@@ -320,7 +285,6 @@ private const val HEADER_ROW = 0
 private const val MOVIE_ROW = 1
 private const val SERIES_ROW = 2
 private const val EPISODE_ROW = 3
-private const val DISCOVER_ROW = EPISODE_ROW + 1
 
 @Composable
 fun PersonPageContent(
@@ -335,13 +299,9 @@ fun PersonPageContent(
     movies: RowLoadingState,
     series: RowLoadingState,
     episodes: RowLoadingState,
-    discovered: List<DiscoverItem>,
     onClickItem: (Int, BaseItem) -> Unit,
     overviewOnClick: () -> Unit,
     favoriteOnClick: () -> Unit,
-    onClickDiscover: (Int, DiscoverItem) -> Unit,
-    onClickViewMoreDiscover: () -> Unit,
-    enableViewMoreDiscover: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -439,30 +399,6 @@ fun PersonPageContent(
                     )
                 },
             )
-        }
-        if (discovered.isNotEmpty()) {
-            item {
-                DiscoverRow(
-                    row =
-                        DiscoverRowData(
-                            ResStringProvider(R.string.discover),
-                            DataLoadingState.Success(discovered),
-                            DiscoverRequestType.UNKNOWN,
-                        ),
-                    onClickItem = { index: Int, item: DiscoverItem ->
-                        position = RowColumn(DISCOVER_ROW, index)
-                        onClickDiscover.invoke(index, item)
-                    },
-                    onLongClickItem = { _, _ -> },
-                    onCardFocus = {},
-                    focusRequester = focusRequester,
-                    enableViewMore = enableViewMoreDiscover,
-                    onClickViewMore = {
-                        position = RowColumn(DISCOVER_ROW, discovered.size)
-                        onClickViewMoreDiscover.invoke()
-                    },
-                )
-            }
         }
     }
 }

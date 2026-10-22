@@ -15,7 +15,6 @@ import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.ItemPlaybackRepository
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.data.model.ItemPlayback
 import dev.aldoborrero.peke.data.model.Person
 import dev.aldoborrero.peke.data.model.Trailer
@@ -26,7 +25,6 @@ import dev.aldoborrero.peke.services.FavoriteWatchManager
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
-import dev.aldoborrero.peke.services.SeerrService
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
 import dev.aldoborrero.peke.services.ThemeSongPlayer
@@ -59,7 +57,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -99,7 +96,6 @@ class SeriesViewModel
         val serverReportService: ServerReportService,
         private val userPreferencesService: UserPreferencesService,
         private val backdropService: BackdropService,
-        private val seerrService: SeerrService,
         private val mediaManagementService: MediaManagementService,
         @Assisted val seriesId: UUID,
         @Assisted val seasonEpisodeIds: SeasonEpisodeIds?,
@@ -249,28 +245,6 @@ class SeriesViewModel
                                     ).content.items
                                     .map { BaseItem(it, true) }
                             _state.update { it.copy(similar = similar) }
-                        }
-                    }
-                    viewModelScope.launchIO {
-                        val results = seerrService.similar(series).orEmpty()
-                        _state.update { it.copy(discovered = results) }
-                    }
-                    viewModelScope.launchIO {
-                        seerrService.active.collectLatest { active ->
-                            val tv =
-                                if (active) {
-                                    try {
-                                        seerrService
-                                            .getTvSeries(series)
-                                            ?.let { seerrService.createDiscoverItem(it) }
-                                    } catch (ex: Exception) {
-                                        Timber.e(ex)
-                                        null
-                                    }
-                                } else {
-                                    null
-                                }
-                            _state.update { it.copy(discoverSeries = tv) }
                         }
                     }
                 }
@@ -888,7 +862,5 @@ data class SeriesState(
     val similar: List<BaseItem> = emptyList(),
     val canDeleteSeries: Boolean = false,
     val peopleInEpisode: PeopleInItem = PeopleInItem(),
-    val discovered: List<DiscoverItem> = emptyList(),
-    val discoverSeries: DiscoverItem? = null,
     val chosenStreams: ChosenStreams? = null,
 )

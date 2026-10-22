@@ -30,7 +30,6 @@ import dev.aldoborrero.peke.services.HomePageResolvedSettings
 import dev.aldoborrero.peke.services.HomeRowConfigDisplay
 import dev.aldoborrero.peke.services.HomeSettingsService
 import dev.aldoborrero.peke.services.NavDrawerService
-import dev.aldoborrero.peke.services.SeerrServerRepository
 import dev.aldoborrero.peke.services.UnsupportedHomeSettingsVersionException
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.getRecentlyAddedTitle
@@ -80,7 +79,6 @@ class HomeSettingsViewModel
         private val userPreferencesService: UserPreferencesService,
         private val navDrawerService: NavDrawerService,
         private val backdropService: BackdropService,
-        private val seerrServerRepository: SeerrServerRepository,
         val preferencesDataStore: DataStore<AppPreferences>,
         @param:IoCoroutineScope private val ioScope: CoroutineScope,
     ) : ViewModel() {
@@ -88,8 +86,6 @@ class HomeSettingsViewModel
         val state: StateFlow<HomePageSettingsState> = _state
 
         private var idCounter by Delegates.notNull<Int>()
-
-        val discoverEnabled = seerrServerRepository.active
 
         private var originalLocalSettings: HomePageSettings? = null
         private var originalRemoteSettings: HomePageSettings? = null
@@ -255,10 +251,6 @@ class HomeSettingsViewModel
                         MetaRowType.PLAYLIST,
                         -> {
                             throw IllegalArgumentException("Should use a different addRow() instead")
-                        }
-
-                        MetaRowType.DISCOVER -> {
-                            TODO()
                         }
                     }
                 updateState {

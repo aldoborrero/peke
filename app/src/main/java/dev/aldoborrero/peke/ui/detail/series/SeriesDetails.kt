@@ -1,9 +1,6 @@
 package dev.aldoborrero.peke.ui.detail.series
 
 import android.content.res.Resources
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +39,6 @@ import androidx.tv.material3.MaterialTheme
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.data.model.Person
 import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.data.model.studioNames
@@ -77,14 +73,10 @@ import dev.aldoborrero.peke.ui.data.AddPlaylistViewModel
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialog
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialogInfo
 import dev.aldoborrero.peke.ui.detail.PlaylistDialog
-import dev.aldoborrero.peke.ui.discover.DiscoverRow
-import dev.aldoborrero.peke.ui.discover.DiscoverRowData
 import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
-import dev.aldoborrero.peke.ui.util.ResStringProvider
 import dev.aldoborrero.peke.util.DataLoadingState
-import dev.aldoborrero.peke.util.DiscoverRequestType
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -246,16 +238,6 @@ fun SeriesDetails(
                 onClickExtra = { _, extra ->
                     viewModel.navigateTo(extra.destination)
                 },
-                discoverSeries = state.discoverSeries,
-                onClickDiscoverSeries = {
-                    state.discoverSeries?.let {
-                        viewModel.navigateTo(Destination.DiscoveredItem(it))
-                    }
-                },
-                discovered = state.discovered,
-                onClickDiscover = { index, item ->
-                    viewModel.navigateTo(item.destination)
-                },
                 onShowContextMenu = {
                     showContextMenu = it
                 },
@@ -318,7 +300,6 @@ private const val PEOPLE_ROW = SEASONS_ROW + 1
 private const val TRAILER_ROW = PEOPLE_ROW + 1
 private const val EXTRAS_ROW = TRAILER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
-private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
 @Composable
 fun SeriesDetailsContent(
@@ -329,7 +310,6 @@ fun SeriesDetailsContent(
     trailers: List<Trailer>,
     extras: List<ExtrasItem>,
     people: List<Person>,
-    discovered: List<DiscoverItem>,
     played: Boolean,
     favorite: Boolean,
     canDelete: Boolean,
@@ -344,9 +324,6 @@ fun SeriesDetailsContent(
     onClickExtra: (Int, ExtrasItem) -> Unit,
     onShowContextMenu: (ContextMenu) -> Unit,
     actions: ContextMenuActions,
-    onClickDiscover: (Int, DiscoverItem) -> Unit,
-    discoverSeries: DiscoverItem?,
-    onClickDiscoverSeries: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -354,7 +331,7 @@ fun SeriesDetailsContent(
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
 
     var position by rememberInt()
-    val focusRequesters = remember { List(DISCOVER_ROW + 1) { FocusRequester() } }
+    val focusRequesters = remember { List(SIMILAR_ROW + 1) { FocusRequester() } }
     val playFocusRequester = remember { FocusRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
@@ -485,25 +462,6 @@ fun SeriesDetailsContent(
                                         },
                             )
                         }
-                        AnimatedVisibility(
-                            visible = discoverSeries != null,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                        ) {
-                            ExpandableFaButton(
-                                title = R.string.discover,
-                                iconStringRes = R.string.fa_magnifying_glass_plus,
-                                onClick = onClickDiscoverSeries,
-                                modifier =
-                                    Modifier.onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
-                            )
-                        }
                     }
                 }
                 item {
@@ -620,25 +578,6 @@ fun SeriesDetailsContent(
                                 Modifier
                                     .fillMaxWidth()
                                     .focusRequester(focusRequesters[SIMILAR_ROW]),
-                        )
-                    }
-                }
-                if (discovered.isNotEmpty()) {
-                    item {
-                        DiscoverRow(
-                            row =
-                                DiscoverRowData(
-                                    ResStringProvider(R.string.discover),
-                                    DataLoadingState.Success(discovered),
-                                    type = DiscoverRequestType.UNKNOWN,
-                                ),
-                            onClickItem = { index: Int, item: DiscoverItem ->
-                                position = DISCOVER_ROW
-                                onClickDiscover.invoke(index, item)
-                            },
-                            onLongClickItem = { _, _ -> },
-                            onCardFocus = {},
-                            focusRequester = focusRequesters[DISCOVER_ROW],
                         )
                     }
                 }

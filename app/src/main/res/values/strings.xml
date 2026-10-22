@@ -503,12 +503,6 @@
     <string name="prefer_dovi_over_hdr10_plus">Prefer Dolby Vision over HDR10+</string>
     <string name="prefer_dovi_over_hdr10_plus_summary">Removes HDR10+ metadata from Dolby Vision videos, for TVs that otherwise play them as HDR10+</string>
 
-    <string name="discover">Discover</string>
-    <string name="request">Request</string>
-    <string name="pending">Pending</string>
-    <string name="seerr_integration">Seerr integration</string>
-    <string name="remove_seerr_server">Remove Seerr Server</string>
-    <string name="seerr_server_added">Seerr server added</string>
     <string name="quick_connect">Quick Connect</string>
     <string name="quick_connect_summary">Authorize another device to log in to your account</string>
     <string name="quick_connect_code">Enter Quick Connect code</string>
@@ -516,11 +510,6 @@
     <string name="quick_connect_success">Device authorized successfully</string>
     <string name="password">Password</string>
     <string name="username">Username</string>
-    <string name="url">URL</string>
-    <string name="trending">Trending</string>
-    <string name="upcoming_movies">Upcoming Movies</string>
-    <string name="upcoming_tv">Upcoming TV Shows</string>
-    <string name="request_4k">Request in 4K</string>
     <string name="software_decoding_av1">AV1 software decoding</string>
     <string name="upgrade_mpv_toast">MPV is now the default player except for HDR.\nYou can change this in settings.</string>
     <string name="hdr_subtitle_style">HDR subtitle style</string>
@@ -709,12 +698,10 @@
     <string name="exoplayer" translatable="false">ExoPlayer</string>
     <string name="mpv" translatable="false">MPV</string>
     <string name="prefer_mpv">Prefer MPV</string>
-    <string name="external_player">External Player</string>
     <string-array name="player_backend_options">
         <item>@string/exoplayer</item>
         <item>@string/mpv</item>
         <item>@string/prefer_mpv</item>
-        <item>@string/external_player</item>
     </string-array>
 
     <string name="player_backend_options_subtitles_prefer_mpv">Use ExoPlayer for HDR playback</string>
@@ -722,7 +709,6 @@
         <item /><!-- Intentionally blank -->
         <item /><!-- Intentionally blank -->
         <item>@string/player_backend_options_subtitles_prefer_mpv</item>
-        <item /><!-- Intentionally blank -->
     </string-array>
 
     <string name="aspect_ratios_poster">Poster (2:3)</string>
@@ -754,11 +740,6 @@
 
     <string name="backdrop_style_dynamic">Image with dynamic color</string>
     <string name="backdrop_style_image">Image only</string>
-    <string name="enter_url_api_key"><![CDATA[Enter URL & API Key]]></string>
-    <string name="api_key">API Key</string>
-    <string name="seerr_login">Login to Seerr server</string>
-    <string name="seerr_jellyfin_user">Jellyfin user</string>
-    <string name="seerr_local_user">Local user</string>
     <string name="search_and_download_subtitles"><![CDATA[Search & download subtitles]]></string>
     <string name="no_subtitles_found">No remote subtitles were found</string>
     <string name="series_continueing">Present</string>
@@ -818,7 +799,6 @@
     <string name="play_as_type">Play as?</string>
     <string name="visualizer_rationale">Visualizing the currently playing audio requires permission to record audio.</string>
     <string name="continue_string">Continue</string>
-    <string name="select_all">Select all</string>
     <string name="separate_types">Separate types</string>
     <string name="prefer_logos">Prefer showing logos for titles</string>
     <string name="updated_toast">Peke updated to %s</string>
@@ -826,11 +806,8 @@
     <string name="remove_next_up">Remove series from next up</string>
     <string name="view_removed_next_up">View series removed from next up</string>
     <string name="view_more">View more</string>
-    <string name="discover_tv">Discover TV Shows</string>
-    <string name="discover_movies">Discover Movies</string>
     <string name="studios_in">Studios in %1$s</string>
     <string name="last_played">Last played</string>
-    <string name="system_default">System default</string>
     <string name="ass_subtitle_mode_libass">Direct play with libass</string>
     <string name="ass_subtitle_mode_exoplayer">Direct play with ExoPlayer built-in</string>
     <string name="ass_subtitle_mode_transcode">Burn in/transcode on server</string>
@@ -862,13 +839,6 @@
     <string name="tomatoes">Tomatoes</string>
     <string name="sort">Sort</string>
     <string name="split_into_separate_rows">Split into separate rows</string>
-    <string name="genre_movies">%1$s Movies</string>
-    <string name="genre_tv_shows">%1$s TV Shows</string>
-    <string name="quality_profile">Quality profile</string>
-    <string name="is_default">Default</string>
-    <string name="root_folder">Root folder</string>
-    <string name="popularity">Popularity</string>
-    <string name="production_status">Production status</string>
     <string name="different_for_hdr">Use different style for HDR</string>
     <string name="experimental_settings">Experimental settings</string>
     <string name="confirm_enable_experimental_title">Enable experimental settings?</string>
@@ -893,7 +863,6 @@
     </string-array>
 
     <string name="blocklisted">Blocklisted</string>
-    <string name="unavailable">Unavailable</string>
     <string name="subtitle_mode">Subtitle mode</string>
 
     <string name="use_user_profile">Use your profile setting</string>

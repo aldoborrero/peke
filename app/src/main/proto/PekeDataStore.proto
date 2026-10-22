@@ -34,7 +34,6 @@ enum PlayerBackend{
   EXO_PLAYER = 0;
   MPV = 1;
   PREFER_MPV = 2;
-  EXTERNAL_PLAYER = 3;
 }
 
 message MpvOptions{
@@ -91,7 +90,6 @@ message PlaybackPreferences {
   MpvOptions mpv_options = 21;
   bool refresh_rate_switching = 22;
   bool resolution_switching = 23;
-  string external_player = 24;
   bool cinema_mode = 25;
   DpadSeekMode dpad_seek_mode = 26;
 }

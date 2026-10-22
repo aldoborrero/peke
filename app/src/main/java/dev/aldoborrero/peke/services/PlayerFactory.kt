@@ -166,10 +166,6 @@ class PlayerFactory
                                 }
                             }
                     }
-
-                    PlayerBackend.EXTERNAL_PLAYER -> {
-                        throw IllegalArgumentException("Cannot create a player for external playback")
-                    }
                 }
             currentPlayer = newPlayer
             return PlayerCreation(newPlayer, assHandler)

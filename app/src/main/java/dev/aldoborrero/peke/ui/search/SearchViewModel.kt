@@ -9,8 +9,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
-import dev.aldoborrero.peke.data.model.SeerrItemType
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.updateSearchPreferences
 import dev.aldoborrero.peke.services.FavoriteWatchManager
@@ -19,7 +17,6 @@ import dev.aldoborrero.peke.services.LiveTvService
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavDrawerService
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SeerrService
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
@@ -43,11 +40,8 @@ import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.SearchRelevance
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.api.client.ApiClient
@@ -69,7 +63,6 @@ class SearchViewModel
         val api: ApiClient,
         val navigationManager: NavigationManager,
         val appPreferences: DataStore<AppPreferences>,
-        private val seerrService: SeerrService,
         val voiceInputManager: VoiceInputManager,
         val userPreferencesService: UserPreferencesService,
         private val serverRepository: ServerRepository,
@@ -81,13 +74,6 @@ class SearchViewModel
         private val navDrawerService: NavDrawerService,
     ) : ViewModel(),
         ContextMenuProvider {
-        val seerrActive =
-            seerrService.active.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.Eagerly,
-                initialValue = false,
-            )
-
         private val _state = MutableStateFlow(SearchState())
         val state: StateFlow<SearchState> = _state
         val position = MutableStateFlow(RowColumn(0, 0))
@@ -125,25 +111,10 @@ class SearchViewModel
                             emptyList()
                         }
                     } ?: emptyList()
-                val discoverEnabled =
-                    serverRepository.currentUser?.id?.let { userId ->
-                        try {
-                            keyValueService
-                                .get(
-                                    userId,
-                                    INCLUDE_DISCOVER_KEY,
-                                    true,
-                                ).firstOrNull()
-                        } catch (ex: Exception) {
-                            Timber.e(ex, "Error occurred fetching excluded search types")
-                            true
-                        }
-                    } ?: true
                 val searchableTypes = determineSearchableTypes(excludedSearchableTypes)
                 val possibleSearchableTypes = determineSearchableTypes(emptyList())
                 _state.update {
                     it.copy(
-                        discoverEnabled = discoverEnabled,
                         includedSearchableTypes = searchableTypes,
                         possibleSearchableTypes = possibleSearchableTypes,
                         excludedSearchableTypes = excludedSearchableTypes,
@@ -209,7 +180,6 @@ class SearchViewModel
                         searchType(query, type)
                     }
                 }
-                searchSeerr(query)
             } else {
                 _state.update {
                     it.copy(
@@ -340,20 +310,6 @@ class SearchViewModel
                     it.updateSearchPreferences {
                         showVoiceSearchButton = visible
                     }
-                }
-            }
-        }
-
-        private fun searchSeerr(query: String) {
-            viewModelScope.launchIO {
-                if (seerrActive.first() && state.value.discoverEnabled) {
-                    _state.update { it.copy(seerrResults = SearchResult.Searching) }
-                    val results =
-                        seerrService
-                            .search(query)
-                            .map { seerrService.createDiscoverItem(it) }
-                            .filter { it.type == SeerrItemType.MOVIE || it.type == SeerrItemType.TV }
-                    _state.update { it.copy(seerrResults = SearchResult.SuccessSeerr(results)) }
                 }
             }
         }
@@ -544,36 +500,8 @@ class SearchViewModel
             }
         }
 
-        fun onClickExcludeDiscover() {
-            viewModelScope.launchIO {
-                try {
-                    val newIncludeDiscover = state.value.discoverEnabled.not()
-                    Timber.v("newIncludeDiscover=%s", newIncludeDiscover)
-                    serverRepository.currentUser?.id?.let { userId ->
-                        keyValueService.save(userId, INCLUDE_DISCOVER_KEY, newIncludeDiscover)
-                    }
-                    _state.update {
-                        it.copy(
-                            discoverEnabled = newIncludeDiscover,
-                        )
-                    }
-                    if (newIncludeDiscover) {
-                        currentQuery?.takeIf { it.isNotNullOrBlank() }?.let { query ->
-                            searchSeerr(query)
-                        }
-                    }
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Exception discover")
-                    showToast(context, "An error occurred: ${ex.localizedMessage}")
-                }
-            }
-        }
-
         companion object {
             private const val EXCLUDED_SEARCHABLE_TYPES_KEY = "excludedSearchableTypes"
-            private const val INCLUDE_DISCOVER_KEY = "searchIncludeDiscover"
         }
     }
 
@@ -589,20 +517,14 @@ sealed interface SearchResult {
     data class Success(
         val items: List<BaseItem?>,
     ) : SearchResult
-
-    data class SuccessSeerr(
-        val items: List<DiscoverItem>,
-    ) : SearchResult
 }
 
 data class SearchState(
     val results: SnapshotStateMap<BaseItemKind, SearchResult> = SnapshotStateMap(),
-    val seerrResults: SearchResult = SearchResult.NoQuery,
     val combinedResults: SearchResult = SearchResult.NoQuery,
     val possibleSearchableTypes: List<BaseItemKind> = emptyList(),
     val includedSearchableTypes: List<BaseItemKind> = emptyList(),
     val excludedSearchableTypes: List<BaseItemKind> = emptyList(),
-    val discoverEnabled: Boolean = true,
 )
 
 private val allSearchableTypes =

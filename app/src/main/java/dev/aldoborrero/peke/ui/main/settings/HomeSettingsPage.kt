@@ -67,8 +67,6 @@ fun HomeSettingsPage(
 
     val state by viewModel.state.collectAsState()
     var position by rememberPosition(0, 0)
-    // TODO discover rows
-    val discoverEnabled = false // by viewModel.discoverEnabled.collectAsState(false)
 
     // Adds a row, waits until its done loading, then scrolls to the new row
     fun addRow(
@@ -144,7 +142,6 @@ fun HomeSettingsPage(
                             is HomeSettingsDestination.AddRow -> {
                                 HomeSettingsAddRow(
                                     libraries = state.libraries,
-                                    showDiscover = discoverEnabled,
                                     onClick = { backStack.add(ChooseRowType(it)) },
                                     onClickMeta = {
                                         when (it) {
@@ -157,10 +154,6 @@ fun HomeSettingsPage(
 
                                             MetaRowType.FAVORITES -> {
                                                 backStack.add(HomeSettingsDestination.ChooseFavorite)
-                                            }
-
-                                            MetaRowType.DISCOVER -> {
-                                                backStack.add(HomeSettingsDestination.ChooseDiscover)
                                             }
 
                                             MetaRowType.COLLECTION -> {
@@ -250,10 +243,6 @@ fun HomeSettingsPage(
                                         }
                                     },
                                 )
-                            }
-
-                            HomeSettingsDestination.ChooseDiscover -> {
-                                TODO()
                             }
 
                             HomeSettingsDestination.ChooseFavorite -> {

@@ -1,19 +1,9 @@
 package dev.aldoborrero.peke.ui.preferences
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
-import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.preferences.AppPreferences
@@ -24,7 +14,6 @@ import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.ProfilePolicy
 import dev.aldoborrero.peke.services.Release
 import dev.aldoborrero.peke.services.ScreensaverService
-import dev.aldoborrero.peke.services.SeerrServerRepository
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.ui.launchIO
@@ -44,14 +33,12 @@ import javax.inject.Inject
 class PreferencesViewModel
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
         private val api: ApiClient,
         val preferenceDataStore: DataStore<AppPreferences>,
         val navigationManager: NavigationManager,
         val backdropService: BackdropService,
         val screensaverService: ScreensaverService,
         private val serverRepository: ServerRepository,
-        private val seerrServerRepository: SeerrServerRepository,
         private val updateChecker: UpdateChecker,
         private val serverReportService: ServerReportService,
         profilePolicy: ProfilePolicy,
@@ -75,31 +62,10 @@ class PreferencesViewModel
                 null,
             )
 
-        val seerrConnection = seerrServerRepository.connection
-
         private val _quickConnectStatus = MutableStateFlow<LoadingState>(LoadingState.Pending)
         val quickConnectStatus: StateFlow<LoadingState> = _quickConnectStatus
 
         val releaseNotes = MutableStateFlow<DataLoadingState<Release>>(DataLoadingState.Pending)
-
-        val externalPlayers = MutableStateFlow<List<ExternalPlayerApp>>(emptyList())
-
-        init {
-            viewModelScope.launchIO {
-                val fakeIntent =
-                    Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType("https://damontecres.com/video.mp4".toUri(), "video/*")
-                    }
-                val externalPlayers = getExternalPlayers(context)
-                val systemDefault =
-                    ExternalPlayerApp(
-                        name = context.getString(R.string.system_default),
-                        icon = null,
-                        identifier = "",
-                    )
-                this@PreferencesViewModel.externalPlayers.update { listOf(systemDefault) + externalPlayers }
-            }
-        }
 
         fun sendAppLogs() {
             viewModelScope.launchIO { serverReportService.sendAppLogs() }
@@ -180,37 +146,3 @@ class PreferencesViewModel
             }
         }
     }
-
-data class ExternalPlayerApp(
-    val name: String,
-    val icon: ImageBitmap?,
-    val identifier: String,
-)
-
-fun getExternalPlayers(context: Context): List<ExternalPlayerApp> {
-    val fakeIntent =
-        Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType("https://damontecres.com/video.mp4".toUri(), "video/*")
-        }
-    val externalPlayers =
-        context.packageManager
-            .queryIntentActivities(fakeIntent, PackageManager.MATCH_ALL)
-            .filter { it.priority >= 0 }
-            .map {
-                val component =
-                    ComponentName(
-                        it.activityInfo.packageName,
-                        it.activityInfo.name,
-                    )
-                ExternalPlayerApp(
-                    name = it.loadLabel(context.packageManager).toString(),
-                    icon =
-                        it
-                            .loadIcon(context.packageManager)
-                            .toBitmap()
-                            .asImageBitmap(),
-                    identifier = component.flattenToString(),
-                )
-            }
-    return externalPlayers
-}

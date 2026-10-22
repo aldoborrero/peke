@@ -239,14 +239,6 @@ fun SearchForResultsRow(
             )
         }
 
-        is SearchResult.SuccessSeerr -> {
-            Text(
-                text = "Not supported",
-                color = MaterialTheme.colorScheme.error,
-                modifier = modifier,
-            )
-        }
-
         is SearchResult.Success -> {
             if (st.items.isEmpty()) {
                 ItemRowTitle(

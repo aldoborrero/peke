@@ -30,7 +30,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.data.model.Person
 import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.preferences.UserPreferences
@@ -56,14 +55,10 @@ import dev.aldoborrero.peke.ui.data.ChooseVersionParams
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialog
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialogInfo
 import dev.aldoborrero.peke.ui.detail.PlaylistDialog
-import dev.aldoborrero.peke.ui.discover.DiscoverRow
-import dev.aldoborrero.peke.ui.discover.DiscoverRowData
 import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
-import dev.aldoborrero.peke.ui.util.ResStringProvider
 import dev.aldoborrero.peke.util.DataLoadingState
-import dev.aldoborrero.peke.util.DiscoverRequestType
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -230,9 +225,6 @@ fun MovieDetails(
                 onClickExtra = { index, extra ->
                     viewModel.navigateTo(extra.destination)
                 },
-                onClickDiscover = { index, item ->
-                    viewModel.navigateTo(item.destination)
-                },
                 canDelete = state.canDelete,
                 onConfirmDelete = { state.movie?.let { viewModel.deleteItem(it) } },
                 onChooseVersion = { contextActions.onChooseVersion.invoke(movie, it) },
@@ -284,7 +276,6 @@ private const val TRAILER_ROW = PEOPLE_ROW + 1
 private const val CHAPTER_ROW = TRAILER_ROW + 1
 private const val EXTRAS_ROW = CHAPTER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
-private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
 @Composable
 fun MovieDetailsContent(
@@ -302,7 +293,6 @@ fun MovieDetailsContent(
     onLongClickPerson: (Int, Person) -> Unit,
     onLongClickSimilar: (Int, BaseItem) -> Unit,
     onClickExtra: (Int, ExtrasItem) -> Unit,
-    onClickDiscover: (Int, DiscoverItem) -> Unit,
     canDelete: Boolean,
     onConfirmDelete: () -> Unit,
     onChooseVersion: (MediaSourceInfo) -> Unit,
@@ -311,7 +301,7 @@ fun MovieDetailsContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var position by rememberInt(0)
-    val focusRequesters = remember { List(DISCOVER_ROW + 1) { FocusRequester() } }
+    val focusRequesters = remember { List(SIMILAR_ROW + 1) { FocusRequester() } }
     val dto = movie.data
     val resumePosition = dto.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO
 
@@ -474,25 +464,6 @@ fun MovieDetailsContent(
                             Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequesters[SIMILAR_ROW]),
-                    )
-                }
-            }
-            state.discovered.letNotEmpty { discovered ->
-                item {
-                    DiscoverRow(
-                        row =
-                            DiscoverRowData(
-                                ResStringProvider(R.string.discover),
-                                DataLoadingState.Success(discovered),
-                                type = DiscoverRequestType.UNKNOWN,
-                            ),
-                        onClickItem = { index: Int, item: DiscoverItem ->
-                            position = DISCOVER_ROW
-                            onClickDiscover.invoke(index, item)
-                        },
-                        onLongClickItem = { _, _ -> },
-                        onCardFocus = {},
-                        focusRequester = focusRequesters[DISCOVER_ROW],
                     )
                 }
             }

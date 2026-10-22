@@ -50,7 +50,6 @@ class NavDrawerService
         private val api: ApiClient,
         private val serverRepository: ServerRepository,
         private val serverPreferencesDao: ServerPreferencesDao,
-        private val seerrServerRepository: SeerrServerRepository,
         private val musicService: MusicService,
     ) {
         private val _state = MutableStateFlow(NavDrawerItemState())
@@ -61,19 +60,17 @@ class NavDrawerService
             combine(
                 serverRepository.currentUserFlow,
                 serverRepository.currentUserDtoFlow,
-                seerrServerRepository.active,
-            ) { user, userDto, discoverActive ->
-                Triple(user, userDto, discoverActive)
-            }.collectLatestIn(coroutineScope) { (user, userDto, discoverActive) ->
+            ) { user, userDto ->
+                user to userDto
+            }.collectLatestIn(coroutineScope) { (user, userDto) ->
                 Timber.d(
-                    "User updated: user=%s, userDto=%s, discoverActive=%s",
+                    "User updated: user=%s, userDto=%s",
                     user?.id,
                     userDto?.id,
-                    discoverActive,
                 )
                 try {
                     if (user != null && userDto != null && user.id == userDto.id) {
-                        updateNavDrawer(user, userDto, discoverActive)
+                        updateNavDrawer(user, userDto)
                     } else {
                         _state.update { NavDrawerItemState() }
                     }
@@ -190,12 +187,10 @@ class NavDrawerService
         suspend fun updateNavDrawer(
             user: JellyfinUser,
             userDto: ServerUserConfig,
-            discoverActive: Boolean,
         ) {
             val builtins =
                 buildList {
                     add(NavDrawerItem.Favorites)
-                    if (discoverActive) add(NavDrawerItem.Discover)
                 }
             val allLibraries = getAllUserLibraries(user.id, userDto.tvAccess)
             val libraries =

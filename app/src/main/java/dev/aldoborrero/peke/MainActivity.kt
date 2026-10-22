@@ -44,7 +44,6 @@ import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KidsMusicGuard
 import dev.aldoborrero.peke.preferences.AppPreferences
-import dev.aldoborrero.peke.preferences.PlayerBackend
 import dev.aldoborrero.peke.services.AppUpgradeHandler
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.DatePlayedInvalidationService
@@ -65,14 +64,12 @@ import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.UserSwitchListener
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
-import dev.aldoborrero.peke.services.tvprovider.TvProviderSchedulerService
 import dev.aldoborrero.peke.ui.CoilConfig
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.collectLatestIn
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.nav.Destination
-import dev.aldoborrero.peke.ui.playback.PlayExternalViewModel
 import dev.aldoborrero.peke.ui.showToast
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.theme.colors.PurpleThemeColors
@@ -99,7 +96,6 @@ import kotlin.time.Duration.Companion.milliseconds
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainActivityViewModel by viewModels()
-    private val playExternalViewModel: PlayExternalViewModel by viewModels()
 
     @Inject
     lateinit var userPreferencesDataStore: DataStore<AppPreferences>
@@ -131,9 +127,6 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var userSwitchListener: UserSwitchListener
-
-    @Inject
-    lateinit var tvProviderSchedulerService: TvProviderSchedulerService
 
     @Inject
     lateinit var suggestionsSchedulerService: SuggestionsSchedulerService
@@ -174,7 +167,6 @@ class MainActivity : AppCompatActivity() {
     lateinit var kidsLiveTvService: KidsLiveTvService
 
     private var signInAuto = true
-    private var playerBackend: PlayerBackend? = null
 
     private val json =
         Json {
@@ -210,12 +202,10 @@ class MainActivity : AppCompatActivity() {
         if (restoredBackStack != null) {
             Timber.d("Restoring back stack")
             var backStack = restoredBackStack
-            if (!playExternalViewModel.launched.value) {
-                val lastDest = backStack.lastOrNull()
-                if (lastDest.isPlayback) {
-                    Timber.v("Restoring back stack without playback")
-                    backStack = backStack.toMutableList().apply { removeAt(lastIndex) }
-                }
+            val lastDest = backStack.lastOrNull()
+            if (lastDest.isPlayback) {
+                Timber.v("Restoring back stack without playback")
+                backStack = backStack.toMutableList().apply { removeAt(lastIndex) }
             }
             navigationManager.backStack = NavBackStack(*backStack.toTypedArray())
         } else {
@@ -251,7 +241,6 @@ class MainActivity : AppCompatActivity() {
 
         userPreferencesDataStore.data.collectLatestIn(lifecycleScope) { prefs ->
             signInAuto = prefs.signInAutomatically
-            playerBackend = prefs.playbackPreferences.playerBackend
         }
 
         viewModel.appStart(intent)
@@ -345,13 +334,11 @@ class MainActivity : AppCompatActivity() {
         super.onRestart()
         Timber.d("onRestart")
         viewModel.appStart(null)
-        if (!playExternalViewModel.launched.value) {
-            // If restarting during playback that is not external, go back a page
-            val lastDest = navigationManager.backStack.lastOrNull()
-            if (lastDest.isPlayback) {
-                Timber.v("onRestart: go back from playback")
-                navigationManager.goBack()
-            }
+        // If restarting during playback, go back a page
+        val lastDest = navigationManager.backStack.lastOrNull()
+        if (lastDest.isPlayback) {
+            Timber.v("onRestart: go back from playback")
+            navigationManager.goBack()
         }
     }
 
@@ -359,7 +346,6 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         Timber.d("onStop")
         screensaverService.stop(true)
-        tvProviderSchedulerService.launchOneTimeRefresh()
     }
 
     override fun onPause() {
@@ -399,7 +385,6 @@ class MainActivity : AppCompatActivity() {
             // the back stack rather than crashing in onSaveInstanceState.
             Timber.w(ex, "Could not persist back stack; skipping")
         }
-        outState.putBoolean(KEY_EXTERNAL_PLAYER, playerBackend == PlayerBackend.EXTERNAL_PLAYER)
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
@@ -443,7 +428,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_BACK_STACK = "backStack"
-        private const val KEY_EXTERNAL_PLAYER = "extPlayer"
 
         lateinit var instance: MainActivity
             private set

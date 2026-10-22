@@ -38,13 +38,11 @@ protobuf-javalite = "4.36.1"
 hilt = "2.60.1"
 room = "2.8.5"
 preferenceKtx = "1.2.1"
-tvprovider = "1.1.0"
 workRuntimeKtx = "2.11.2"
 paletteKtx = "1.0.0"
 libass-android = "0.5.1"
 kotlinxCoroutinesTest = "1.11.0"
 coreTesting = "2.2.0"
-openapi-generator = "7.26.0"
 runner = "1.7.0"
 wholphin-extensions = "0.2.4"
 junit = "4.13.2"
@@ -85,7 +83,6 @@ androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecyc
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
-androidx-tvprovider = { module = "androidx.tvprovider:tvprovider", version.ref = "tvprovider" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 androidx-hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hiltCompiler" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
@@ -164,5 +161,4 @@ protobuf = { id = "com.google.protobuf", version.ref = "protobuf" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 room = { id = "androidx.room", version.ref = "room" }
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutLibraries" }
-openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
 android-library = { id = "com.android.library", version.ref = "agp" }

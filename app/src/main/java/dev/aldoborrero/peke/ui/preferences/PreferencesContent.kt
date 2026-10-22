@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -14,12 +13,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -63,22 +60,18 @@ import dev.aldoborrero.peke.preferences.lazyListWrapScrolling
 import dev.aldoborrero.peke.preferences.screensaverPreferences
 import dev.aldoborrero.peke.preferences.updatePlaybackPreferences
 import dev.aldoborrero.peke.services.Release
-import dev.aldoborrero.peke.services.SeerrConnectionStatus
 import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.ui.components.ConfirmDialog
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.components.ScrollableDialog
 import dev.aldoborrero.peke.ui.ifElse
-import dev.aldoborrero.peke.ui.indexOfFirstOrNull
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.playOnClickSound
 import dev.aldoborrero.peke.ui.playSoundOnFocus
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings
 import dev.aldoborrero.peke.ui.setup.ReleaseNotes
 import dev.aldoborrero.peke.ui.setup.UpdateViewModel
-import dev.aldoborrero.peke.ui.setup.seerr.AddSeerServerDialog
-import dev.aldoborrero.peke.ui.setup.seerr.SwitchSeerrViewModel
 import dev.aldoborrero.peke.ui.showToast
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.DataLoadingState
@@ -95,7 +88,6 @@ fun PreferencesContent(
     modifier: Modifier = Modifier,
     viewModel: PreferencesViewModel = hiltViewModel(),
     updateVM: UpdateViewModel = hiltViewModel(),
-    seerrVm: SwitchSeerrViewModel = hiltViewModel(),
     onFocus: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
@@ -110,12 +102,9 @@ fun PreferencesContent(
     val currentUser by viewModel.currentUser.collectAsState()
     var showPinFlow by remember { mutableStateOf(false) }
     var showVersionDialog by remember { mutableStateOf(false) }
-    val players by viewModel.externalPlayers.collectAsState()
     val kidsAvailable by viewModel.kidsAvailable.collectAsState()
 
     var cacheUsage by remember { mutableStateOf(CacheUsage(0, 0, 0)) }
-    val seerrConnection by viewModel.seerrConnection.collectAsState()
-    var seerrDialogMode by remember { mutableStateOf<SeerrDialogMode>(SeerrDialogMode.None) }
     var showQuickConnectDialog by remember { mutableStateOf(false) }
     var showLocaleChoiceDialog by remember { mutableStateOf(false) }
 
@@ -473,52 +462,6 @@ fun PreferencesContent(
                                     )
                                 }
 
-                                AppPreference.SeerrIntegration -> {
-                                    ClickPreference(
-                                        title = stringResource(pref.title),
-                                        onClick = {
-                                            seerrDialogMode =
-                                                when (val conn = seerrConnection) {
-                                                    is SeerrConnectionStatus.Error -> {
-                                                        SeerrDialogMode.Error(
-                                                            conn.server.url,
-                                                            conn.ex,
-                                                        )
-                                                    }
-
-                                                    SeerrConnectionStatus.NotConfigured -> {
-                                                        SeerrDialogMode.Add
-                                                    }
-
-                                                    is SeerrConnectionStatus.Success -> {
-                                                        SeerrDialogMode.Remove(
-                                                            conn.current.server.url,
-                                                        )
-                                                    }
-                                                }
-                                        },
-                                        modifier = focusModifier,
-                                        summary =
-                                            when (seerrConnection) {
-                                                is SeerrConnectionStatus.Error -> {
-                                                    stringResource(R.string.voice_error_server)
-                                                }
-
-                                                SeerrConnectionStatus.NotConfigured -> {
-                                                    stringResource(
-                                                        R.string.add_server,
-                                                    )
-                                                }
-
-                                                is SeerrConnectionStatus.Success -> {
-                                                    stringResource(R.string.enabled)
-                                                }
-                                            },
-                                        onLongClick = {},
-                                        interactionSource = interactionSource,
-                                    )
-                                }
-
                                 AppPreference.QuickConnect -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -545,47 +488,6 @@ fun PreferencesContent(
                                         summary = pref.summary(context, null),
                                         onLongClick = {},
                                         interactionSource = interactionSource,
-                                    )
-                                }
-
-                                AppPreference.ExternalPlayerApp -> {
-                                    val value = pref.getter.invoke(preferences).toString()
-                                    val selectedIndex =
-                                        remember(value, players) {
-                                            players.indexOfFirstOrNull { it.identifier == value }
-                                        } ?: 0
-                                    ChoicePreference(
-                                        title = stringResource(pref.title),
-                                        summary = players[selectedIndex].name,
-                                        interactionSource = interactionSource,
-                                        possibleValues = players,
-                                        selectedIndex = selectedIndex,
-                                        onValueChange = { index ->
-                                            scope.launch(ExceptionHandler()) {
-                                                val newValue =
-                                                    players.getOrNull(index)?.identifier ?: ""
-                                                preferences =
-                                                    viewModel.preferenceDataStore.updateData { prefs ->
-                                                        pref.setter.invoke(prefs, newValue)
-                                                    }
-                                            }
-                                        },
-                                        valueDisplay = { index, item ->
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                if (item.icon != null) {
-                                                    Image(
-                                                        bitmap = item.icon,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.width(40.dp),
-                                                    )
-                                                }
-                                                Text(item.name)
-                                            }
-                                        },
-                                        modifier = focusModifier,
                                     )
                                 }
 
@@ -702,62 +604,6 @@ fun PreferencesContent(
                 )
             }
         }
-        when (val mode = seerrDialogMode) {
-            is SeerrDialogMode.Remove -> {
-                ConfirmDialog(
-                    title = stringResource(R.string.remove_seerr_server),
-                    body = mode.serverUrl,
-                    onCancel = { seerrDialogMode = SeerrDialogMode.None },
-                    onConfirm = {
-                        seerrVm.removeServer()
-                        seerrDialogMode = SeerrDialogMode.None
-                    },
-                )
-            }
-
-            SeerrDialogMode.Add -> {
-                val currentUser by seerrVm.currentUser.collectAsState(null)
-                val status by seerrVm.serverConnectionStatus.collectAsState(LoadingState.Pending)
-                val serverAddedMessage = stringResource(R.string.seerr_server_added)
-                LaunchedEffect(status) {
-                    if (status == LoadingState.Success) {
-                        Toast.makeText(context, serverAddedMessage, Toast.LENGTH_SHORT).show()
-                        seerrDialogMode = SeerrDialogMode.None
-                    }
-                }
-                AddSeerServerDialog(
-                    currentUsername = currentUser?.name,
-                    status = status,
-                    onSubmit = seerrVm::submitServer,
-                    onResetStatus = seerrVm::resetStatus,
-                    onDismissRequest = { seerrDialogMode = SeerrDialogMode.None },
-                )
-            }
-
-            is SeerrDialogMode.Error -> {
-                val errorStr = stringResource(R.string.voice_error_server)
-                val body =
-                    remember(mode) {
-                        """
-                        ${mode.serverUrl}
-
-                        $errorStr: ${mode.ex.localizedMessage}
-                        """.trimIndent()
-                    }
-                ConfirmDialog(
-                    title = stringResource(R.string.remove_seerr_server),
-                    body = body,
-                    onCancel = { seerrDialogMode = SeerrDialogMode.None },
-                    onConfirm = {
-                        seerrVm.removeServer()
-                        seerrDialogMode = SeerrDialogMode.None
-                    },
-                    bodyColor = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            SeerrDialogMode.None -> {}
-        }
     }
 
     if (showQuickConnectDialog) {
@@ -861,18 +707,3 @@ data class CacheUsage(
     val imageMemoryMax: Long,
     val imageDiskUsed: Long,
 )
-
-private sealed interface SeerrDialogMode {
-    data object None : SeerrDialogMode
-
-    data object Add : SeerrDialogMode
-
-    data class Remove(
-        val serverUrl: String,
-    ) : SeerrDialogMode
-
-    data class Error(
-        val serverUrl: String,
-        val ex: Exception,
-    ) : SeerrDialogMode
-}

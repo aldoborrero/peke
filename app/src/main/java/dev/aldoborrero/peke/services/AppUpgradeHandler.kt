@@ -12,7 +12,6 @@ import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.MostRecentServerProvider
 import dev.aldoborrero.peke.data.PlaybackLanguageChoiceDao
 import dev.aldoborrero.peke.data.RememberedTabDao
-import dev.aldoborrero.peke.data.SeerrServerDao
 import dev.aldoborrero.peke.data.SeriesTrackChoiceDao
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.RememberedTab
@@ -39,7 +38,6 @@ import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
 import dev.aldoborrero.peke.ui.preferences.PreferencesViewModel
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings
 import dev.aldoborrero.peke.ui.preferences.subtitle.shouldEnableSeparateHdrToggle
-import dev.aldoborrero.peke.ui.setup.seerr.migrateSeerrUrl
 import dev.aldoborrero.peke.util.Version
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
@@ -60,7 +58,6 @@ class AppUpgradeHandler
     constructor(
         @param:ApplicationContext private val context: Context,
         private val appPreferences: DataStore<AppPreferences>,
-        private val seerrServerDao: SeerrServerDao,
         private val serverDao: JellyfinServerDao,
         private val rememberedTabDao: RememberedTabDao,
         private val mostRecentServerProvider: MostRecentServerProvider,
@@ -314,15 +311,6 @@ class AppUpgradeHandler
                         addItemTypes(BaseItemKind.MOVIE.serialName)
                         addItemTypes(BaseItemKind.SERIES.serialName)
                     }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.5.4-0-g0"))) {
-                seerrServerDao.getServers().forEach {
-                    val server = it.server
-                    seerrServerDao.updateServer(
-                        server.copy(url = migrateSeerrUrl(server.url)),
-                    )
                 }
             }
 

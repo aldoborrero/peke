@@ -30,11 +30,6 @@ interface ProfilePolicy {
     val homeChanges: Flow<Unit>
 
     /**
-     * Whether [user] may use discover and requests
-     */
-    suspend fun allowsDiscover(user: JellyfinUser): Boolean
-
-    /**
      * Whether the profile settings entry is shown for the current server
      */
     val settingsAvailable: Flow<Boolean>
@@ -51,8 +46,6 @@ interface ProfilePolicy {
         ): HomePageSettings? = null
 
         override val homeChanges: Flow<Unit> = emptyFlow()
-
-        override suspend fun allowsDiscover(user: JellyfinUser): Boolean = true
 
         override val settingsAvailable: Flow<Boolean> = flowOf(false)
 

@@ -17,7 +17,6 @@ plugins {
     alias(libs.plugins.protobuf)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias(libs.plugins.aboutLibraries)
-    alias(libs.plugins.openapi.generator)
 }
 
 val isCI = providers.environmentVariable("CI").orElse("false").map { it.toBoolean() }
@@ -191,12 +190,6 @@ configure<ApplicationExtension> {
         }
     }
 
-    sourceSets {
-        getByName("main") {
-            kotlin.directories += "$buildDir/generated/seerr_api/src/main/kotlin"
-        }
-    }
-
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -260,33 +253,6 @@ aboutLibraries {
     }
 }
 
-openApiGenerate {
-    generatorName.set("kotlin")
-    inputSpec.set("$projectDir/src/main/seerr/seerr-api.yml")
-    templateDir.set("$projectDir/src/main/seerr/templates")
-    outputDir.set("$buildDir/generated/seerr_api")
-    apiPackage.set("dev.aldoborrero.peke.api.seerr")
-    modelPackage.set("dev.aldoborrero.peke.api.seerr.model")
-    groupId.set("dev.aldoborrero.peke.api.seerr")
-    id.set("seerr-api")
-    packageName.set("dev.aldoborrero.peke.api.seerr")
-    additionalProperties.apply {
-        put("serializationLibrary", "kotlinx_serialization")
-        put("sortModelPropertiesByRequiredFlag", true)
-        put("sortParamsByRequiredFlag", true)
-        put("useCoroutines", true)
-        put("enumPropertyNaming", "UPPERCASE")
-        put("modelMutable", false)
-
-        // Note: this is only for downloading files, so it's not necessary to enable
-        put("supportAndroidApiLevel25AndBelow", false)
-    }
-}
-
-tasks.named("preBuild") {
-    dependsOn.add(tasks.named("openApiGenerate"))
-}
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -302,7 +268,6 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.protobuf.kotlin.lite)
-    implementation(libs.androidx.tvprovider)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.profileinstaller)

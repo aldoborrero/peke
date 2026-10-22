@@ -19,8 +19,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Kid profiles get the fixed kids home, never use Seerr, and kids settings are offered where the server has the Kids
- * plugin
+ * Kid profiles get the fixed kids home, and kids settings are offered where the server has the Kids plugin
  */
 @Singleton
 class KidsProfilePolicy
@@ -51,8 +50,6 @@ class KidsProfilePolicy
                 .distinctUntilChanged()
                 .drop(1)
                 .map { }
-
-        override suspend fun allowsDiscover(user: JellyfinUser): Boolean = kidsModeService.profileFor(user) == null
 
         // An outdated plugin still shows the entry, which says to update it
         override val settingsAvailable: Flow<Boolean> =

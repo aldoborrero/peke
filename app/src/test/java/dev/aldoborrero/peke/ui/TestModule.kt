@@ -33,7 +33,6 @@ import dev.aldoborrero.peke.data.ServerPreferencesDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppPreferencesSerializer
-import dev.aldoborrero.peke.services.SeerrApi
 import dev.aldoborrero.peke.services.TestMostRecentServerProvider
 import dev.aldoborrero.peke.services.hilt.AppModule
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
@@ -198,12 +197,6 @@ object TestModule {
     fun workManager(
         @ApplicationContext context: Context,
     ): WorkManager = mockk()
-
-    @Provides
-    @Singleton
-    fun seerrApi(
-        @StandardOkHttpClient okHttpClient: OkHttpClient,
-    ): SeerrApi = mockk()
 
     @Provides
     @Singleton

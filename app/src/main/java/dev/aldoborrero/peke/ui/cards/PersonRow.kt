@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.data.model.Person
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.rememberInt
@@ -72,53 +71,6 @@ fun PersonRow(
                         Modifier
                             .width(personRowCardWidth)
                             .ifElse(index == position, Modifier.focusRequester(firstFocus))
-                            .animateItem(),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun DiscoverPersonRow(
-    people: List<DiscoverItem>,
-    onClick: (DiscoverItem) -> Unit,
-    modifier: Modifier = Modifier,
-    @StringRes title: Int = R.string.people_title,
-    onLongClick: ((Int, DiscoverItem) -> Unit)? = null,
-) {
-    val firstFocus = remember { FocusRequester() }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            text = stringResource(title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        LazyRow(
-            state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(8.dp),
-            modifier =
-                Modifier
-                    .padding(start = 16.dp)
-                    .fillMaxWidth()
-                    .focusRestorer(firstFocus),
-        ) {
-            itemsIndexed(people) { index, person ->
-                PersonCard(
-                    name = person.title,
-                    role = person.subtitle,
-                    imageUrl = person.posterUrl,
-                    favorite = false,
-                    onClick = { onClick.invoke(person) },
-                    onLongClick = { onLongClick?.invoke(index, person) },
-                    modifier =
-                        Modifier
-                            .width(personRowCardWidth)
-                            .ifElse(index == 0, Modifier.focusRequester(firstFocus))
                             .animateItem(),
                 )
             }

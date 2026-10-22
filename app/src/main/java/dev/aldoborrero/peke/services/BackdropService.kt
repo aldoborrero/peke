@@ -16,7 +16,6 @@ import coil3.request.allowHardware
 import coil3.request.bitmapConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.model.BaseItem
-import dev.aldoborrero.peke.data.model.DiscoverItem
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.BackdropStyle
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -64,11 +63,6 @@ class BackdropService
                     }
                 submit(item.id.toString(), imageUrl)
             }
-
-        /**
-         * Update the backdrop to use the specified discovered item
-         */
-        suspend fun submit(item: DiscoverItem) = submit("discover_${item.id}", item.backDropUrl)
 
         /**
          * Update the backdrop to use the specified URL
