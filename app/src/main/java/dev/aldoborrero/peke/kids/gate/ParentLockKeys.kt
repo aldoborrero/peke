@@ -6,7 +6,7 @@ import android.view.KeyEvent
 /**
  * Which remote keys make up a parent code, and the symbol each one stores
  *
- * D-pad directions and digits use the same symbols as Wholphin's profile PIN (U, D, L, R, 0-9).
+ * D-pad directions and digits use the same symbols as the profile PIN (U, D, L, R, 0-9).
  */
 object ParentLockKeys {
     /**

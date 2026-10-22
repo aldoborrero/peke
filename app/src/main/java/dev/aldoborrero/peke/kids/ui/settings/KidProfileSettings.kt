@@ -7,7 +7,7 @@ import dev.aldoborrero.peke.preferences.AppSliderPreference
 import dev.aldoborrero.peke.preferences.AppSwitchPreference
 
 /**
- * Each kid's options, shown with Wholphin's [dev.aldoborrero.peke.ui.preferences.ComposablePreference]
+ * Each kid's options, shown with the app's [dev.aldoborrero.peke.ui.preferences.ComposablePreference]
  */
 object KidProfileSettings {
     val SearchAllowed =

@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name" translatable="false">Wholphin</string>
-    <string name="app_name_long" translatable="false">Wholphin</string>
+    <string name="app_name" translatable="false">Peke</string>
+    <string name="app_name_long" translatable="false">Peke for Jellyfin</string>
 
     <string name="about">About</string>
     <string name="active_recordings">Active Recordings</string>
@@ -600,8 +600,8 @@
     <string name="content_scale_fill">Fill</string>
     <string name="content_scale_fill_width">Fill width</string>
     <string name="content_scale_fill_height">Fill height</string>
-    <string name="display_preset_default">Wholphin Default</string>
-    <string name="display_preset_compact">Wholphin Compact</string>
+    <string name="display_preset_default">Default</string>
+    <string name="display_preset_compact">Compact</string>
     <string name="display_preset_series_thumb">Series Thumb images</string>
     <string name="display_preset_episode_thumbnails">Episode Thumbnail images</string>
 
@@ -821,7 +821,7 @@
     <string name="select_all">Select all</string>
     <string name="separate_types">Separate types</string>
     <string name="prefer_logos">Prefer showing logos for titles</string>
-    <string name="updated_toast">Wholphin updated to %s</string>
+    <string name="updated_toast">Peke updated to %s</string>
     <string name="remove_continue_watching">Remove from continue watching</string>
     <string name="remove_next_up">Remove series from next up</string>
     <string name="view_removed_next_up">View series removed from next up</string>
@@ -1011,7 +1011,7 @@
     <string name="kids_timer_bar_bottom">At the bottom</string>
     <string name="kids_profiles">Kid profiles</string>
     <string name="kids_profile_on">Opens in kids mode</string>
-    <string name="kids_profile_off">Regular Wholphin</string>
+    <string name="kids_profile_off">Grown-up: sets up this TV only</string>
     <string name="kids_search_allowed">Allow search</string>
     <string name="kids_autoplay">Autoplay next episode</string>
     <string name="kids_autoplay_cap">Episodes in a row</string>
@@ -1089,4 +1089,5 @@
     <string name="kids_session_limit_summary">Counted on the server across every device, then a break</string>
     <string name="kids_household_code">Household parent code</string>
     <string name="kids_household_code_summary">The same code on every TV of this server</string>
+    <string name="peke_license_credit">Peke for Jellyfin is a fork of Wholphin by damontecres, licensed under the GNU GPL version 2. Source: github.com/aldoborrero/peke. Wholphin: github.com/damontecres/Wholphin. Peke is not an official Jellyfin app.</string>
 </resources>

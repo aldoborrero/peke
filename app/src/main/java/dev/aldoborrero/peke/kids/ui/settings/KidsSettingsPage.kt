@@ -333,7 +333,7 @@ private fun KidsSettingsContent(
 }
 
 /**
- * A group title, like Wholphin's preference groups
+ * A group title, like the preference groups in Settings
  */
 private fun LazyListScope.groupTitle(
     @StringRes title: Int,

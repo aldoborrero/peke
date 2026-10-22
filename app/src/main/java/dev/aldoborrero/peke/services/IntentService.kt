@@ -200,7 +200,7 @@ class IntentService
             const val INTENT_SERVER_ID = "serverId"
             const val INTENT_USER_ID = "userId"
 
-            const val ACTION_PLAYBACK = "com.github.damontecres.wholphin.PLAYBACK"
+            const val ACTION_PLAYBACK = "dev.aldoborrero.peke.PLAYBACK"
         }
     }
 

@@ -14,7 +14,7 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 
 /**
- * Builds the fixed kids home from Wholphin's own row types and default view options
+ * Builds the fixed kids home from the app's own row types and default view options
  */
 object KidsHomeRows {
     /**

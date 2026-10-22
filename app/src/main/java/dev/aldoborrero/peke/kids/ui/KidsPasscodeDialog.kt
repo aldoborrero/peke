@@ -35,7 +35,7 @@ import dev.aldoborrero.peke.ui.setup.PinEntryCreate
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
- * Parent gate entry, using the same PIN entry as Wholphin's profile PIN
+ * Parent gate entry, using the same PIN entry as the profile PIN
  *
  * @param type which keys are accepted and what hint is shown
  * @param attempt change it to clear the entry, e.g. after a wrong passcode

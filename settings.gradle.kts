@@ -27,6 +27,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Wholphin"
+rootProject.name = "Peke"
 include(":app")
 include(":wholphin-mpv-stub")

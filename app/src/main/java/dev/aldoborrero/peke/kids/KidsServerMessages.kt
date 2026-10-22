@@ -7,8 +7,8 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The Kids plugin's own messages (`DisplayMessage`), sent to every session of a kid when server enforcement is on:
- * warnings before the allowance, the sitting or the allowed hours end, then a message when the kid is denied. Wholphin
- * shows its own warnings and screens for the same things, so a server message that repeats what Wholphin already
+ * warnings before the allowance, the sitting or the allowed hours end, then a message when the kid is denied. Peke
+ * shows its own warnings and screens for the same things, so a server message that repeats what Peke already
  * knows is not shown on top of them. The server's `Playstate Stop` that follows is still obeyed.
  */
 object KidsServerMessages {
@@ -22,7 +22,7 @@ object KidsServerMessages {
     private val HEADERS = setOf(SCREEN_TIME, BREAK_TIME, BEDTIME, TIMES_UP, TIME_FOR_A_BREAK)
 
     /**
-     * How close to a warning point the time left must be for Wholphin's own warning to count as known
+     * How close to a warning point the time left must be for Peke's own warning to count as known
      */
     private val MARGIN = 60.seconds
 
@@ -32,7 +32,7 @@ object KidsServerMessages {
     fun isKids(header: String?): Boolean = header != null && HEADERS.any { it.equals(header.trim(), ignoreCase = true) }
 
     /**
-     * Whether to hide the Kids plugin message with [header], because Wholphin already shows the same, from [limits]
+     * Whether to hide the Kids plugin message with [header], because Peke already shows the same, from [limits]
      * read just now. Messages that aren't the plugin's are never hidden.
      *
      * @param warnAt the server's warning points
@@ -51,10 +51,10 @@ object KidsServerMessages {
 
             BREAK_TIME.lowercase() -> limits.sittingRemaining?.let { it <= window } == true
 
-            // Wholphin has no bedtime warning of its own, so the server's is the only one
+            // Peke has no bedtime warning of its own, so the server's is the only one
             BEDTIME.lowercase() -> limits.denial == KidsDenial.BEDTIME
 
-            // A denial Wholphin doesn't know of yet: the next status shows its screen
+            // A denial Peke doesn't know of yet: the next status shows its screen
             else -> false
         }
     }

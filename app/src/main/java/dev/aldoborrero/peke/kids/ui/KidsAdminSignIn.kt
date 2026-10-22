@@ -27,7 +27,7 @@ import dev.aldoborrero.peke.ui.setup.CredentialsForm
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
- * A server administrator's user name and password, the same form as Wholphin's sign-in. They live only in this
+ * A server administrator's user name and password, the same form as the server sign-in. They live only in this
  * dialog's state and are passed to [onSubmit] once.
  */
 @Composable

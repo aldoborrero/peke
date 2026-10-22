@@ -41,7 +41,7 @@ enum class KidsServerStatus {
     GONE,
 
     /**
-     * No plugin and no cached kids: stock Wholphin
+     * No plugin and no cached kids: Peke offers only the grown-up shell
      */
     ABSENT,
 }
@@ -172,7 +172,7 @@ class KidsPluginService
                 }
             lastChecked[server.id] = clock.elapsedMillis()
             val known = kidsServerDao.get(server.id)
-            // A server that never had the plugin gets no row, so stock Wholphin stores nothing about kids
+            // A server that never had the plugin gets no row, so Peke stores nothing about kids
             if (known == null && result !is KidsResult.Ok) return false
             if (known == null || known.apiVersion != apiVersion || known.features != features) {
                 Timber.i("Kids plugin on %s: version=%s features=%s", server.id, apiVersion, features)

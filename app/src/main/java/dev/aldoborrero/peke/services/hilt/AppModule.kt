@@ -20,7 +20,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 import org.jellyfin.sdk.Jellyfin
-import org.jellyfin.sdk.android.androidDevice
 import org.jellyfin.sdk.api.client.util.AuthorizationHeaderBuilder
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
@@ -84,7 +83,7 @@ object AppModule {
         @ApplicationContext context: Context,
     ): ClientInfo =
         ClientInfo(
-            name = context.getString(R.string.app_name),
+            name = context.getString(R.string.app_name_long),
             version = BuildConfig.VERSION_NAME,
         )
 
@@ -205,5 +204,5 @@ object DeviceModule {
     @Singleton
     fun deviceInfo(
         @ApplicationContext context: Context,
-    ): DeviceInfo = androidDevice(context)
+    ): DeviceInfo = pekeDeviceInfo(context)
 }

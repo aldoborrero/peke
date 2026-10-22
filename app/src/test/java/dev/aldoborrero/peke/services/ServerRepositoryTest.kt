@@ -109,8 +109,8 @@ class ServerRepositoryTest {
         coEvery { mockJellyfinServerDao.getServer(serverId) } returns
             JellyfinServerUsers(server, listOf(user))
         coEvery { mockJellyfinServerDao.addOrUpdateServer(server) } just Runs
-        every { mockApiClient.clientInfo } returns ClientInfo("Wholphin test", "0.0.1")
-        every { mockApiClient.deviceInfo } returns DeviceInfo("Wholphin test ID", "Wholphin test device")
+        every { mockApiClient.clientInfo } returns ClientInfo("Peke test", "0.0.1")
+        every { mockApiClient.deviceInfo } returns DeviceInfo("Peke test ID", "Peke test device")
         every { mockApiClient.update(any(), any(), any(), any()) } just Runs
         coEvery { mockMostRecentServerProvider.save(any()) } just Runs
         coEvery { mockMostRecentServerProvider.clear() } just Runs

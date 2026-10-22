@@ -184,7 +184,7 @@ class FakeKidsServer {
 
     fun api(dispatcher: CoroutineDispatcher): KidsApi {
         val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
-        val clientInfo = ClientInfo("Wholphin", "test")
+        val clientInfo = ClientInfo("Peke", "test")
         val deviceInfo = DeviceInfo("device-1", "TV")
         val factory = OkHttpFactory(client)
         val jellyfin =
