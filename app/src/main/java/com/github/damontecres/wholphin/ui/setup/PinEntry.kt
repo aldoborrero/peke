@@ -66,24 +66,7 @@ fun PinEntry(
                     .onKeyEvent {
                         if (it.type == KeyEventType.KeyUp) {
                             var str = input
-                            str +=
-                                when (it.key) {
-                                    Key.DirectionUp -> "U"
-                                    Key.DirectionRight -> "R"
-                                    Key.DirectionDown -> "D"
-                                    Key.DirectionLeft -> "L"
-                                    Key.Zero, Key.NumPad0 -> "0"
-                                    Key.One, Key.NumPad1 -> "1"
-                                    Key.Two, Key.NumPad2 -> "2"
-                                    Key.Three, Key.NumPad3 -> "3"
-                                    Key.Four, Key.NumPad4 -> "4"
-                                    Key.Five, Key.NumPad5 -> "5"
-                                    Key.Six, Key.NumPad6 -> "6"
-                                    Key.Seven, Key.NumPad7 -> "7"
-                                    Key.Eight, Key.NumPad8 -> "8"
-                                    Key.Nine, Key.NumPad9 -> "9"
-                                    else -> return@onKeyEvent false
-                                }
+                            str += pinSymbol(it.key) ?: return@onKeyEvent false
                             onTextChange.invoke(str)
                             input = str
                             return@onKeyEvent true
@@ -107,12 +90,40 @@ fun PinEntry(
     }
 }
 
+/**
+ * The PIN symbol for a key: a D-pad direction (U, R, D, L) or a digit
+ */
+fun pinSymbol(key: Key): String? =
+    when (key) {
+        Key.DirectionUp -> "U"
+        Key.DirectionRight -> "R"
+        Key.DirectionDown -> "D"
+        Key.DirectionLeft -> "L"
+        Key.Zero, Key.NumPad0 -> "0"
+        Key.One, Key.NumPad1 -> "1"
+        Key.Two, Key.NumPad2 -> "2"
+        Key.Three, Key.NumPad3 -> "3"
+        Key.Four, Key.NumPad4 -> "4"
+        Key.Five, Key.NumPad5 -> "5"
+        Key.Six, Key.NumPad6 -> "6"
+        Key.Seven, Key.NumPad7 -> "7"
+        Key.Eight, Key.NumPad8 -> "8"
+        Key.Nine, Key.NumPad9 -> "9"
+        else -> null
+    }
+
+/**
+ * @param symbolFor maps a key to the symbol it adds to the PIN, or null to ignore the key
+ * @param hint shown above the entry, describing which keys can be used
+ */
 @Composable
 fun PinEntryCreate(
     @StringRes title: Int,
     onTextChange: (String) -> Unit,
     onConfirm: ((String) -> Unit)?,
     modifier: Modifier = Modifier,
+    symbolFor: (Key) -> String? = ::pinSymbol,
+    hint: @Composable (Modifier) -> Unit = { PinArrowRow(it) },
 ) {
     var input by remember { mutableStateOf("") }
     Column(
@@ -121,35 +132,18 @@ fun PinEntryCreate(
             modifier
                 .onKeyEvent {
                     if (isEnterKey(it)) {
-                        onConfirm?.invoke(input)
+                        // Confirm once per press: key down and key up both arrive here
+                        if (it.type == KeyEventType.KeyUp) onConfirm?.invoke(input)
                         return@onKeyEvent true
                     }
+                    val symbol = symbolFor(it.key) ?: return@onKeyEvent false
                     if (it.type == KeyEventType.KeyUp) {
-                        var str = input
-                        str +=
-                            when (it.key) {
-                                Key.DirectionUp -> "U"
-                                Key.DirectionRight -> "R"
-                                Key.DirectionDown -> "D"
-                                Key.DirectionLeft -> "L"
-                                Key.Zero, Key.NumPad0 -> "0"
-                                Key.One, Key.NumPad1 -> "1"
-                                Key.Two, Key.NumPad2 -> "2"
-                                Key.Three, Key.NumPad3 -> "3"
-                                Key.Four, Key.NumPad4 -> "4"
-                                Key.Five, Key.NumPad5 -> "5"
-                                Key.Six, Key.NumPad6 -> "6"
-                                Key.Seven, Key.NumPad7 -> "7"
-                                Key.Eight, Key.NumPad8 -> "8"
-                                Key.Nine, Key.NumPad9 -> "9"
-                                else -> return@onKeyEvent false
-                            }
+                        val str = input + symbol
                         onTextChange.invoke(str)
                         input = str
-                        return@onKeyEvent true
-                    } else {
-                        return@onKeyEvent false
                     }
+                    // Extra keys such as media buttons also consume their key down, so they do not act elsewhere
+                    return@onKeyEvent it.type == KeyEventType.KeyUp || pinSymbol(it.key) == null
                 }.focusable(),
     ) {
         Text(
@@ -158,7 +152,7 @@ fun PinEntryCreate(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        PinArrowRow(Modifier.align(Alignment.CenterHorizontally))
+        hint(Modifier.align(Alignment.CenterHorizontally))
         PinEntryDots(input.length, Modifier.align(Alignment.CenterHorizontally))
         if (onConfirm != null) {
             Text(

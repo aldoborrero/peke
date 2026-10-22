@@ -9,11 +9,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.components.BasicDialog
+import com.github.damontecres.wholphin.ui.setup.PinArrowRow
 import com.github.damontecres.wholphin.ui.setup.PinEntryCreate
+import com.github.damontecres.wholphin.ui.setup.pinSymbol
 
 enum class PinFlowState {
     ENTER_PIN_TO_REMOVE,
@@ -27,12 +30,20 @@ enum class ProfileProtection {
     LOGIN,
 }
 
+/**
+ * @param isValid whether a new PIN can be used
+ * @param symbolFor which keys are part of the PIN, see [PinEntryCreate]
+ * @param hint shown below the entered PIN, see [PinEntryCreate]
+ */
 @Composable
 fun SetPinFlow(
     currentPin: String?,
     onAddPin: (String) -> Unit,
     onRemovePin: () -> Unit,
     onDismissRequest: () -> Unit,
+    isValid: (String) -> Boolean = { it.length >= 4 },
+    symbolFor: (Key) -> String? = ::pinSymbol,
+    hint: @Composable (Modifier) -> Unit = { PinArrowRow(it) },
 ) {
     val context = LocalContext.current
     var flowState by
@@ -53,6 +64,8 @@ fun SetPinFlow(
                             if (it == currentPin) onRemovePin.invoke()
                         },
                         onConfirm = null,
+                        symbolFor = symbolFor,
+                        hint = hint,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -62,7 +75,7 @@ fun SetPinFlow(
                         title = R.string.enter_pin,
                         onTextChange = {},
                         onConfirm = {
-                            if (it.length >= 4) {
+                            if (isValid(it)) {
                                 pendingPin = it
                                 flowState = PinFlowState.CONFIRM_PIN
                             } else {
@@ -74,6 +87,8 @@ fun SetPinFlow(
                                     ).show()
                             }
                         },
+                        symbolFor = symbolFor,
+                        hint = hint,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -95,6 +110,8 @@ fun SetPinFlow(
                                 flowState = PinFlowState.ENTER_PIN
                             }
                         },
+                        symbolFor = symbolFor,
+                        hint = hint,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
