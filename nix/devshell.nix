@@ -51,6 +51,7 @@ perSystem.devshell.mkShell {
     jq # spec-kit scripts parse JSON safely with it
     bundletool # inspect and size app bundles and APK splits
     scrcpy # mirror and control a TV or device over adb
+    pre-commit # the hooks in .pre-commit-config.yaml
 
     # APK reverse engineering (REA MCP providers)
     apktool
