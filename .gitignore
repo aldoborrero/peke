@@ -64,3 +64,11 @@ app/src/main/jnilibs
 app/src/main/jnilibs/
 scripts/mpv/deps/
 scripts/mpv/prefix/
+
+# nix
+result
+result-*
+
+# direnv
+.direnv/
+.envrc.local
