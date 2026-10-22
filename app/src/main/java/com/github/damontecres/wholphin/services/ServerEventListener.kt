@@ -9,6 +9,9 @@ import androidx.lifecycle.lifecycleScope
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidsModeService
+import com.github.damontecres.wholphin.kids.KidsServerMessages
+import com.github.damontecres.wholphin.kids.timer.KidsAllowanceService
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
@@ -31,6 +34,7 @@ import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.UserUpdatedMessage
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Listens for basic messages from the server such as messages
@@ -42,6 +46,8 @@ class ServerEventListener
         @param:ActivityContext private val context: Context,
         private val api: ApiClient,
         private val serverRepository: ServerRepository,
+        private val kidsModeService: KidsModeService,
+        private val kidsAllowanceService: KidsAllowanceService,
     ) : DefaultLifecycleObserver {
         private val activity = (context as AppCompatActivity)
 
@@ -104,7 +110,7 @@ class ServerEventListener
                                             val toast =
                                                 listOfNotNull(header, text)
                                                     .joinToString("\n")
-                                            if (toast.isNotBlank()) {
+                                            if (toast.isNotBlank() && !hideForKids(header)) {
                                                 showToast(context, toast, Toast.LENGTH_LONG)
                                             }
                                         }
@@ -138,6 +144,24 @@ class ServerEventListener
                         }
                     }
                 }
+        }
+
+        /**
+         * In kids mode, the Kids plugin's own warnings and denial messages are hidden when they repeat what kids mode
+         * already shows. They are a sign the status changed, so it is read again first.
+         */
+        private suspend fun hideForKids(header: String?): Boolean {
+            if (!kidsModeService.isActive || !KidsServerMessages.isKids(header)) return false
+            val limits = kidsAllowanceService.check()
+            val warnAt =
+                kidsAllowanceService.snapshot.value
+                    ?.status
+                    ?.warnAtSeconds
+                    .orEmpty()
+                    .map { it.seconds }
+            return KidsServerMessages.shouldHide(header, limits, warnAt).also {
+                if (it) Timber.d("Hiding the Kids plugin's message: %s", header)
+            }
         }
 
         override fun onResume(owner: LifecycleOwner) {

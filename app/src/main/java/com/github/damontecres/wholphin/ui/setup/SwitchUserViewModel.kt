@@ -9,6 +9,9 @@ import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidsModeService
+import com.github.damontecres.wholphin.kids.filterUsersForKidsLock
+import com.github.damontecres.wholphin.kids.kidsLockAllowsSignIn
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SetupDestination
@@ -29,6 +32,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.Jellyfin
@@ -37,11 +41,14 @@ import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.authenticateUserByName
 import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.api.client.extensions.quickConnectApi
+import org.jellyfin.sdk.api.client.extensions.sessionApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.ServerVersion
+import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import kotlin.time.Duration.Companion.seconds
 
@@ -56,6 +63,7 @@ class SwitchUserViewModel
         val navigationManager: NavigationManager,
         val setupNavigationManager: SetupNavigationManager,
         val imageUrlService: ImageUrlService,
+        private val kidsModeService: KidsModeService,
         @Assisted val server: JellyfinServer,
     ) : ViewModel() {
         @AssistedFactory
@@ -132,6 +140,7 @@ class SwitchUserViewModel
             viewModelScope.async(WholphinDispatchers.IO) {
                 try {
                     val current = serverRepository.changeUser(server, user)
+                    kidsModeService.lockIfKid(current.user)
                     navigationManager.reloadHome()
                     setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                     SwitchUserResult.Success
@@ -178,8 +187,10 @@ class SwitchUserViewModel
                         username = username,
                         password = password,
                     )
+                    if (!allowedWhileKidsLocked(server, existingUser, authenticationResult)) return@launchIO
                     val current =
                         serverRepository.changeUser(server.url, authenticationResult, existingUser)
+                    kidsModeService.lockIfKid(current.user)
                     setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error logging in user")
@@ -220,12 +231,17 @@ class SwitchUserViewModel
                         val authenticationResult by api.userApi.authenticateWithQuickConnect(
                             QuickConnectDto(secret = quickConnectStatus.secret),
                         )
+                        if (!allowedWhileKidsLocked(server, existingUser, authenticationResult)) {
+                            _state.update { it.copy(quickConnectStatus = null) }
+                            return@launchIO
+                        }
                         val current =
                             serverRepository.changeUser(
                                 server.url,
                                 authenticationResult,
                                 existingUser,
                             )
+                        kidsModeService.lockIfKid(current.user)
                         setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                     } catch (_: CancellationException) {
                         // no-op, user may have canceled
@@ -242,6 +258,43 @@ class SwitchUserViewModel
                         setError("Error with Quick Connect", ex)
                     }
                 }
+        }
+
+        /**
+         * While locked to kids mode, a sign-in may only renew the kid's own row, as that same Jellyfin user. A refused
+         * sign-in changes nothing and its new session is ended.
+         */
+        private suspend fun allowedWhileKidsLocked(
+            server: JellyfinServer,
+            existingUser: JellyfinUser?,
+            result: AuthenticationResult,
+        ): Boolean {
+            val allowed =
+                kidsLockAllowsSignIn(
+                    locked = kidsModeService.isLockedNow(),
+                    existingUser = existingUser,
+                    signedInUserId = result.user?.id,
+                    signedInServerId = result.serverId?.toUUIDOrNull(),
+                )
+            if (allowed) return true
+            Timber.w("Refusing to sign in as another user while locked to kids mode")
+            result.accessToken?.let { token ->
+                try {
+                    jellyfin.createApi(server.url, accessToken = token).sessionApi.reportSessionEnded()
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Could not end the refused session")
+                }
+            }
+            val message =
+                existingUser?.name?.let { context.getString(R.string.kids_sign_in_same_user, it) }
+                    ?: context.getString(R.string.kids_sign_in_locked)
+            _state.update {
+                it.copy(
+                    loginAttempts = it.loginAttempts + 1,
+                    switchUserState = LoadingState.Error(message),
+                )
+            }
+            return false
         }
 
         fun cancelQuickConnect() {
@@ -297,7 +350,28 @@ class SwitchUserViewModel
                             )
                         }
 
-                knownUsers + publicUsers
+                val users = knownUsers + publicUsers
+                if (kidsModeService.isLockedNow()) {
+                    // Learn who is a kid on this server before deciding who may be picked
+                    kidsModeService.refreshServer(server)
+                } else {
+                    // Everyone may be picked, so the list doesn't wait for the server; if the refresh finds kids and
+                    // that locks the device, the list is narrowed then
+                    viewModelScope.launchIO {
+                        kidsModeService.refreshServer(server)
+                        if (kidsModeService.isLockedNow()) {
+                            val kidRowIds = kidsModeService.kidUserRowIds()
+                            // Narrow the list once it is shown, not before it is set
+                            _state.first { it.loading is LoadingState.Success || it.loading is LoadingState.Error }
+                            _state.update {
+                                it.copy(kidsLocked = true, users = filterUsersForKidsLock(it.users, { u -> u.user }, kidRowIds, true))
+                            }
+                        }
+                    }
+                }
+                val locked = kidsModeService.isLockedNow()
+                _state.update { it.copy(kidsLocked = locked) }
+                filterUsersForKidsLock(users, { it.user }, kidsModeService.kidUserRowIds(), locked)
             }
 
         private suspend fun checkServerVersion(): Pair<String?, ServerVersionSupported> {
@@ -343,6 +417,8 @@ data class SwitchUserState(
     val loginAttempts: Int = 0,
     val serverVersion: String? = null,
     val serverVersionSupported: ServerVersionSupported = ServerVersionSupported.UNKNOWN,
+    // Whether the device is locked to kid profiles, which hides adding or removing users and switching servers
+    val kidsLocked: Boolean = false,
 )
 
 /**

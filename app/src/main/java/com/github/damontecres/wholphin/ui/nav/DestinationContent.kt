@@ -1,15 +1,25 @@
 package com.github.damontecres.wholphin.ui.nav
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.DefaultForGenresFilterOptions
 import com.github.damontecres.wholphin.data.filter.DefaultForStudiosFilterOptions
 import com.github.damontecres.wholphin.data.model.SeerrItemType
+import com.github.damontecres.wholphin.kids.LocalKidsMode
+import com.github.damontecres.wholphin.kids.isActive
+import com.github.damontecres.wholphin.kids.playback.KidsDirectPlay
+import com.github.damontecres.wholphin.kids.playback.KidsDirectPlayPage
+import com.github.damontecres.wholphin.kids.ui.KidsTimesUpPage
+import com.github.damontecres.wholphin.kids.ui.settings.KidsSettingsPage
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ItemGrid
 import com.github.damontecres.wholphin.ui.components.LicenseInfo
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
@@ -32,6 +42,7 @@ import com.github.damontecres.wholphin.ui.detail.discover.DiscoverMovieDetails
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverPersonPage
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverSeriesDetails
 import com.github.damontecres.wholphin.ui.detail.episode.EpisodeDetails
+import com.github.damontecres.wholphin.ui.detail.livetv.TvGuideGrid
 import com.github.damontecres.wholphin.ui.detail.movie.MovieDetails
 import com.github.damontecres.wholphin.ui.detail.music.AlbumDetailsPage
 import com.github.damontecres.wholphin.ui.detail.music.ArtistDetailsPage
@@ -51,6 +62,8 @@ import com.github.damontecres.wholphin.ui.preferences.user.UserProfilePreference
 import com.github.damontecres.wholphin.ui.search.SearchPage
 import com.github.damontecres.wholphin.ui.setup.InstallUpdatePage
 import com.github.damontecres.wholphin.ui.slideshow.SlideshowPage
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import timber.log.Timber
@@ -68,6 +81,11 @@ fun DestinationContent(
     if (destination.fullScreen) {
         LaunchedEffect(Unit) { onClearBackdrop.invoke() }
     }
+    if (LocalKidsMode.current.isActive && KidsDirectPlay.handles(destination)) {
+        KidsDirectPlayPage(destination, modifier)
+        return
+    }
+    val externalPlayer = LocalInterfaceCustomization.current.allows(RestrictedFeature.EXTERNAL_PLAYER)
     when (destination) {
         is Destination.Home -> {
             HomePage(
@@ -83,7 +101,7 @@ fun DestinationContent(
         is Destination.Playback -> {
             val backend =
                 destination.backend ?: preferences.appPreferences.playbackPreferences.playerBackend
-            if (backend == PlayerBackend.EXTERNAL_PLAYER) {
+            if (backend == PlayerBackend.EXTERNAL_PLAYER && externalPlayer) {
                 PlayExternalPage(
                     preferences = preferences,
                     destination = destination,
@@ -99,7 +117,7 @@ fun DestinationContent(
         }
 
         is Destination.PlaybackList -> {
-            if (preferences.appPreferences.playbackPreferences.playerBackend == PlayerBackend.EXTERNAL_PLAYER) {
+            if (preferences.appPreferences.playbackPreferences.playerBackend == PlayerBackend.EXTERNAL_PLAYER && externalPlayer) {
                 PlayExternalPage(
                     preferences = preferences,
                     destination = destination,
@@ -132,6 +150,22 @@ fun DestinationContent(
 
         Destination.UserAppPreferences -> {
             UserProfilePreferencesPage(modifier)
+        }
+
+        Destination.KidsSettings -> {
+            KidsSettingsPage(modifier)
+        }
+
+        Destination.KidsTimesUp -> {
+            KidsTimesUpPage(modifier)
+        }
+
+        Destination.KidsLiveTv -> {
+            TvGuideGrid(
+                preferences = preferences,
+                onRowPosition = {},
+                modifier = modifier.fillMaxSize(),
+            )
         }
 
         is Destination.SeriesOverview -> {
@@ -319,12 +353,16 @@ fun DestinationContent(
 
         is Destination.Recordings -> {
             LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-            CollectionFolderRecordings(
-                preferences,
-                destination.itemId,
-                false,
-                modifier,
-            )
+            if (LocalInterfaceCustomization.current.allows(RestrictedFeature.LIVE_TV_RECORDINGS)) {
+                CollectionFolderRecordings(
+                    preferences,
+                    destination.itemId,
+                    false,
+                    modifier,
+                )
+            } else {
+                ErrorMessage(stringResource(R.string.kids_not_available), null, modifier)
+            }
         }
 
         is Destination.ItemGrid<*> -> {

@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.preferences.resetSubtitles
 import com.github.damontecres.wholphin.preferences.updateSubtitlePreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.ProfilePolicy
 import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SeerrServerRepository
@@ -53,7 +54,14 @@ class PreferencesViewModel
         private val seerrServerRepository: SeerrServerRepository,
         private val updateChecker: UpdateChecker,
         private val serverReportService: ServerReportService,
+        profilePolicy: ProfilePolicy,
     ) : ViewModel() {
+        /**
+         * Whether the current server offers kids mode, which needs the Jellyfin Kids plugin
+         */
+        val kidsAvailable =
+            profilePolicy.settingsAvailable.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
         val currentUser =
             serverRepository.currentUserFlow.stateIn(
                 viewModelScope,

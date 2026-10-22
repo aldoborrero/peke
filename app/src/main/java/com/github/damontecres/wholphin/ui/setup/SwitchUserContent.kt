@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -23,13 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,7 +37,6 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
-import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TextButton
@@ -180,6 +173,7 @@ fun SwitchUserContent(
                                 SetupDestination.ServerList,
                             )
                         },
+                        allowManage = !state.kidsLocked,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -316,71 +310,19 @@ fun SwitchUserContent(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     UserStateError(state.switchUserState)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.username),
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                        EditTextBox(
-                            value = username,
-                            onValueChange = { username = it },
-                            keyboardOptions =
-                                KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.None,
-                                    autoCorrectEnabled = false,
-                                    keyboardType = KeyboardType.Text,
-                                    imeAction = ImeAction.Next,
-                                ),
-                            keyboardActions =
-                                KeyboardActions(
-                                    onNext = {
-                                        passwordFocusRequester.tryRequestFocus()
-                                    },
-                                ),
-                            //                                onKeyboardAction = {
-//                                    passwordFocusRequester.tryRequestFocus()
-//                                },
-                            isInputValid = { state.switchUserState !is LoadingState.Error },
-                            modifier = Modifier.focusRequester(focusRequester),
-                        )
+                    LaunchedEffect(password) {
+                        viewModel.clearSwitchUserState()
                     }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.password),
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                        LaunchedEffect(password) {
-                            viewModel.clearSwitchUserState()
-                        }
-                        EditTextBox(
-                            value = password,
-                            onValueChange = { password = it },
-                            keyboardOptions =
-                                KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.None,
-                                    autoCorrectEnabled = false,
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Go,
-                                ),
-                            keyboardActions =
-                                KeyboardActions(
-                                    onGo = { onSubmit.invoke() },
-                                ),
-                            isInputValid = { state.switchUserState !is LoadingState.Error },
-                            modifier = Modifier.focusRequester(passwordFocusRequester),
-                        )
-                    }
-                    TextButton(
-                        stringRes = R.string.login,
-                        onClick = { onSubmit.invoke() },
-                        enabled = username.isNotNullOrBlank(),
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    CredentialsForm(
+                        username = username,
+                        onUsernameChange = { username = it },
+                        password = password,
+                        onPasswordChange = { password = it },
+                        onSubmit = { onSubmit.invoke() },
+                        submitEnabled = username.isNotNullOrBlank(),
+                        usernameFocusRequester = focusRequester,
+                        passwordFocusRequester = passwordFocusRequester,
+                        isInputValid = { state.switchUserState !is LoadingState.Error },
                     )
                 }
                 if (state.loginAttempts > 2) {

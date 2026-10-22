@@ -28,6 +28,7 @@ import androidx.media3.session.MediaSession
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ItemPlaybackDao
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -37,6 +38,11 @@ import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.SeriesTrackChoiceType
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.kids.KidsModeService
+import com.github.damontecres.wholphin.kids.playback.KidsAutoplayPolicy
+import com.github.damontecres.wholphin.kids.playback.KidsPlaybackRefusal
+import com.github.damontecres.wholphin.kids.profile
+import com.github.damontecres.wholphin.kids.timer.KidsAllowanceService
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.PlayerBackend
@@ -100,6 +106,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.mediaInfoApi
 import org.jellyfin.sdk.api.client.extensions.mediaSegmentsApi
 import org.jellyfin.sdk.api.client.extensions.sessionApi
@@ -114,6 +121,7 @@ import org.jellyfin.sdk.model.api.MediaSegmentType
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayMethod
+import org.jellyfin.sdk.model.api.PlaybackErrorCode
 import org.jellyfin.sdk.model.api.PlaybackInfoDto
 import org.jellyfin.sdk.model.api.PlaystateCommand
 import org.jellyfin.sdk.model.api.PlaystateMessage
@@ -157,6 +165,8 @@ class PlaybackViewModel
         private val imageUrlService: ImageUrlService,
         private val screensaverService: ScreensaverService,
         private val musicService: MusicService,
+        private val kidsModeService: KidsModeService,
+        private val kidsAllowanceService: KidsAllowanceService,
         @Assisted private val destination: Destination,
     ) : ViewModel(),
         Player.Listener,
@@ -663,35 +673,49 @@ class PlaybackViewModel
                 val maxBitrate =
                     preferences.appPreferences.playbackPreferences.maxBitrate
                         .takeIf { it > 0 } ?: AppPreference.DEFAULT_BITRATE
-                val response by
-                    api.mediaInfoApi
-                        .getPostedPlaybackInfo(
-                            itemId,
-                            PlaybackInfoDto(
-                                startTimeTicks = null,
-                                deviceProfile =
-                                    if (currentPlayer.value!!.backend == PlayerBackend.EXO_PLAYER) {
-                                        deviceProfileService.getOrCreateDeviceProfile(
-                                            preferences.appPreferences,
-                                            serverRepository.currentServer?.serverVersion,
-                                        )
-                                    } else {
-                                        mpvDeviceProfile
-                                    },
-                                maxAudioChannels = null,
-                                audioStreamIndex = audioIndex,
-                                subtitleStreamIndex = subtitleIndex,
-                                mediaSourceId = sourceId,
-                                alwaysBurnInSubtitleWhenTranscoding = false,
-                                maxStreamingBitrate = maxBitrate.toInt(),
-                                enableDirectPlay = enableDirectPlay,
-                                enableDirectStream = enableDirectStream,
-                                allowVideoStreamCopy = enableDirectStream,
-                                allowAudioStreamCopy = enableDirectStream,
-                                enableTranscoding = true,
-                                autoOpenLiveStream = true,
-                            ),
-                        )
+                val playbackInfo =
+                    try {
+                        api.mediaInfoApi
+                            .getPostedPlaybackInfo(
+                                itemId,
+                                PlaybackInfoDto(
+                                    startTimeTicks = null,
+                                    deviceProfile =
+                                        if (currentPlayer.value!!.backend == PlayerBackend.EXO_PLAYER) {
+                                            deviceProfileService.getOrCreateDeviceProfile(
+                                                preferences.appPreferences,
+                                                serverRepository.currentServer?.serverVersion,
+                                            )
+                                        } else {
+                                            mpvDeviceProfile
+                                        },
+                                    maxAudioChannels = null,
+                                    audioStreamIndex = audioIndex,
+                                    subtitleStreamIndex = subtitleIndex,
+                                    mediaSourceId = sourceId,
+                                    alwaysBurnInSubtitleWhenTranscoding = false,
+                                    maxStreamingBitrate = maxBitrate.toInt(),
+                                    enableDirectPlay = enableDirectPlay,
+                                    enableDirectStream = enableDirectStream,
+                                    allowVideoStreamCopy = enableDirectStream,
+                                    allowAudioStreamCopy = enableDirectStream,
+                                    enableTranscoding = true,
+                                    autoOpenLiveStream = true,
+                                ),
+                            )
+                    } catch (ex: InvalidStatusException) {
+                        // Outside allowed hours Jellyfin itself refuses a kid, without the plugin's reason
+                        if (ex.status == 403 && kidsRefused(null)) return@withContext
+                        throw ex
+                    }
+                val response = playbackInfo.content
+                if (response.errorCode == PlaybackErrorCode.NOT_ALLOWED &&
+                    kidsRefused(KidsPlaybackRefusal.header(playbackInfo.headers, KidsPlaybackRefusal.REASON_HEADER))
+                ) {
+                    // The kids screen for the reason replaces playback
+                    Timber.i("Kids playback refused by the server")
+                    return@withContext
+                }
                 if (response.errorCode != null) {
                     Timber.e("Error in PostedPlaybackInfo: %s", response.errorCode)
                     _state.update { it.copy(loading = LoadingState.Error(response.errorCode?.serialName)) }
@@ -1096,6 +1120,11 @@ class PlaybackViewModel
                                     playNextUp()
                                 }
 
+                                // Kids mode always offers the next item; without autoplay it has no countdown
+                                kidsModeService.isActive -> {
+                                    _state.update { it.copy(nextUp = nextItem.item) }
+                                }
+
                                 prefs.showNextUpWhen == ShowNextUpWhen.NEXT_UP_NEVER && !prefs.autoPlayNext -> {
                                     Timber.v("Never show or auto play next up, returning")
                                     navigationManager.goBack()
@@ -1114,7 +1143,11 @@ class PlaybackViewModel
 
                         null -> {
                             Timber.v("No next up")
-                            navigationManager.goBack()
+                            if (kidsModeService.isActive) {
+                                _state.update { it.copy(kidsEndScreen = true) }
+                            } else {
+                                navigationManager.goBack()
+                            }
                         }
                     }
                 }
@@ -1277,23 +1310,49 @@ class PlaybackViewModel
 
         private var lastInteractionDate: Date = Date()
 
+        // Episodes autoplayed since the last interaction, for the kids mode cap
+        private var autoPlayedInARow = 0
+
         /**
          * Tracks interactions with the UI for passout protection
          */
         fun reportInteraction() {
 //            Timber.v("reportInteraction")
             lastInteractionDate = Date()
+            autoPlayedInARow = 0
         }
 
         fun shouldAutoPlayNextUp(): Boolean =
             preferences.appPreferences.playbackPreferences.let {
-                it.autoPlayNext &&
+                val kidProfile = kidsModeService.state.value.profile
+                val autoPlay = kidProfile?.let { profile -> KidsAutoplayPolicy.allowNext(profile, autoPlayedInARow) } ?: it.autoPlayNext
+                autoPlay &&
                     if (it.passOutProtectionMs > 0) {
                         (Date().time - lastInteractionDate.time) < it.passOutProtectionMs
                     } else {
                         true
                     }
             }
+
+        /**
+         * Play the next item because the next up countdown finished, as opposed to the user choosing to
+         */
+        fun autoPlayNextUp() {
+            autoPlayedInARow++
+            playNextUp()
+        }
+
+        /**
+         * Kids mode end screen: play the current item again
+         */
+        fun kidsWatchAgain() {
+            reportInteraction()
+            _state.update { it.copy(kidsEndScreen = false) }
+            viewModelScope.launch(WholphinDispatchers.Main + ExceptionHandler()) {
+                player.seekTo(0)
+                player.play()
+            }
+        }
 
         fun playNextUp() {
             viewModelScope.launchDefault {
@@ -1388,6 +1447,12 @@ class PlaybackViewModel
         override fun onPlayerError(error: PlaybackException) {
             Timber.e(error, "Playback error")
             viewModelScope.launch(WholphinDispatchers.Main + ExceptionHandler()) {
+                // The Kids plugin refused the stream: its kids screen replaces playback, so no error and no fallback
+                val refusal = KidsPlaybackRefusal.of(error)
+                if (refusal != null && kidsRefused(refusal.reason)) {
+                    Timber.i("Kids playback stream refused by the server")
+                    return@launch
+                }
                 state.value.currentPlayback?.let {
                     when (it.playMethod) {
                         PlayMethod.TRANSCODE -> {
@@ -1425,6 +1490,29 @@ class PlaybackViewModel
                     }
                 }
             }
+        }
+
+        /**
+         * In kids mode, tell the time limits that the server refused playback, with the Kids plugin's [reason] if it
+         * gave one
+         *
+         * A live TV refusal is not about time: a channel the kid may not watch, or a recording, which kids mode hides.
+         * Playback is left with a short message, without a retry or a playback error.
+         *
+         * @return whether a kids screen or message shows for it instead of an error
+         */
+        private suspend fun kidsRefused(reason: String?): Boolean {
+            if (!kidsModeService.isActive) return false
+            val message =
+                when (KidsPlaybackRefusal.kindOf(reason)) {
+                    KidsPlaybackRefusal.Kind.LIVE_TV_CHANNEL -> R.string.kids_channel_not_available
+                    KidsPlaybackRefusal.Kind.LIVE_TV_RECORDING -> R.string.kids_not_available
+                    KidsPlaybackRefusal.Kind.TIME -> return kidsAllowanceService.refused(reason)
+                }
+            Timber.i("Kids live TV playback refused: %s", reason)
+            showToast(context, context.getString(message), Toast.LENGTH_SHORT)
+            withContext(WholphinDispatchers.Main) { navigationManager.goBack() }
+            return true
         }
 
         fun release() {

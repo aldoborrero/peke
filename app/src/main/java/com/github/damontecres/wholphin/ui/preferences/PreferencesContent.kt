@@ -111,6 +111,7 @@ fun PreferencesContent(
     var showPinFlow by remember { mutableStateOf(false) }
     var showVersionDialog by remember { mutableStateOf(false) }
     val players by viewModel.externalPlayers.collectAsState()
+    val kidsAvailable by viewModel.kidsAvailable.collectAsState()
 
     var cacheUsage by remember { mutableStateOf(CacheUsage(0, 0, 0)) }
     val seerrConnection by viewModel.seerrConnection.collectAsState()
@@ -276,11 +277,13 @@ fun PreferencesContent(
                         )
                     }
                     val groupPreferences =
-                        group.preferences +
-                            group.conditionalPreferences
-                                .filter { it.condition.invoke(preferences) }
-                                .map { it.preferences }
-                                .flatten()
+                        (
+                            group.preferences +
+                                group.conditionalPreferences
+                                    .filter { it.condition.invoke(preferences) }
+                                    .map { it.preferences }
+                                    .flatten()
+                        ).filter { it != AppPreference.KidsMode || kidsAvailable }
                     groupPreferences.forEachIndexed { prefIndex, pref ->
                         pref as AppPreference<AppPreferences, Any>
                         val isFirst = groupIndex == 0 && prefIndex == 0 && !showUpdate

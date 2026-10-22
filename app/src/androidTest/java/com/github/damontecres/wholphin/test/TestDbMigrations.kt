@@ -114,4 +114,17 @@ class TestDbMigrations {
             Assert.assertEquals(userId.toString().replace("-", ""), c.getString(2))
         }
     }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate40To41AddsKidsTables() {
+        helper.createDatabase(testDbName, 40).close()
+        val db = helper.runMigrationsAndValidate(testDbName, 41, true)
+        db.query("SELECT revision, dailyAllowanceMinutes, sessionLimitMinutes, serverJson FROM kid_profiles").useCursor { c ->
+            Assert.assertFalse(c.moveToFirst())
+        }
+        db.query("SELECT lockChangedAt, offlineFailures, offlineBlockedAt FROM kids_servers").useCursor { c ->
+            Assert.assertFalse(c.moveToFirst())
+        }
+    }
 }

@@ -69,6 +69,10 @@ import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.media3.ui.compose.state.rememberPresentationState
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.surfaceColorAtElevation
+import com.github.damontecres.wholphin.kids.LocalKidsMode
+import com.github.damontecres.wholphin.kids.isActive
+import com.github.damontecres.wholphin.kids.playback.rememberKidsSuggestions
+import com.github.damontecres.wholphin.kids.ui.KidsEndScreen
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.DpadSeekMode
@@ -93,6 +97,8 @@ import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
 import com.github.damontecres.wholphin.ui.seasonEpisode
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.Media3SubtitleOverride
@@ -168,6 +174,8 @@ fun PlaybackPageContent(
     val density = LocalDensity.current
     LaunchedEffect(density) { viewModel.updateDensity(density) }
     val userDto by viewModel.currentUserDto.collectAsState()
+    val kidsMode = LocalKidsMode.current.isActive
+    val (kidsSuggestions, onClickSuggestion) = rememberKidsSuggestions(state.currentPlayback?.item, kidsMode)
 
     var showDebugInfo by remember { mutableStateOf(prefs.showDebugInfo) }
 
@@ -492,6 +500,8 @@ fun PlaybackPageContent(
                 trickplayUrlFor = viewModel::getTrickplayUrl,
                 queue = remember(state.playlistIndex, state.playlist) { state.upcomingItems },
                 onClickPlaylist = viewModel::playItemInPlaylist,
+                moreItems = kidsSuggestions,
+                onClickMore = onClickSuggestion,
                 currentSegment = state.currentSegment?.segment,
                 showClock = preferences.appPreferences.interfacePreferences.showClock,
                 analyticsState = state.analyticsState,
@@ -653,14 +663,14 @@ fun PlaybackPageContent(
                 if (autoPlayEnabled) {
                     LaunchedEffect(Unit) {
                         if (timeLeft == 0L) {
-                            viewModel.playNextUp()
+                            viewModel.autoPlayNextUp()
                         } else {
                             while (timeLeft > 0) {
                                 delay(1.seconds)
                                 timeLeft--
                             }
                             if (timeLeft == 0L && autoPlayEnabled) {
-                                viewModel.playNextUp()
+                                viewModel.autoPlayNextUp()
                             }
                         }
                     }
@@ -694,6 +704,23 @@ fun PlaybackPageContent(
                             ),
                 )
             }
+        }
+        if (state.kidsEndScreen) {
+            KidsEndScreen(
+                suggestions = kidsSuggestions,
+                onWatchAgain = viewModel::kidsWatchAgain,
+                onHome = { viewModel.navigationManager.goToHome() },
+                onClickSuggestion = onClickSuggestion,
+                modifier =
+                    Modifier
+                        .padding(8.dp)
+                        .fillMaxWidth(.8f)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+                            shape = RoundedCornerShape(8.dp),
+                        ),
+            )
         }
     }
 
@@ -734,12 +761,13 @@ fun PlaybackPageContent(
         }
     }
 
+    val advancedPlayback = LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)
     playbackDialog?.let { type ->
         PlaybackDialog(
             type = type,
             settings =
                 PlaybackSettings(
-                    showDebugInfo = showDebugInfo,
+                    showDebugInfo = showDebugInfo && advancedPlayback,
                     audioIndex = state.currentPlayback?.audioIndex,
                     audioStreams = state.currentMediaInfo.audioStreams,
                     subtitleIndex = state.currentPlayback?.subtitleIndex,
@@ -748,10 +776,12 @@ fun PlaybackPageContent(
                     contentScale = contentScale,
                     subtitleDelay = state.currentPlayback?.subtitleDelay ?: Duration.ZERO,
                     hasSubtitleDownloadPermission =
-                        remember(userDto) { userDto?.policy?.let { it.isAdministrator || it.enableSubtitleManagement } == true },
+                        advancedPlayback &&
+                            remember(userDto) { userDto?.policy?.let { it.isAdministrator || it.enableSubtitleManagement } == true },
                     // TODO Passing through audio prevents changing playback speed
                     // See https://github.com/damontecres/Wholphin/issues/164
-                    playbackSpeedEnabled = playerBackend == PlayerBackend.MPV || state.currentPlayback?.audioDecoder != null,
+                    playbackSpeedEnabled =
+                        advancedPlayback && (playerBackend == PlayerBackend.MPV || state.currentPlayback?.audioDecoder != null),
                 ),
             onDismissRequest = {
                 playbackDialog =

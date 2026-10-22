@@ -13,6 +13,7 @@ import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.SeriesTrackChoiceType
 import com.github.damontecres.wholphin.data.model.ServerUserConfig
+import com.github.damontecres.wholphin.kids.KidsModeState
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlaybackPreferences
 import com.github.damontecres.wholphin.preferences.ShowNextUpWhen
@@ -53,6 +54,7 @@ import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -133,6 +135,12 @@ class PlaybackViewModelTests {
             imageUrlService = mockImageUrlService,
             screensaverService = mockScreensaverService,
             musicService = mockMusicService,
+            kidsModeService =
+                mockk {
+                    every { state } returns MutableStateFlow(KidsModeState.Inactive)
+                    every { isActive } returns false
+                },
+            kidsAllowanceService = mockk(relaxed = true),
             destination = destination,
         )
 

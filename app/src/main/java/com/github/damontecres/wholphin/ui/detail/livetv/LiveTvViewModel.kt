@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.LiveTvService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.ProfilePolicy
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisode
@@ -83,6 +84,7 @@ class LiveTvViewModel
         private val imageUrlService: ImageUrlService,
         private val favoriteWatchManager: FavoriteWatchManager,
         private val liveTvService: LiveTvService,
+        private val profilePolicy: ProfilePolicy,
     ) : ViewModel() {
         private lateinit var channelsIdToIndex: Map<UUID, Int>
         private val mutex = Mutex()
@@ -141,8 +143,11 @@ class LiveTvViewModel
                             addCurrentProgram = false,
                         ),
                     )
+                    // A restricted profile, such as a kid, only sees its own channels
+                    val allowedChannels = serverRepository.currentUser?.let { profilePolicy.liveTvChannelIds(it) }
                     val channels =
                         channelData.items
+                            .filter { allowedChannels == null || it.id in allowedChannels }
                             .map {
                                 TvChannel(
                                     id = it.id,

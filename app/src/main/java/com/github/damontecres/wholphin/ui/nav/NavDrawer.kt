@@ -35,8 +35,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -88,6 +90,8 @@ import com.github.damontecres.wholphin.ui.spacedByWithFooter
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.util.RestrictedFeature
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -138,6 +142,11 @@ class NavDrawerViewModel
                     )
                 }
 
+                NavDrawerItem.LiveTv -> {
+                    setIndex(index)
+                    navigationManager.navigateToFromDrawer(Destination.KidsLiveTv)
+                }
+
                 is ServerNavDrawerItem -> {
                     setIndex(index)
                     navigationManager.navigateToFromDrawer(item.destination)
@@ -157,18 +166,25 @@ class NavDrawerViewModel
 
         /**
          * Determine which nav drawer item should be highlighted as currently selected
+         *
+         * @param items the items the drawer shows instead of the libraries, if any
          */
-        fun updateSelectedIndex() {
+        fun updateSelectedIndex(items: List<NavDrawerItem>? = null) {
             viewModelScope.launchDefault {
                 val asDestinations =
-                    buildList {
-                        addAll(serviceState.value.items)
-                        addAll(serviceState.value.moreItems)
+                    if (items != null) {
+                        items
+                    } else {
+                        buildList {
+                            addAll(serviceState.value.items)
+                            addAll(serviceState.value.moreItems)
+                        }
                     }.map {
                         when (it) {
                             is ServerNavDrawerItem -> it.destination
                             is NavDrawerItem.Favorites -> Destination.Favorites
                             is NavDrawerItem.Discover -> Destination.Discover
+                            is NavDrawerItem.LiveTv -> Destination.KidsLiveTv
                             else -> null
                         }
                     }
@@ -243,6 +259,16 @@ sealed interface NavDrawerItem {
 
         override fun name(context: Context): String = context.getString(R.string.discover)
     }
+
+    /**
+     * The guide of a restricted profile's own live TV channels, see [Destination.KidsLiveTv]
+     */
+    object LiveTv : NavDrawerItem {
+        override val id: String
+            get() = "a_livetv"
+
+        override fun name(context: Context): String = context.getString(R.string.live_tv)
+    }
 }
 
 /**
@@ -286,12 +312,19 @@ fun NavDrawer(
             key = "${server.id}_${user.id}", // Keyed to the server & user to ensure its reset when switching either
         ),
 ) {
-    LaunchedEffect(Unit) { viewModel.updateSelectedIndex() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val density = LocalDensity.current
 
     val focusRequester = remember { FocusRequester() }
+    val customization = LocalInterfaceCustomization.current
+    val showLibraries = customization.allows(RestrictedFeature.LIBRARIES)
+    LaunchedEffect(showLibraries, customization.navDrawerItems) {
+        viewModel.updateSelectedIndex(if (showLibraries) null else customization.navDrawerItems)
+    }
+    val profileGate = LocalProfileGate.current
+    // The gate stays open until dismissed, even if the profile stops needing it meanwhile
+    var shownProfileGate by remember { mutableStateOf<ProfileGate?>(null) }
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
     BackHandler(enabled = (drawerState.currentValue == DrawerValue.Closed && destination is Destination.Home)) {
@@ -299,6 +332,8 @@ fun NavDrawer(
         focusRequester.requestFocus()
     }
     val serviceState by viewModel.serviceState.collectAsState()
+    val drawerItems = if (showLibraries) serviceState.items else customization.navDrawerItems
+    val drawerMoreItems = if (showLibraries) serviceState.moreItems else emptyList()
     val state by viewModel.state.collectAsState()
     val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library
@@ -306,6 +341,10 @@ fun NavDrawer(
 
     BackHandler(enabled = moreExpanded && drawerState.currentValue == DrawerValue.Open) {
         viewModel.setShowMore(false)
+    }
+    // Leaving the app from the home page goes through the profile's gate, if it has one
+    BackHandler(enabled = profileGate != null && drawerState.currentValue == DrawerValue.Open && destination is Destination.Home) {
+        shownProfileGate = profileGate
     }
 
     val closedDrawerWidth = CollapsedDrawerItemWidth
@@ -350,14 +389,18 @@ fun NavDrawer(
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
                         onClick = {
-                            viewModel.navigateToSetup(
-                                SetupDestination.UserList(server),
-                            )
+                            if (profileGate != null) {
+                                shownProfileGate = profileGate
+                            } else {
+                                viewModel.navigateToSetup(
+                                    SetupDestination.UserList(server),
+                                )
+                            }
                         },
                         modifier = Modifier,
                     )
                     AnimatedVisibility(
-                        visible = serviceState.nowPlayingEnabled,
+                        visible = serviceState.nowPlayingEnabled && customization.allows(RestrictedFeature.NOW_PLAYING),
                         enter = expandVertically(expandFrom = Alignment.Top),
                         exit = shrinkVertically(shrinkTowards = Alignment.Top),
                     ) {
@@ -399,26 +442,28 @@ fun NavDrawer(
                                     }
                                 }.fillMaxHeight(),
                     ) {
-                        item {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            IconNavItem(
-                                text = stringResource(R.string.search),
-                                icon = Icons.Default.Search,
-                                selected = selectedIndex == SEARCH_INDEX,
-                                drawerOpen = isOpen,
-                                interactionSource = interactionSource,
-                                onClick = {
-                                    viewModel.setIndex(SEARCH_INDEX)
-                                    viewModel.navigationManager.navigateToFromDrawer(Destination.Search())
-                                },
-                                modifier =
-                                    Modifier
-                                        .focusRequester(searchFocusRequester)
-                                        .ifElse(
-                                            selectedIndex == SEARCH_INDEX,
-                                            Modifier.focusRequester(focusRequester),
-                                        ),
-                            )
+                        if (customization.allows(RestrictedFeature.SEARCH)) {
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                IconNavItem(
+                                    text = stringResource(R.string.search),
+                                    icon = Icons.Default.Search,
+                                    selected = selectedIndex == SEARCH_INDEX,
+                                    drawerOpen = isOpen,
+                                    interactionSource = interactionSource,
+                                    onClick = {
+                                        viewModel.setIndex(SEARCH_INDEX)
+                                        viewModel.navigationManager.navigateToFromDrawer(Destination.Search())
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .focusRequester(searchFocusRequester)
+                                            .ifElse(
+                                                selectedIndex == SEARCH_INDEX,
+                                                Modifier.focusRequester(focusRequester),
+                                            ),
+                                )
+                            }
                         }
                         item {
                             val interactionSource = remember { MutableInteractionSource() }
@@ -445,7 +490,7 @@ fun NavDrawer(
                                         ),
                             )
                         }
-                        itemsIndexed(serviceState.items) { index, it ->
+                        itemsIndexed(drawerItems) { index, it ->
                             val interactionSource = remember { MutableInteractionSource() }
                             NavItem(
                                 library = it,
@@ -464,9 +509,9 @@ fun NavDrawer(
                                         ),
                             )
                         }
-                        if (serviceState.moreItems.isNotEmpty()) {
+                        if (drawerMoreItems.isNotEmpty()) {
                             item {
-                                val index = serviceState.items.size
+                                val index = drawerItems.size
                                 val interactionSource = remember { MutableInteractionSource() }
                                 NavItem(
                                     library = NavDrawerItem.More,
@@ -487,9 +532,9 @@ fun NavDrawer(
                             }
                         }
                         if (moreExpanded) {
-                            itemsIndexed(serviceState.moreItems) { index, it ->
+                            itemsIndexed(drawerMoreItems) { index, it ->
                                 val adjustedIndex =
-                                    remember(serviceState) { (index + serviceState.items.size) }
+                                    remember(serviceState) { (index + drawerItems.size) }
                                 val interactionSource = remember { MutableInteractionSource() }
                                 NavItem(
                                     library = it,
@@ -518,23 +563,39 @@ fun NavDrawer(
                                 )
                             }
                         }
-                        item {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            IconNavItem(
-                                text = stringResource(R.string.settings),
-                                icon = Icons.Default.Settings,
-                                selected = false,
-                                drawerOpen = isOpen,
-                                interactionSource = interactionSource,
-                                onClick = {
-                                    viewModel.navigationManager.navigateTo(
-                                        Destination.Settings(
-                                            PreferenceScreenOption.BASIC,
-                                        ),
-                                    )
-                                },
-                                modifier = Modifier,
-                            )
+                        if (customization.allows(RestrictedFeature.SETTINGS)) {
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                IconNavItem(
+                                    text = stringResource(R.string.settings),
+                                    icon = Icons.Default.Settings,
+                                    selected = false,
+                                    drawerOpen = isOpen,
+                                    interactionSource = interactionSource,
+                                    onClick = {
+                                        viewModel.navigationManager.navigateTo(
+                                            Destination.Settings(
+                                                PreferenceScreenOption.BASIC,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier,
+                                )
+                            }
+                        }
+                        if (profileGate != null) {
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                IconNavItem(
+                                    text = stringResource(profileGate.title),
+                                    icon = profileGate.icon,
+                                    selected = false,
+                                    drawerOpen = isOpen,
+                                    interactionSource = interactionSource,
+                                    onClick = { shownProfileGate = profileGate },
+                                    modifier = Modifier,
+                                )
+                            }
                         }
                     }
                 }
@@ -559,6 +620,7 @@ fun NavDrawer(
             if (preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()
             }
+            shownProfileGate?.content?.invoke { shownProfileGate = null }
         }
     }
 }
@@ -672,6 +734,10 @@ fun NavigationDrawerScope.NavItem(
 
                 NavDrawerItem.Discover -> {
                     R.string.fa_magnifying_glass_plus
+                }
+
+                NavDrawerItem.LiveTv -> {
+                    R.string.fa_tv
                 }
 
                 is ServerNavDrawerItem -> {

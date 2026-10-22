@@ -167,6 +167,18 @@ sealed class Destination(
     data object NowPlaying : Destination(true)
 
     @Serializable
+    data object KidsSettings : Destination(true)
+
+    @Serializable
+    data object KidsTimesUp : Destination(true)
+
+    /**
+     * A kid's live TV guide: only their channels, without recordings
+     */
+    @Serializable
+    data object KidsLiveTv : Destination(false)
+
+    @Serializable
     data object UpdateApp : Destination(true)
 
     @Serializable

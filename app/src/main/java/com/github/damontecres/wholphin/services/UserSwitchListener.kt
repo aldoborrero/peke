@@ -36,6 +36,7 @@ class UserSwitchListener
         private val seerrServerDao: SeerrServerDao,
         private val seerrApi: SeerrApi,
         private val homeSettingsService: HomeSettingsService,
+        private val profilePolicy: ProfilePolicy,
     ) {
         init {
             context as AppCompatActivity
@@ -51,6 +52,15 @@ class UserSwitchListener
                             switchUser(user)
                         }
                     }
+            }
+            // A fixed home, such as a kid's, can change after the switch above, so rebuild it then
+            context.lifecycleScope.launchDefault {
+                profilePolicy.homeChanges.collectLatest {
+                    serverRepository.currentUser?.let {
+                        Timber.d("Profile changed: rebuilding the home of %s", it.id)
+                        homeSettingsService.loadCurrentSettings(it.id)
+                    }
+                }
             }
         }
 
@@ -69,7 +79,8 @@ class UserSwitchListener
                 launchIO {
                     homeSettingsService.loadCurrentSettings(user.id)
                 }
-                if (BuildConfig.DISCOVER_ENABLED) {
+                // Some profiles, such as kids, never use Seerr, so discover and requests stay hidden
+                if (BuildConfig.DISCOVER_ENABLED && profilePolicy.allowsDiscover(user)) {
                     // Check for seerr server
                     launchIO {
                         seerrServerDao

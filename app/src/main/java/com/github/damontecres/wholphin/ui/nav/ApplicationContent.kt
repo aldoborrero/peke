@@ -16,10 +16,14 @@ import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.rememberDrawerState
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidsModeState
+import com.github.damontecres.wholphin.kids.LocalKidsMode
+import com.github.damontecres.wholphin.kids.ui.KidsTimerEffects
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.launchIO
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -66,6 +70,8 @@ fun ApplicationContent(
             viewModel = viewModel,
         )
         val navDrawerListState = rememberLazyListState()
+        // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown
+        val kidsLoading = LocalKidsMode.current == KidsModeState.Loading
         NavDisplay(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
@@ -78,7 +84,9 @@ fun ApplicationContent(
                 key as Destination
                 val contentKey = "${key}_${server?.id}_${user?.id}"
                 NavEntry(key, contentKey = contentKey) {
-                    if (key.fullScreen) {
+                    if (kidsLoading) {
+                        LoadingPage(Modifier.fillMaxSize())
+                    } else if (key.fullScreen) {
                         DestinationContent(
                             destination = key,
                             preferences = preferences,
@@ -102,5 +110,6 @@ fun ApplicationContent(
                 }
             },
         )
+        KidsTimerEffects()
     }
 }

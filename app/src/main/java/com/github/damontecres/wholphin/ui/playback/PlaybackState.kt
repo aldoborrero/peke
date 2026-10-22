@@ -22,6 +22,8 @@ data class PlaybackState(
     val analyticsState: AnalyticsState = AnalyticsState(),
     val subtitleCues: List<Cue> = emptyList(),
     val nextUp: BaseItem? = null,
+    // Kids mode: show "watch again" / "home" instead of continuing
+    val kidsEndScreen: Boolean = false,
     val playlistIndex: Int = 0,
     val playlist: Playlist = Playlist(emptyList()),
 ) {

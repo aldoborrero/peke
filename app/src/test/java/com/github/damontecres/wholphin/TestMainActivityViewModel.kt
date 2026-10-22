@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.RestoredSession
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.KidsModeService
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.update
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
@@ -58,6 +59,7 @@ class TestMainActivityViewModel {
     private val backdropService: BackdropService = mockk(relaxed = true)
     private val appUpgradeHandler: AppUpgradeHandler = mockk()
     private val intentService: IntentService = mockk()
+    private val kidsModeService: KidsModeService = mockk { coEvery { isLockedNow() } returns false }
 
     val viewModel =
         MainActivityViewModel(
@@ -70,6 +72,7 @@ class TestMainActivityViewModel {
             backdropService,
             appUpgradeHandler,
             intentService,
+            kidsModeService,
         )
 
     private val serverId = UUID.randomUUID()

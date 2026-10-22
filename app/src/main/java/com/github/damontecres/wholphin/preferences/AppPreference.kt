@@ -657,6 +657,13 @@ sealed interface AppPreference<Pref, T> {
                 summary = R.string.override_user_profile_settings_summary,
             )
 
+        val KidsMode =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.kids_mode,
+                destination = Destination.KidsSettings,
+                summary = R.string.kids_mode_summary,
+            )
+
         val SkipIntros =
             AppChoicePreference<AppPreferences, SkipSegmentBehavior>(
                 title = R.string.skip_intro_behavior,
@@ -1212,6 +1219,7 @@ val basicPreferences =
                     AppPreference.UserPinnedNavDrawerItems,
                     AppPreference.UserInterfaceLanguage,
                     AppPreference.UserProfileSettings,
+                    AppPreference.KidsMode,
                 ),
         ),
         PreferenceGroup(

@@ -41,11 +41,13 @@ import com.github.damontecres.wholphin.util.GetRecordingsRequestHandler
 import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
+import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -99,6 +101,7 @@ class HomeSettingsService
         private val imageUrlService: ImageUrlService,
         private val suggestionService: SuggestionService,
         private val displayPreferencesService: DisplayPreferencesService,
+        private val profilePolicy: ProfilePolicy,
     ) {
         @OptIn(ExperimentalSerializationApi::class)
         val jsonParser =
@@ -220,6 +223,11 @@ class HomeSettingsService
          */
         suspend fun loadCurrentSettings(userId: UUID) {
             Timber.v("Getting setting for %s", userId)
+            profileHomeSettings(userId)?.let {
+                Timber.v("Using the profile's fixed home settings")
+                updateCurrent(userId, it)
+                return
+            }
             // User local then server/remote otherwise create a default
             val settings =
                 try {
@@ -252,6 +260,18 @@ class HomeSettingsService
                 }
 
             currentSettings.update { resolvedSettings }
+        }
+
+        /**
+         * The [ProfilePolicy]'s fixed home, if [userId] is the current user and the policy has one for them
+         */
+        private suspend fun profileHomeSettings(userId: UUID): HomePageSettings? {
+            val user = serverRepository.currentUser?.takeIf { it.id == userId } ?: return null
+            return profilePolicy.homeSettings(user) {
+                val tvAccess = serverRepository.currentUserDto?.takeIf { it.id == userId }?.tvAccess ?: false
+                // Reads the nav drawer pins from the database, which Room refuses on the main thread
+                withContext(WholphinDispatchers.IO) { navDrawerService.getFilteredUserLibraries(user, tvAccess) }
+            }
         }
 
         /**

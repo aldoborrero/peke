@@ -32,6 +32,14 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.KidsModeService
+import com.github.damontecres.wholphin.kids.LocalKidsLiveTv
+import com.github.damontecres.wholphin.kids.LocalKidsLocked
+import com.github.damontecres.wholphin.kids.LocalKidsMode
+import com.github.damontecres.wholphin.kids.livetv.KidsLiveTvService
+import com.github.damontecres.wholphin.kids.server.KidsPluginService
+import com.github.damontecres.wholphin.kids.timer.KidsAllowanceService
+import com.github.damontecres.wholphin.kids.timer.KidsMusicGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
@@ -150,6 +158,21 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var intentService: IntentService
 
+    @Inject
+    lateinit var kidsModeService: KidsModeService
+
+    @Inject
+    lateinit var kidsPluginService: KidsPluginService
+
+    @Inject
+    lateinit var kidsAllowanceService: KidsAllowanceService
+
+    @Inject
+    lateinit var kidsMusicGuard: KidsMusicGuard
+
+    @Inject
+    lateinit var kidsLiveTvService: KidsLiveTvService
+
     private var signInAuto = true
     private var playerBackend: PlayerBackend? = null
 
@@ -165,6 +188,10 @@ class MainActivity : AppCompatActivity() {
         instance = this
         Timber.i("MainActivity.onCreate: savedInstanceState is null=${savedInstanceState == null}")
         lifecycle.addObserver(playbackLifecycleObserver)
+        lifecycle.addObserver(kidsPluginService)
+        lifecycle.addObserver(kidsAllowanceService)
+        lifecycle.addObserver(kidsModeService)
+        lifecycle.addObserver(kidsMusicGuard)
 
         val backStackStr = savedInstanceState?.getString(KEY_BACK_STACK)
         val restoredBackStack =
@@ -262,7 +289,15 @@ class MainActivity : AppCompatActivity() {
                             LaunchedEffect(appPreferences.debugLogging) {
                                 DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
                             }
-                            CompositionLocalProvider(LocalImageUrlService provides imageUrlService) {
+                            val kidsModeState by kidsModeService.state.collectAsState()
+                            val kidsLocked by kidsModeService.locked.collectAsState()
+                            val kidsLiveTv by kidsLiveTvService.available.collectAsState()
+                            CompositionLocalProvider(
+                                LocalImageUrlService provides imageUrlService,
+                                LocalKidsMode provides kidsModeState,
+                                LocalKidsLocked provides kidsLocked,
+                                LocalKidsLiveTv provides kidsLiveTv,
+                            ) {
                                 WholphinTheme(
                                     true,
                                     appThemeColors = appPreferences.interfacePreferences.appThemeColors,
@@ -428,6 +463,7 @@ class MainActivityViewModel
         private val backdropService: BackdropService,
         private val appUpgradeHandler: AppUpgradeHandler,
         private val intentService: IntentService,
+        private val kidsModeService: KidsModeService,
     ) : ViewModel() {
         private val mutex = Mutex()
 
@@ -489,6 +525,11 @@ class MainActivityViewModel
         @VisibleForTesting
         internal suspend fun handleIntent(intent: Intent?): Boolean {
             val result = intent?.let { intentService.parseIntent(intent) }
+            if (result is IntentResult.Target && kidsModeService.isLockedNow()) {
+                // Deep links could lead outside the kids experience, so start normally instead
+                Timber.i("Ignoring intent while locked to kids mode")
+                return false
+            }
             when (result) {
                 is IntentResult.Error -> {
                     val current = serverRepository.current.value

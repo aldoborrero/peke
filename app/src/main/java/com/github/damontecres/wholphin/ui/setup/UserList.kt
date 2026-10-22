@@ -75,6 +75,7 @@ fun UserList(
     onRemoveUser: (JellyfinUser) -> Unit,
     onSwitchServer: () -> Unit,
     modifier: Modifier = Modifier,
+    allowManage: Boolean = true,
 ) {
     var showDeleteDialog by remember { mutableStateOf<JellyfinUserAndImage?>(null) }
 
@@ -107,45 +108,49 @@ fun UserList(
                         user = user,
                         isCurrentUser = user.user.id == currentUser?.id,
                         onClick = { onSwitchUser.invoke(user.user) },
-                        onLongClick = { showDeleteDialog = user },
+                        onLongClick = { if (allowManage) showDeleteDialog = user },
                         modifier = if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier,
                     )
                 }
                 // Add User card - always rightmost
-                item {
-                    AddUserCard(
-                        onClick = { onAddUser.invoke() },
-                    )
+                if (allowManage) {
+                    item {
+                        AddUserCard(
+                            onClick = { onAddUser.invoke() },
+                        )
+                    }
                 }
             }
         }
 
         // Switch servers button below user list - centered
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-        ) {
-            Button(
-                onClick = { onSwitchServer.invoke() },
-                modifier = Modifier.width(200.dp), // Fixed width for consistency
+        if (allowManage) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
+                Button(
+                    onClick = { onSwitchServer.invoke() },
+                    modifier = Modifier.width(200.dp), // Fixed width for consistency
                 ) {
-                    Text(
-                        text = stringResource(R.string.fa_arrow_left_arrow_right),
-                        fontFamily = FontAwesome,
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.switch_servers),
-                        textAlign = TextAlign.Center,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.fa_arrow_left_arrow_right),
+                            fontFamily = FontAwesome,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.switch_servers),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }

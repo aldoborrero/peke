@@ -1,0 +1,202 @@
+package com.github.damontecres.wholphin.kids
+
+import android.content.Context
+import com.github.damontecres.wholphin.kids.data.KidProfile
+import com.github.damontecres.wholphin.kids.data.KidProfileDao
+import com.github.damontecres.wholphin.kids.server.KidsApi
+import com.github.damontecres.wholphin.kids.server.KidsFeatures
+import com.github.damontecres.wholphin.kids.server.KidsServer
+import com.github.damontecres.wholphin.kids.server.KidsServerDao
+import com.github.damontecres.wholphin.kids.timer.MonotonicClock
+import io.mockk.mockk
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
+import org.jellyfin.sdk.api.okhttp.OkHttpFactory
+import org.jellyfin.sdk.createJellyfin
+import org.jellyfin.sdk.model.ClientInfo
+import org.jellyfin.sdk.model.DeviceInfo
+import java.io.IOException
+import java.util.UUID
+
+/**
+ * A [KidProfileDao] in memory. [serverOf] maps device user rows to their server.
+ */
+class FakeKidProfileDao(
+    private val serverOf: (Int) -> UUID? = { null },
+) : KidProfileDao {
+    val profiles = MutableStateFlow<Map<Int, KidProfile>>(emptyMap())
+
+    override fun observe(userId: Int): Flow<KidProfile?> = profiles.map { it[userId] }
+
+    override suspend fun get(userId: Int): KidProfile? = profiles.value[userId]
+
+    override suspend fun allUserIds(): List<Int> = profiles.value.keys.toList()
+
+    override fun observeCount(): Flow<Int> = profiles.map { it.size }
+
+    override suspend fun userIdsForServer(serverId: UUID): List<Int> = profiles.value.keys.filter { serverOf(it) == serverId }
+
+    override fun observeCountForServer(serverId: UUID): Flow<Int> = profiles.map { p -> p.keys.count { serverOf(it) == serverId } }
+
+    override suspend fun mostRecentServerId(): UUID? = profiles.value.keys.firstNotNullOfOrNull(serverOf)
+
+    override suspend fun upsert(profile: KidProfile) {
+        profiles.value += (profile.userId to profile)
+    }
+
+    override suspend fun delete(userId: Int) {
+        profiles.value -= userId
+    }
+
+    override suspend fun deleteForServer(serverId: UUID) {
+        profiles.value = profiles.value.filterKeys { serverOf(it) != serverId }
+    }
+}
+
+class FakeKidsServerDao : KidsServerDao {
+    val servers = MutableStateFlow<Map<UUID, KidsServer>>(emptyMap())
+
+    override suspend fun get(serverId: UUID): KidsServer? = servers.value[serverId]
+
+    override fun observe(serverId: UUID): Flow<KidsServer?> = servers.map { it[serverId] }
+
+    override suspend fun upsert(server: KidsServer) {
+        servers.value += (server.serverId to server)
+    }
+
+    override suspend fun insertIfAbsent(server: KidsServer) {
+        if (server.serverId !in servers.value) servers.value += (server.serverId to server)
+    }
+
+    override suspend fun updateInfo(
+        serverId: UUID,
+        apiVersion: Int?,
+        features: String,
+        checkedAt: Long,
+    ) = change(serverId) { it.copy(apiVersion = apiVersion, features = features, checkedAt = checkedAt) }
+
+    override suspend fun updateLock(
+        serverId: UUID,
+        lockType: String?,
+        verifier: String?,
+        changedAt: String?,
+    ) = change(serverId) { it.copy(lockType = lockType, verifier = verifier, lockChangedAt = changedAt) }
+
+    override suspend fun updateOfflineThrottle(
+        serverId: UUID,
+        failures: Int,
+        blockedAt: Long?,
+    ) = change(serverId) { it.copy(offlineFailures = failures, offlineBlockedAt = blockedAt) }
+
+    private fun change(
+        serverId: UUID,
+        block: (KidsServer) -> KidsServer,
+    ) {
+        servers.value[serverId]?.let { servers.value += (serverId to block(it)) }
+    }
+
+    override suspend fun delete(serverId: UUID) {
+        servers.value -= serverId
+    }
+}
+
+/**
+ * The features kids mode needs, as stored in [KidsServer.features] and as `/Kids/Info` lists them
+ */
+val KIDS_FEATURES = KidsFeatures.REQUIRED.joinToString(",")
+val KIDS_FEATURES_JSON = KidsFeatures.REQUIRED.joinToString(",") { "\"$it\"" }
+
+class FakeClock(
+    var now: Long = 1_000_000L,
+) : MonotonicClock {
+    override fun elapsedMillis(): Long = now
+}
+
+/**
+ * A fake Kids plugin: answers requests by method and path, and records them
+ */
+class FakeKidsServer {
+    data class Answer(
+        val code: Int,
+        val body: String = "",
+        val headers: Map<String, String> = emptyMap(),
+    )
+
+    data class Recorded(
+        val method: String,
+        val path: String,
+        val headers: Map<String, String>,
+        val body: String?,
+    )
+
+    val requests = mutableListOf<Recorded>()
+    private val answers = mutableMapOf<String, Answer>()
+
+    /**
+     * Answers that throw, as if the network failed
+     */
+    var offline = false
+
+    /**
+     * Called with each request before it is answered, for example to change something while the request is on its way
+     */
+    var onRequest: (Recorded) -> Unit = {}
+
+    fun on(
+        method: String,
+        path: String,
+        code: Int,
+        body: String = "",
+        headers: Map<String, String> = emptyMap(),
+    ) {
+        answers["$method $path"] = Answer(code, body, headers)
+    }
+
+    private val interceptor =
+        Interceptor { chain ->
+            val request = chain.request()
+            if (offline) throw IOException("offline")
+            val path = request.url.encodedPath
+            val recorded = Recorded(request.method, path, request.headers.associate { it.first to it.second }, request.bodyText())
+            requests += recorded
+            onRequest(recorded)
+            val answer = answers["${request.method} $path"] ?: Answer(404)
+            Response
+                .Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(answer.code)
+                .message("")
+                .apply { answer.headers.forEach { (k, v) -> header(k, v) } }
+                .body(answer.body.toResponseBody("application/json".toMediaType()))
+                .build()
+        }
+
+    fun api(dispatcher: CoroutineDispatcher): KidsApi {
+        val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
+        val clientInfo = ClientInfo("Wholphin", "test")
+        val deviceInfo = DeviceInfo("device-1", "TV")
+        val factory = OkHttpFactory(client)
+        val jellyfin =
+            createJellyfin {
+                context = mockk<Context>(relaxed = true)
+                this.clientInfo = clientInfo
+                this.deviceInfo = deviceInfo
+                apiClientFactory = factory
+                socketConnectionFactory = factory
+            }
+        return KidsApi(client, jellyfin, clientInfo, deviceInfo, dispatcher)
+    }
+
+    private fun Request.bodyText(): String? = body?.let { b -> Buffer().also { b.writeTo(it) }.readUtf8() }
+}
