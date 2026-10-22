@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
@@ -37,6 +38,31 @@ fun QueueRowOverlay(
     onChangeState: (OverlayViewState) -> Unit,
     onClickPlaylist: (BaseItem) -> Unit,
     modifier: Modifier = Modifier,
+    downState: OverlayViewState? = null,
+) = ItemRowOverlay(
+    title = stringResource(R.string.queue),
+    items = remember(queue) { queue.map { it.item } },
+    controllerViewState = controllerViewState,
+    upState = nextState,
+    downState = downState,
+    onChangeState = onChangeState,
+    onClickItem = onClickPlaylist,
+    modifier = modifier,
+)
+
+/**
+ * A row of items in the playback overlay, such as the queue
+ */
+@Composable
+fun ItemRowOverlay(
+    title: String,
+    items: List<BaseItem>,
+    controllerViewState: ControllerViewState,
+    upState: OverlayViewState,
+    downState: OverlayViewState?,
+    onChangeState: (OverlayViewState) -> Unit,
+    onClickItem: (BaseItem) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
     val hiddenFocusRequester = remember { FocusRequester() }
@@ -46,10 +72,10 @@ fun QueueRowOverlay(
         modifier = modifier,
     ) {
         HiddenFocusBox(hiddenFocusRequester) {
-            onChangeState.invoke(nextState)
+            onChangeState.invoke(upState)
         }
         Text(
-            text = stringResource(R.string.queue),
+            text = title,
             style = MaterialTheme.typography.titleLarge,
         )
         LazyRow(
@@ -69,7 +95,7 @@ fun QueueRowOverlay(
                         }
                     },
         ) {
-            itemsIndexed(queue) { index, item ->
+            itemsIndexed(items) { index, item ->
                 val interactionSource =
                     remember { MutableInteractionSource() }
                 val isFocused =
@@ -78,9 +104,9 @@ fun QueueRowOverlay(
                     if (isFocused) controllerViewState.pulseControls()
                 }
                 SeasonCard(
-                    item = item.item,
+                    item = item,
                     onClick = {
-                        onClickPlaylist.invoke(item.item)
+                        onClickItem.invoke(item)
                         controllerViewState.hideControls()
                     },
                     onLongClick = {},
@@ -94,5 +120,6 @@ fun QueueRowOverlay(
                 )
             }
         }
+        downState?.let { OverlayStateLabel(it, onChangeState, Modifier.padding(bottom = 8.dp)) }
     }
 }

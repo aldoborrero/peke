@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOut
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -42,12 +43,16 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.Chapter
 import com.github.damontecres.wholphin.data.model.PlaylistItem
@@ -93,6 +98,8 @@ fun PlaybackOverlay(
     trickplayInfo: TrickplayInfo? = null,
     trickplayUrlFor: (Int) -> String? = { null },
     onClickPlaylist: (BaseItem) -> Unit = {},
+    moreItems: List<BaseItem> = emptyList(),
+    onClickMore: (BaseItem) -> Unit = {},
     seekBarInteractionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     val seekBarFocused by seekBarInteractionSource.collectIsFocusedAsState()
@@ -177,11 +184,13 @@ fun PlaybackOverlay(
                         }
                     }
                     val nextState =
-                        remember(chapters, nextEnabled) {
+                        remember(chapters, nextEnabled, moreItems) {
                             if (chapters.isNotEmpty()) {
                                 OverlayViewState.CHAPTERS
                             } else if (nextEnabled) {
                                 OverlayViewState.QUEUE
+                            } else if (moreItems.isNotEmpty()) {
+                                OverlayViewState.MORE
                             } else {
                                 null
                             }
@@ -222,7 +231,14 @@ fun PlaybackOverlay(
                             player = player,
                             controllerViewState = controllerViewState,
                             chapters = chapters,
-                            hasNext = nextEnabled,
+                            nextState =
+                                if (nextEnabled) {
+                                    OverlayViewState.QUEUE
+                                } else if (moreItems.isNotEmpty()) {
+                                    OverlayViewState.MORE
+                                } else {
+                                    null
+                                },
                             onChangeState = onChangeState,
                             modifier =
                                 Modifier
@@ -247,6 +263,32 @@ fun PlaybackOverlay(
                                 },
                             onChangeState = onChangeState,
                             onClickPlaylist = onClickPlaylist,
+                            downState = if (moreItems.isNotEmpty()) OverlayViewState.MORE else null,
+                            modifier =
+                                Modifier
+                                    .padding(8.dp)
+                                    .fillMaxWidth(),
+                        )
+                    }
+                }
+
+                OverlayViewState.MORE -> {
+                    if (moreItems.isNotEmpty()) {
+                        ItemRowOverlay(
+                            title = stringResource(R.string.more_like_this),
+                            items = moreItems,
+                            controllerViewState = controllerViewState,
+                            upState =
+                                if (nextEnabled) {
+                                    OverlayViewState.QUEUE
+                                } else if (chapters.isNotEmpty()) {
+                                    OverlayViewState.CHAPTERS
+                                } else {
+                                    OverlayViewState.CONTROLLER
+                                },
+                            downState = null,
+                            onChangeState = onChangeState,
+                            onClickItem = onClickMore,
                             modifier =
                                 Modifier
                                     .padding(8.dp)
@@ -373,4 +415,32 @@ enum class OverlayViewState {
     CONTROLLER,
     CHAPTERS,
     QUEUE,
+    MORE,
+}
+
+/**
+ * A focusable row title that moves the overlay to [state] when focused
+ */
+@Composable
+internal fun OverlayStateLabel(
+    state: OverlayViewState,
+    onChangeState: (OverlayViewState) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val title =
+        when (state) {
+            OverlayViewState.CHAPTERS -> R.string.chapters
+            OverlayViewState.QUEUE -> R.string.queue
+            OverlayViewState.MORE -> R.string.more_like_this
+            else -> return
+        }
+    Text(
+        text = stringResource(title),
+        style = MaterialTheme.typography.titleLarge,
+        modifier =
+            modifier
+                .onFocusChanged {
+                    if (it.isFocused) onChangeState.invoke(state)
+                }.focusable(),
+    )
 }

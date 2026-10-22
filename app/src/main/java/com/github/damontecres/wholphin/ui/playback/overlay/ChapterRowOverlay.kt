@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.ui.playback.overlay
 
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +42,7 @@ fun ChapterRowOverlay(
     player: Player,
     controllerViewState: ControllerViewState,
     chapters: List<Chapter>,
-    hasNext: Boolean,
+    nextState: OverlayViewState?,
     onChangeState: (OverlayViewState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -142,17 +141,6 @@ fun ChapterRowOverlay(
                 )
             }
         }
-        if (hasNext) {
-            Text(
-                text = stringResource(R.string.queue),
-                style = MaterialTheme.typography.titleLarge,
-                modifier =
-                    Modifier
-                        .padding(bottom = 8.dp)
-                        .onFocusChanged {
-                            if (it.isFocused) onChangeState.invoke(OverlayViewState.QUEUE)
-                        }.focusable(),
-            )
-        }
+        nextState?.let { OverlayStateLabel(it, onChangeState, Modifier.padding(bottom = 8.dp)) }
     }
 }
