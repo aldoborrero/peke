@@ -72,6 +72,7 @@ import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.playback.KidsAutoplayPolicy
 import dev.aldoborrero.peke.kids.playback.rememberKidsSuggestions
 import dev.aldoborrero.peke.kids.ui.KidsEndScreen
 import dev.aldoborrero.peke.preferences.AssPlaybackMode
@@ -177,6 +178,8 @@ fun PlaybackPageContent(
     val kidsMode = LocalKidsMode.current.isActive
     val (kidsSuggestions, onClickSuggestion) = rememberKidsSuggestions(state.currentPlayback?.item, kidsMode)
 
+    // A grown-up turns debug info on in settings; only grown-ups (advanced playback) may toggle it from the player
+    val advancedPlayback = LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)
     var showDebugInfo by remember { mutableStateOf(prefs.showDebugInfo) }
 
     var playbackDialog by remember { mutableStateOf<PlaybackDialogType?>(null) }
@@ -293,7 +296,7 @@ fun PlaybackPageContent(
             }
 
             PlaybackAction.ShowDebug -> {
-                showDebugInfo = !showDebugInfo
+                if (advancedPlayback) showDebugInfo = !showDebugInfo
             }
 
             PlaybackAction.ShowPlaylist -> {
@@ -653,7 +656,7 @@ fun PlaybackPageContent(
                 var autoPlayEnabled by remember { mutableStateOf(viewModel.shouldAutoPlayNextUp()) }
                 var timeLeft by remember {
                     mutableLongStateOf(
-                        preferences.appPreferences.playbackPreferences.autoPlayNextDelaySeconds,
+                        KidsAutoplayPolicy.COUNTDOWN_SECONDS,
                     )
                 }
                 BackHandler(timeLeft > 0 && autoPlayEnabled) {
@@ -761,13 +764,13 @@ fun PlaybackPageContent(
         }
     }
 
-    val advancedPlayback = LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)
     playbackDialog?.let { type ->
         PlaybackDialog(
             type = type,
             settings =
                 PlaybackSettings(
                     showDebugInfo = showDebugInfo && advancedPlayback,
+                    advancedOptions = advancedPlayback,
                     audioIndex = state.currentPlayback?.audioIndex,
                     audioStreams = state.currentMediaInfo.audioStreams,
                     subtitleIndex = state.currentPlayback?.subtitleIndex,

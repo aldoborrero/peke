@@ -25,7 +25,6 @@ import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
-import dev.aldoborrero.peke.services.ThemeSongPlayer
 import dev.aldoborrero.peke.services.TrailerService
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
@@ -60,7 +59,6 @@ class MovieViewModel
         val itemPlaybackRepository: ItemPlaybackRepository,
         val streamChoiceService: StreamChoiceService,
         val serverReportService: ServerReportService,
-        private val themeSongPlayer: ThemeSongPlayer,
         private val favoriteWatchManager: FavoriteWatchManager,
         private val peopleFavorites: PeopleFavorites,
         private val trailerService: TrailerService,
@@ -241,21 +239,7 @@ class MovieViewModel
             }
         }
 
-        fun maybePlayThemeSong(itemId: UUID) {
-            viewModelScope.launchIO {
-                themeSongPlayer.playThemeFor(itemId)
-                addCloseable {
-                    themeSongPlayer.stop()
-                }
-            }
-        }
-
-        fun release() {
-            themeSongPlayer.stop()
-        }
-
         fun navigateTo(destination: Destination) {
-            release()
             navigationManager.navigateTo(destination)
         }
 

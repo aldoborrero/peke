@@ -14,7 +14,6 @@ import dev.aldoborrero.peke.ui.preferences.PreferenceGroup
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.preferences.PreferenceValidation
 import dev.aldoborrero.peke.util.DebugLogTree
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -215,19 +214,6 @@ sealed interface AppPreference<Pref, T> {
                 valueToIndex = { if (it) 1 else 0 },
             )
 
-        val PlayThemeMusic =
-            AppChoicePreference<AppPreferences, ThemeSongVolume>(
-                title = R.string.play_theme_music,
-                defaultValue = ThemeSongVolume.MEDIUM,
-                getter = { it.interfacePreferences.playThemeSongs },
-                setter = { prefs, value ->
-                    prefs.updateInterfacePreferences { playThemeSongs = value }
-                },
-                displayValues = R.array.theme_song_volume,
-                indexToValue = { ThemeSongVolume.forNumber(it) },
-                valueToIndex = { if (it != ThemeSongVolume.UNRECOGNIZED) it.number else 0 },
-            )
-
         val PlaybackDebugInfo =
             AppSwitchPreference<AppPreferences>(
                 title = R.string.playback_debug_info,
@@ -238,18 +224,6 @@ sealed interface AppPreference<Pref, T> {
                 },
                 summaryOn = R.string.show,
                 summaryOff = R.string.hide,
-            )
-
-        val AutoPlayNextUp =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.auto_play_next,
-                defaultValue = true,
-                getter = { it.playbackPreferences.autoPlayNext },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { autoPlayNext = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
             )
 
         val SkipBackOnResume =
@@ -270,60 +244,6 @@ sealed interface AppPreference<Pref, T> {
                         PekeApplication.instance.getString(R.string.disabled)
                     } else {
                         "${value}s"
-                    }
-                },
-            )
-
-        val AutoPlayNextDelay =
-            AppSliderPreference<AppPreferences>(
-                title = R.string.auto_play_next_delay,
-                defaultValue = 15,
-                min = 0,
-                max = 60,
-                interval = 5,
-                getter = { it.playbackPreferences.autoPlayNextDelaySeconds },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { autoPlayNextDelaySeconds = value }
-                },
-                summarizer = { value ->
-                    if (value == null) {
-                        ""
-                    } else if (value == 0L) {
-                        PekeApplication.instance.getString(R.string.immediate)
-                    } else {
-                        PekeApplication.instance.resources.getQuantityString(
-                            R.plurals.seconds,
-                            value.toInt(),
-                            value.toInt(),
-                        )
-                    }
-                },
-            )
-
-        val PassOutProtection =
-            AppSliderPreference<AppPreferences>(
-                title = R.string.pass_out_protection,
-                defaultValue = 2,
-                min = 0,
-                max = 3,
-                interval = 1,
-                getter = { it.playbackPreferences.passOutProtectionMs.milliseconds.inWholeHours },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences {
-                        passOutProtectionMs = value.hours.inWholeMilliseconds
-                    }
-                },
-                summarizer = { value ->
-                    if (value == null) {
-                        ""
-                    } else if (value == 0L) {
-                        PekeApplication.instance.getString(R.string.disabled)
-                    } else {
-                        PekeApplication.instance.resources.getQuantityString(
-                            R.plurals.hours,
-                            value.toInt(),
-                            value.toInt(),
-                        )
                     }
                 },
             )
@@ -513,18 +433,6 @@ sealed interface AppPreference<Pref, T> {
                 getter = { it.playbackPreferences.overrides.decodeAv1 },
                 setter = { prefs, value ->
                     prefs.updatePlaybackOverrides { decodeAv1 = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-
-        val CinemaMode =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.cinema_mode,
-                defaultValue = true,
-                getter = { it.playbackPreferences.cinemaMode },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { cinemaMode = value }
                 },
                 summaryOn = R.string.enabled,
                 summaryOff = R.string.disabled,
@@ -1125,7 +1033,6 @@ val basicPreferences =
                 listOf(
                     AppPreference.SignInAuto,
                     AppPreference.RememberSelectedTab,
-                    AppPreference.PlayThemeMusic,
                     AppPreference.SubtitleStyle,
                     AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
@@ -1145,9 +1052,6 @@ val basicPreferences =
             preferences =
                 listOf(
                     AppPreference.ShowNextUpTiming,
-                    AppPreference.AutoPlayNextUp,
-                    AppPreference.AutoPlayNextDelay,
-                    AppPreference.PassOutProtection,
                 ),
         ),
         PreferenceGroup(
@@ -1269,7 +1173,6 @@ val advancedPreferences =
                     listOf(
                         AppPreference.OneClickPause,
                         AppPreference.ControllerTimeout,
-                        AppPreference.CinemaMode,
                         AppPreference.GlobalContentScale,
                         AppPreference.SkipSegments,
                         AppPreference.DpadSeekModePref,

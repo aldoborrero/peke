@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.MaterialTheme
 import dagger.assisted.Assisted
@@ -45,6 +44,7 @@ import dev.aldoborrero.peke.data.model.CollectionFolderFilter
 import dev.aldoborrero.peke.data.model.GetItemsFilter
 import dev.aldoborrero.peke.data.model.GetItemsFilterOverride
 import dev.aldoborrero.peke.data.model.LibraryDisplayInfo
+import dev.aldoborrero.peke.kids.KidsItemTypes
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
@@ -55,7 +55,6 @@ import dev.aldoborrero.peke.services.MusicService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
-import dev.aldoborrero.peke.services.ThemeSongPlayer
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
 import dev.aldoborrero.peke.ui.SlimItemFields
@@ -116,7 +115,6 @@ class CollectionFolderViewModel
         private val favoriteWatchManager: FavoriteWatchManager,
         private val backdropService: BackdropService,
         private val navigationManager: NavigationManager,
-        private val themeSongPlayer: ThemeSongPlayer,
         private val userPreferencesService: UserPreferencesService,
         private val mediaManagementService: MediaManagementService,
         private val musicService: MusicService,
@@ -202,7 +200,6 @@ class CollectionFolderViewModel
                     _state.update { it.copy(item = DataLoadingState.Success(item)) }
                     loadResults(true, sortAndDirection, recursive, filterToUse, useSeriesForPrimary)
                         .join()
-//                    onResumePage()
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error during init")
                     _state.update {
@@ -479,6 +476,7 @@ class CollectionFolderViewModel
                             ),
                         includeItemTypes = includeItemTypes,
                         recursive = recursive,
+                        excludeItemTypes = KidsItemTypes.EXCLUDED,
                         excludeItemIds = item?.let { listOf(item.id) },
                         sortBy =
                             buildList {
@@ -599,23 +597,7 @@ class CollectionFolderViewModel
         }
 
         override fun navigateTo(destination: Destination) {
-            release()
             navigationManager.navigateTo(destination)
-        }
-
-        fun release() {
-            themeSongPlayer.stop()
-        }
-
-        fun onResumePage() {
-            viewModelScope.launchIO {
-                state.value.item.successValue?.let {
-                    Timber.v("onResumePage: %s", state.value.items::class)
-                    if (it.type == BaseItemKind.BOX_SET && state.value.items !is DataLoadingState.Error) {
-                        themeSongPlayer.playThemeFor(it.id)
-                    }
-                }
-            }
         }
 
         override fun deleteItem(
@@ -765,13 +747,6 @@ fun CollectionFolderView(
         },
 ) {
     val state by viewModel.state.collectAsState()
-    LifecycleResumeEffect(itemId) {
-        viewModel.onResumePage()
-
-        onPauseOrDispose {
-            viewModel.release()
-        }
-    }
     CollectionFolderViewContent(
         preferences = preferences,
         state = state,

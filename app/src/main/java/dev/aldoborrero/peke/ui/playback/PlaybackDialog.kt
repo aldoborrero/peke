@@ -73,6 +73,10 @@ data class PlaybackSettings(
     val subtitleDelay: Duration,
     val hasSubtitleDownloadPermission: Boolean,
     val playbackSpeedEnabled: Boolean,
+    /**
+     * Whether speed, video scale, subtitle delay and the debug info toggle are offered; never for kids
+     */
+    val advancedOptions: Boolean = true,
 )
 
 /**
@@ -134,6 +138,7 @@ fun PlaybackDialog(
         PlaybackDialogType.SETTINGS -> {
             val options =
                 buildList {
+                    if (!settings.advancedOptions) return@buildList
                     add(
                         BottomDialogItem(
                             data = PlaybackDialogType.PLAYBACK_SPEED,

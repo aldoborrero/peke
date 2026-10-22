@@ -11,7 +11,6 @@ import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import org.acra.ACRA
 import org.acra.ReportField
-import org.acra.config.dialog
 import org.acra.data.StringFormat
 import org.acra.ktx.initAcra
 import org.jellyfin.sdk.Jellyfin
@@ -90,19 +89,10 @@ class PekeApplication :
                     ReportField.REPORT_ID,
                     ReportField.SHARED_PREFERENCES,
                     ReportField.STACK_TRACE,
-                    ReportField.USER_COMMENT,
                     ReportField.USER_CRASH_DATE,
                 )
-            dialog {
-                text =
-                    "Wholphin has crashed! Would you like to attempt to " +
-                    "send a crash report to your Jellyfin server?"
-                title = "Wholphin Crash Report"
-                positiveButtonText = "Send"
-                negativeButtonText = "Do not send"
-            }
-            reportSendFailureToast = "Crash report failed to send"
-            reportSendSuccessToast = "Sent crash report!"
+            // No dialog or toasts: a child would be the one answering them. Reports go silently, and only to the
+            // household's own Jellyfin server, when a grown-up leaves "Send crash reports" on.
         }
         ACRA.errorReporter.putCustomData("SDK_INT", Build.VERSION.SDK_INT.toString())
     }

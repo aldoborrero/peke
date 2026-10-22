@@ -7,6 +7,11 @@ import dev.aldoborrero.peke.kids.data.KidProfile
  */
 object KidsAutoplayPolicy {
     /**
+     * Seconds the next-up countdown runs before autoplaying, fixed in Peke (the plugin profile has no field for it)
+     */
+    const val COUNTDOWN_SECONDS = 15L
+
+    /**
      * @param autoplayedInARow how many episodes were autoplayed since the last user interaction
      */
     fun allowNext(

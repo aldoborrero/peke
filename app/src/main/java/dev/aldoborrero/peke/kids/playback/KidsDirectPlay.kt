@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.KidsItemTypes
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PlaylistCreator
 import dev.aldoborrero.peke.ui.components.LoadingPage
@@ -28,7 +29,8 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * In kids mode, opening a video or a series plays it right away instead of showing its details page
+ * In kids mode, opening a video or a series plays it right away instead of showing its details page, and anything
+ * kids don't get (music, people, photos) goes back with a message instead of opening a page
  */
 object KidsDirectPlay {
     private val PLAYABLE = setOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE, BaseItemKind.VIDEO, BaseItemKind.MUSIC_VIDEO)
@@ -38,7 +40,7 @@ object KidsDirectPlay {
             is Destination.MediaItem -> destination.type in PLAYABLE || destination.type == BaseItemKind.SERIES
             is Destination.SeriesOverview -> true
             else -> false
-        }
+        } || KidsItemTypes.refuses(destination)
 }
 
 @HiltViewModel
@@ -76,7 +78,11 @@ class KidsDirectPlayViewModel
                 }
 
                 is Destination.MediaItem -> {
-                    if (destination.type == BaseItemKind.SERIES) nextUp(destination.itemId) else getItem(destination.itemId)
+                    when {
+                        KidsItemTypes.refuses(destination) -> null
+                        destination.type == BaseItemKind.SERIES -> nextUp(destination.itemId)
+                        else -> getItem(destination.itemId)
+                    }
                 }
 
                 else -> {

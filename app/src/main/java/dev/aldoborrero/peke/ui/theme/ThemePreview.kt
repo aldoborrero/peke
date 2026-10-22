@@ -153,7 +153,7 @@ private fun ThemeExample(theme: AppThemeColors) {
                     SectionTitle("Controls")
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         SliderPreference(
-                            preference = AppPreference.AutoPlayNextDelay,
+                            preference = AppPreference.SkipForward,
                             title = "Slider",
                             summary = "5 seconds",
                             value = 30,
@@ -161,7 +161,7 @@ private fun ThemeExample(theme: AppThemeColors) {
                             modifier = Modifier.weight(1f),
                         )
                         SliderPreference(
-                            preference = AppPreference.AutoPlayNextDelay,
+                            preference = AppPreference.SkipForward,
                             title = "Slider",
                             summary = "5 seconds",
                             value = 30,

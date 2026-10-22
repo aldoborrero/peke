@@ -82,6 +82,8 @@ import dev.aldoborrero.peke.ui.skipStringRes
 import dev.aldoborrero.peke.ui.theme.LocalTheme
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.tryRequestFocus
+import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
+import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -338,16 +340,19 @@ fun LeftPlaybackButtons(
         modifier = modifier.focusGroup(),
         horizontalArrangement = Arrangement.spacedBy(buttonSpacing),
     ) {
-        PlaybackButton(
-            iconRes = R.drawable.vector_settings,
-            onClick = {
-                onControllerInteraction.invoke()
-                onClickPlaybackDialogType.invoke(PlaybackDialogType.SETTINGS)
-            },
-            enabled = true,
-            onControllerInteraction = onControllerInteraction,
-            modifier = Modifier,
-        )
+        // The settings only hold advanced options (speed, scale, delay, debug info), which kids don't get
+        if (LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)) {
+            PlaybackButton(
+                iconRes = R.drawable.vector_settings,
+                onClick = {
+                    onControllerInteraction.invoke()
+                    onClickPlaybackDialogType.invoke(PlaybackDialogType.SETTINGS)
+                },
+                enabled = true,
+                onControllerInteraction = onControllerInteraction,
+                modifier = Modifier,
+            )
+        }
     }
 }
 

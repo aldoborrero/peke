@@ -27,7 +27,6 @@ import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
-import dev.aldoborrero.peke.services.ThemeSongPlayer
 import dev.aldoborrero.peke.services.TrailerService
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
@@ -87,7 +86,6 @@ class SeriesViewModel
         val serverRepository: ServerRepository,
         private val navigationManager: NavigationManager,
         private val itemPlaybackRepository: ItemPlaybackRepository,
-        private val themeSongPlayer: ThemeSongPlayer,
         private val favoriteWatchManager: FavoriteWatchManager,
         private val peopleFavorites: PeopleFavorites,
         private val trailerService: TrailerService,
@@ -118,7 +116,6 @@ class SeriesViewModel
         init {
             viewModelScope.launchIO {
                 Timber.v("Start")
-                addCloseable { themeSongPlayer.stop() }
                 val series =
                     try {
                         api.userLibraryApi
@@ -268,9 +265,6 @@ class SeriesViewModel
         fun onResumePage() {
             state.value.series.successValue?.let { item ->
                 viewModelScope.launchDefault { backdropService.submit(item) }
-                viewModelScope.launchDefault {
-                    themeSongPlayer.playThemeFor(seriesId)
-                }
             }
         }
 
@@ -280,10 +274,6 @@ class SeriesViewModel
                     (state.value.seasons as? ApiRequestPager<*>)?.refresh()
                 }
             }
-        }
-
-        fun release() {
-            themeSongPlayer.stop()
         }
 
         private fun getSeasons(
@@ -506,7 +496,6 @@ class SeriesViewModel
         }
 
         fun navigateTo(destination: Destination) {
-            release()
             navigationManager.navigateTo(destination)
         }
 

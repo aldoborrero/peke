@@ -59,7 +59,6 @@
     <string name="hide_debug_info">Hide debug info</string>
     <string name="hide">Hide</string>
     <string name="home">Home</string>
-    <string name="immediate">Immediate</string>
     <string name="intro">Intro</string>
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Library</string>
@@ -274,11 +273,6 @@
         <item quantity="one">%s download</item>
         <item quantity="other">%s downloads</item>
     </plurals>
-    <plurals name="hours">
-        <item quantity="zero">%d hours</item>
-        <item quantity="one">%d hour</item>
-        <item quantity="other">%d hours</item>
-    </plurals>
     <plurals name="days">
         <item quantity="zero">%s days</item>
         <item quantity="one">%s day</item>
@@ -325,8 +319,6 @@
     <string name="advanced_ui">Advanced UI</string>
     <string name="app_theme">Application Theme</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
-    <string name="auto_play_next_delay">Delay before playing next up</string>
-    <string name="auto_play_next">Auto play next up</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="combine_continue_next"><![CDATA[Combine Continue Watching & Next Up]]></string>
     <string name="direct_play_pgs">Direct play PGS subtitles</string>
@@ -336,8 +328,6 @@
     <string name="install_update">Install update</string>
     <string name="installed_version">Installed version</string>
     <string name="max_homepage_items">Max items on home page rows</string>
-    <string name="pass_out_protection">Passout Protection</string>
-    <string name="play_theme_music">Play theme music</string>
     <string name="playback_overrides">Playback overrides</string>
     <string name="remember_selected_tab">Remember selected tabs</string>
     <string name="rewatch_next_up">Enable rewatching in next up</string>
@@ -588,14 +578,6 @@
     <string name="volume_medium">Medium</string>
     <string name="volume_high">High</string>
     <string name="volume_full">Full</string>
-    <string-array name="theme_song_volume">
-        <item>@string/disabled</item>
-        <item>@string/volume_lowest</item>
-        <item>@string/volume_low</item>
-        <item>@string/volume_medium</item>
-        <item>@string/volume_high</item>
-        <item>@string/volume_full</item>
-    </string-array>
 
     <string name="purple">Purple</string>
     <string name="orange">Orange</string>
@@ -801,7 +783,6 @@
     <string name="ass_subtitle_mode_exoplayer">Direct play with ExoPlayer built-in</string>
     <string name="ass_subtitle_mode_transcode">Burn in/transcode on server</string>
     <string name="ass_subtitle_playback">SSA/ASS subtitle playback</string>
-    <string name="cinema_mode">Cinema mode</string>
     <string name="show_more">Show %1$s more</string>
     <string name="skip_behavior">Skip behavior</string>
     <string name="skip_behavior_summary">For intros, credits, etc</string>

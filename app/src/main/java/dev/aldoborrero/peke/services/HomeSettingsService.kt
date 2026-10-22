@@ -14,6 +14,7 @@ import dev.aldoborrero.peke.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.data.model.createGenreDestination
 import dev.aldoborrero.peke.data.model.createStudioDestination
+import dev.aldoborrero.peke.kids.KidsItemTypes
 import dev.aldoborrero.peke.preferences.DefaultUserConfiguration
 import dev.aldoborrero.peke.preferences.HomePagePreferences
 import dev.aldoborrero.peke.ui.AspectRatio
@@ -910,6 +911,7 @@ class HomeSettingsService
                                 },
                             limit = limit,
                             fields = library.itemFields,
+                            excludeItemTypes = KidsItemTypes.EXCLUDED,
                         )
 
                     // Not using getItemName because we want to throw the 404

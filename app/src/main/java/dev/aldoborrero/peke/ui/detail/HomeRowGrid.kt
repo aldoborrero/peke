@@ -36,7 +36,6 @@ import dev.aldoborrero.peke.services.NavDrawerService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
-import dev.aldoborrero.peke.services.ThemeSongPlayer
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
 import dev.aldoborrero.peke.services.tvAccess
@@ -79,7 +78,6 @@ class HomeRowGridViewModel
         private val favoriteWatchManager: FavoriteWatchManager,
         private val backdropService: BackdropService,
         private val navigationManager: NavigationManager,
-        private val themeSongPlayer: ThemeSongPlayer,
         private val mediaManagementService: MediaManagementService,
         private val musicService: MusicService,
         val streamChoiceService: StreamChoiceService,

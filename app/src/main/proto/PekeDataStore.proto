@@ -67,8 +67,6 @@ message PlaybackPreferences {
   int64 skip_back_ms = 2;
   int64 controller_timeout_ms = 3;
   bool show_debug_info = 5;
-  bool auto_play_next = 6;
-  int64 auto_play_next_delay_seconds = 7;
   int64 skip_back_on_resume_seconds = 8;
   int64 max_bitrate = 9;
 
@@ -79,7 +77,6 @@ message PlaybackPreferences {
   SkipSegmentBehavior skip_previews = 14;
 
   PlaybackOverrides overrides = 15;
-  int64 pass_out_protection_ms = 16;
   PrefContentScale global_content_scale = 17;
   ShowNextUpWhen show_next_up_when = 18;
   bool one_click_pause = 19;
@@ -87,7 +84,6 @@ message PlaybackPreferences {
   MpvOptions mpv_options = 21;
   bool refresh_rate_switching = 22;
   bool resolution_switching = 23;
-  bool cinema_mode = 25;
   DpadSeekMode dpad_seek_mode = 26;
 }
 
@@ -102,15 +98,6 @@ message HomePagePreferences{
   bool enable_rewatching_next_up = 2;
   int32 max_days_next_up = 4;
   bool click_to_play = 5;
-}
-
-enum ThemeSongVolume {
-  DISABLED = 0;
-  LOWEST = 1;
-  LOW = 2;
-  MEDIUM = 3;
-  HIGH = 4;
-  HIGHEST = 5;
 }
 
 enum AppThemeColors {
@@ -190,7 +177,6 @@ enum DisplayToggle{
 }
 
 message InterfacePreferences {
-  ThemeSongVolume play_theme_songs = 1;
   bool remember_selected_tab = 2;
   AppThemeColors app_theme_colors = 4;
   bool show_clock = 6;

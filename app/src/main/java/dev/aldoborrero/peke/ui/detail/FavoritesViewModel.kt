@@ -753,21 +753,16 @@ sealed interface FavoritesLoadingState {
  * This is also the order they will appear in the UI
  */
 val favoriteOptions =
+    // Peke is for kids: videos and their collections only (no music, people, photos or live TV channels outside the
+    // kid's guide)
     listOf(
         BaseItemKind.MOVIE,
         BaseItemKind.SERIES,
         BaseItemKind.EPISODE,
         BaseItemKind.BOX_SET,
-        BaseItemKind.PERSON,
-        BaseItemKind.TV_CHANNEL,
-        BaseItemKind.MUSIC_ALBUM,
-        BaseItemKind.MUSIC_ARTIST,
-        BaseItemKind.AUDIO,
         BaseItemKind.MUSIC_VIDEO,
         BaseItemKind.PLAYLIST,
         BaseItemKind.VIDEO,
-        BaseItemKind.PHOTO,
-        BaseItemKind.PHOTO_ALBUM,
     )
 
 /**
@@ -787,9 +782,7 @@ fun List<Library>.possibleFavoriteTypes(sort: Boolean) =
     flatMap { it.collectionType.baseItemKinds }
         .distinct()
         .filter { it in favoriteOptions }
-        .let {
-            // No library for persons, so always include it
-            val list = it + listOf(BaseItemKind.PERSON)
+        .let { list ->
             if (sort) {
                 list.sortedWith(compareBy { favoriteOptions.indexOf(it) })
             } else {

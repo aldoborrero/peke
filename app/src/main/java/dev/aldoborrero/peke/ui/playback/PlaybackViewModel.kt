@@ -133,7 +133,6 @@ import org.jellyfin.sdk.model.extensions.inWholeTicks
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
-import java.util.Date
 import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.time.Duration
@@ -382,34 +381,9 @@ class PlaybackViewModel
 
             viewModelScope.launch(ExceptionHandler()) { controllerViewState.observe() }
 
-            val intros =
-                // If not resuming playback & cinema mode is enabled, get potential intros
-                if (positionMs == 0L && preferences.appPreferences.playbackPreferences.cinemaMode) {
-                    api.userLibraryApi
-                        .getIntros(
-                            itemId = playlistItem.id,
-                            userId = serverRepository.currentUser?.id,
-                        ).content.items
-                        .map {
-                            PlaylistItem.Intro(BaseItem(it))
-                        }
-                } else {
-                    emptyList()
-                }
-            val firstItem =
-                if (intros.isNotEmpty()) {
-                    Timber.v("Got %s intros", intros.size)
-                    _state.update {
-                        it.copy(playlist = Playlist(intros + it.playlist.items))
-                    }
-                    intros.first()
-                } else {
-                    playlistItem
-                }
-
             val played =
                 play(
-                    firstItem,
+                    playlistItem,
                     positionMs,
                     forceTranscoding,
                 )
@@ -1123,8 +1097,8 @@ class PlaybackViewModel
                                     _state.update { it.copy(nextUp = nextItem.item) }
                                 }
 
-                                prefs.showNextUpWhen == ShowNextUpWhen.NEXT_UP_NEVER && !prefs.autoPlayNext -> {
-                                    Timber.v("Never show or auto play next up, returning")
+                                prefs.showNextUpWhen == ShowNextUpWhen.NEXT_UP_NEVER -> {
+                                    Timber.v("Never show next up, returning")
                                     navigationManager.goBack()
                                 }
 
@@ -1306,31 +1280,23 @@ class PlaybackViewModel
                 }
             }
 
-        private var lastInteractionDate: Date = Date()
-
         // Episodes autoplayed since the last interaction, for the kids mode cap
         private var autoPlayedInARow = 0
 
         /**
-         * Tracks interactions with the UI for passout protection
+         * Tracks interactions with the UI, which restart the kids autoplay cap
          */
         fun reportInteraction() {
-//            Timber.v("reportInteraction")
-            lastInteractionDate = Date()
             autoPlayedInARow = 0
         }
 
+        /**
+         * Autoplay follows only the kid's profile from the plugin (on/off and the cap); grown-ups don't watch in Peke
+         */
         fun shouldAutoPlayNextUp(): Boolean =
-            preferences.appPreferences.playbackPreferences.let {
-                val kidProfile = kidsModeService.state.value.profile
-                val autoPlay = kidProfile?.let { profile -> KidsAutoplayPolicy.allowNext(profile, autoPlayedInARow) } ?: it.autoPlayNext
-                autoPlay &&
-                    if (it.passOutProtectionMs > 0) {
-                        (Date().time - lastInteractionDate.time) < it.passOutProtectionMs
-                    } else {
-                        true
-                    }
-            }
+            kidsModeService.state.value.profile
+                ?.let { profile -> KidsAutoplayPolicy.allowNext(profile, autoPlayedInARow) }
+                ?: false
 
         /**
          * Play the next item because the next up countdown finished, as opposed to the user choosing to

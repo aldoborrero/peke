@@ -528,22 +528,16 @@ data class SearchState(
 )
 
 private val allSearchableTypes =
+    // Peke is for kids: videos and their collections only (no music, people, photos, or channels and programs outside
+    // the kid's guide)
     listOf(
         BaseItemKind.MOVIE,
         BaseItemKind.SERIES,
         BaseItemKind.EPISODE,
         BaseItemKind.BOX_SET,
-        BaseItemKind.PERSON,
-        BaseItemKind.TV_CHANNEL,
-        BaseItemKind.LIVE_TV_PROGRAM,
-        BaseItemKind.MUSIC_ALBUM,
-        BaseItemKind.MUSIC_ARTIST,
-        BaseItemKind.AUDIO,
         BaseItemKind.MUSIC_VIDEO,
         BaseItemKind.PLAYLIST,
         BaseItemKind.VIDEO,
-        BaseItemKind.PHOTO,
-        BaseItemKind.PHOTO_ALBUM,
     )
 
 private const val SEARCH_LIMIT = 50

@@ -9,7 +9,6 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import java.io.InputStream
 import java.io.OutputStream
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 class AppPreferencesSerializer
@@ -35,9 +34,6 @@ class AppPreferencesSerializer
                                     AppPreference.SkipBack.defaultValue.seconds.inWholeMilliseconds
                                 controllerTimeoutMs = AppPreference.ControllerTimeout.defaultValue
                                 showDebugInfo = AppPreference.PlaybackDebugInfo.defaultValue
-                                autoPlayNext = AppPreference.AutoPlayNextUp.defaultValue
-                                autoPlayNextDelaySeconds =
-                                    AppPreference.AutoPlayNextDelay.defaultValue
                                 skipBackOnResumeSeconds =
                                     AppPreference.SkipBackOnResume.defaultValue.seconds.inWholeMilliseconds
                                 maxBitrate = AppPreference.DEFAULT_BITRATE
@@ -46,14 +42,11 @@ class AppPreferencesSerializer
                                 skipCommercials = AppPreference.SkipCommercials.defaultValue
                                 skipPreviews = AppPreference.SkipPreviews.defaultValue
                                 skipRecaps = AppPreference.SkipRecaps.defaultValue
-                                passOutProtectionMs =
-                                    AppPreference.PassOutProtection.defaultValue.hours.inWholeMilliseconds
                                 showNextUpWhen = AppPreference.ShowNextUpTiming.defaultValue
                                 playerBackend = AppPreference.PlayerBackendPref.defaultValue
                                 refreshRateSwitching =
                                     AppPreference.RefreshRateSwitching.defaultValue
                                 resolutionSwitching = AppPreference.ResolutionSwitching.defaultValue
-                                cinemaMode = AppPreference.CinemaMode.defaultValue
                                 dpadSeekMode = AppPreference.DpadSeekModePref.defaultValue
 
                                 overrides =
@@ -90,7 +83,6 @@ class AppPreferencesSerializer
                         InterfacePreferences
                             .newBuilder()
                             .apply {
-                                playThemeSongs = AppPreference.PlayThemeMusic.defaultValue
                                 appThemeColors = AppPreference.ThemeColors.defaultValue
                                 showClock = AppPreference.ShowClock.defaultValue
                                 backdropStyle = AppPreference.BackdropStylePref.defaultValue
