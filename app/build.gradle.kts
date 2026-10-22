@@ -68,7 +68,7 @@ kotlin {
 private fun Provider<String>.getInt() = get().toInt()
 
 configure<ApplicationExtension> {
-    namespace = "com.github.damontecres.wholphin"
+    namespace = "dev.aldoborrero.peke"
     compileSdk = libs.versions.compileSdk.getInt()
 
     defaultConfig {
@@ -77,7 +77,7 @@ configure<ApplicationExtension> {
         targetSdk = libs.versions.targetSdk.getInt()
         versionCode = gitTags.trim().lines().size
         versionName = gitDescribe.trim().removePrefix("v").ifBlank { "0.0.0" }
-        testInstrumentationRunner = "com.github.damontecres.wholphin.test.WholphinTestRunner"
+        testInstrumentationRunner = "dev.aldoborrero.peke.test.PekeTestRunner"
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
     }
@@ -265,11 +265,11 @@ openApiGenerate {
     inputSpec.set("$projectDir/src/main/seerr/seerr-api.yml")
     templateDir.set("$projectDir/src/main/seerr/templates")
     outputDir.set("$buildDir/generated/seerr_api")
-    apiPackage.set("com.github.damontecres.wholphin.api.seerr")
-    modelPackage.set("com.github.damontecres.wholphin.api.seerr.model")
-    groupId.set("com.github.damontecres.wholphin.api.seerr")
+    apiPackage.set("dev.aldoborrero.peke.api.seerr")
+    modelPackage.set("dev.aldoborrero.peke.api.seerr.model")
+    groupId.set("dev.aldoborrero.peke.api.seerr")
     id.set("seerr-api")
-    packageName.set("com.github.damontecres.wholphin.api.seerr")
+    packageName.set("dev.aldoborrero.peke.api.seerr")
     additionalProperties.apply {
         put("serializationLibrary", "kotlinx_serialization")
         put("sortModelPropertiesByRequiredFlag", true)
