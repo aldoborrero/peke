@@ -29,7 +29,7 @@ import java.io.IOException
 import java.util.UUID
 
 /**
- * A [KidProfileDao] in memory. [serverOf] maps device user rows to their server.
+ * A [KidProfileDao] in memory. A profile's server is its [KidProfile.serverId], or else [serverOf] of its user row.
  */
 class FakeKidProfileDao(
     private val serverOf: (Int) -> UUID? = { null },
@@ -44,11 +44,15 @@ class FakeKidProfileDao(
 
     override fun observeCount(): Flow<Int> = profiles.map { it.size }
 
-    override suspend fun userIdsForServer(serverId: UUID): List<Int> = profiles.value.keys.filter { serverOf(it) == serverId }
+    private fun KidProfile.server(): UUID? = serverId ?: serverOf(userId)
 
-    override fun observeCountForServer(serverId: UUID): Flow<Int> = profiles.map { p -> p.keys.count { serverOf(it) == serverId } }
+    override suspend fun userIdsForServer(serverId: UUID): List<Int> =
+        profiles.value.values
+            .filter {
+                it.server() == serverId
+            }.map { it.userId }
 
-    override suspend fun mostRecentServerId(): UUID? = profiles.value.keys.firstNotNullOfOrNull(serverOf)
+    override fun observeCountForServer(serverId: UUID): Flow<Int> = profiles.map { p -> p.values.count { it.server() == serverId } }
 
     override suspend fun upsert(profile: KidProfile) {
         profiles.value += (profile.userId to profile)
@@ -59,7 +63,7 @@ class FakeKidProfileDao(
     }
 
     override suspend fun deleteForServer(serverId: UUID) {
-        profiles.value = profiles.value.filterKeys { serverOf(it) != serverId }
+        profiles.value = profiles.value.filterValues { it.server() != serverId }
     }
 }
 
@@ -108,6 +112,8 @@ class FakeKidsServerDao : KidsServerDao {
     override suspend fun delete(serverId: UUID) {
         servers.value -= serverId
     }
+
+    override suspend fun allServerIds(): List<UUID> = servers.value.keys.toList()
 }
 
 /**

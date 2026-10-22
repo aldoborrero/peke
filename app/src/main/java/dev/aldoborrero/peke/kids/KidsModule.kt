@@ -1,11 +1,14 @@
 package dev.aldoborrero.peke.kids
 
+import android.content.Context
+import androidx.room.Room
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dev.aldoborrero.peke.data.AppDatabase
 import dev.aldoborrero.peke.kids.data.KidProfileDao
+import dev.aldoborrero.peke.kids.data.KidsDatabase
 import dev.aldoborrero.peke.kids.server.KidsServerDao
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
 import dev.aldoborrero.peke.kids.timer.SystemMonotonicClock
@@ -20,17 +23,30 @@ import javax.inject.Singleton
 object KidsModule {
     @Provides
     @Singleton
-    fun kidProfileDao(db: AppDatabase): KidProfileDao = db.kidProfileDao()
-
-    @Provides
-    @Singleton
-    fun kidsServerDao(db: AppDatabase): KidsServerDao = db.kidsServerDao()
-
-    @Provides
-    @Singleton
     fun monotonicClock(): MonotonicClock = SystemMonotonicClock
 
     @Provides
     @Singleton
     fun profilePolicy(policy: KidsProfilePolicy): ProfilePolicy = policy
+}
+
+/**
+ * The kids database and its DAOs, replaced by an in-memory database in tests
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object KidsDatabaseModule {
+    @Provides
+    @Singleton
+    fun kidsDatabase(
+        @ApplicationContext context: Context,
+    ): KidsDatabase = Room.databaseBuilder(context, KidsDatabase::class.java, KidsDatabase.NAME).build()
+
+    @Provides
+    @Singleton
+    fun kidProfileDao(db: KidsDatabase): KidProfileDao = db.kidProfileDao()
+
+    @Provides
+    @Singleton
+    fun kidsServerDao(db: KidsDatabase): KidsServerDao = db.kidsServerDao()
 }

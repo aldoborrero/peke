@@ -44,6 +44,7 @@ class KidProfileRepositoryTest {
         every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
         val jellyfinServerDao = mockk<JellyfinServerDao>()
         every { jellyfinServerDao.getServer(server.id) } returns JellyfinServerUsers(server, listOf(adult, kid))
+        every { jellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(adult, kid)))
         every { lock.auth() } returns KidsAuth(server, adult, "a", "g-1")
         val api = http.api(UnconfinedTestDispatcher(testScheduler))
         val plugin = KidsPluginService(serverRepository, api, FakeKidsServerDao(), profileDao, FakeClock(), backgroundScope)

@@ -4,48 +4,11 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.os.Build
 import androidx.core.content.edit
-import androidx.datastore.core.DataStore
 import androidx.preference.PreferenceManager
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.aldoborrero.peke.data.CurrentUser
-import dev.aldoborrero.peke.data.JellyfinServerDao
-import dev.aldoborrero.peke.data.MostRecentServerProvider
-import dev.aldoborrero.peke.data.PlaybackLanguageChoiceDao
-import dev.aldoborrero.peke.data.RememberedTabDao
-import dev.aldoborrero.peke.data.SeriesTrackChoiceDao
-import dev.aldoborrero.peke.data.model.JellyfinUser
-import dev.aldoborrero.peke.data.model.RememberedTab
-import dev.aldoborrero.peke.data.model.SeriesTrackChoice
-import dev.aldoborrero.peke.preferences.AppPreference
-import dev.aldoborrero.peke.preferences.AppPreferences
-import dev.aldoborrero.peke.preferences.ExperimentalPreference
-import dev.aldoborrero.peke.preferences.HdrOverrideMode
-import dev.aldoborrero.peke.preferences.ScreensaverPreference
-import dev.aldoborrero.peke.preferences.update
-import dev.aldoborrero.peke.preferences.updateAdvancedPreferences
-import dev.aldoborrero.peke.preferences.updateExperimentalPreferences
-import dev.aldoborrero.peke.preferences.updateHomePagePreferences
-import dev.aldoborrero.peke.preferences.updateInterfacePreferences
-import dev.aldoborrero.peke.preferences.updateLiveTvPreferences
-import dev.aldoborrero.peke.preferences.updateMpvOptions
-import dev.aldoborrero.peke.preferences.updateMusicPreferences
-import dev.aldoborrero.peke.preferences.updatePhotoPreferences
-import dev.aldoborrero.peke.preferences.updatePlaybackOverrides
-import dev.aldoborrero.peke.preferences.updatePlaybackPreferences
-import dev.aldoborrero.peke.preferences.updateScreensaverPreferences
-import dev.aldoborrero.peke.preferences.updateSearchPreferences
-import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
-import dev.aldoborrero.peke.ui.preferences.PreferencesViewModel
-import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings
-import dev.aldoborrero.peke.ui.preferences.subtitle.shouldEnableSeparateHdrToggle
 import dev.aldoborrero.peke.util.Version
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import org.jellyfin.sdk.model.api.BaseItemKind
-import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.io.File
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,12 +20,6 @@ class AppUpgradeHandler
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
-        private val appPreferences: DataStore<AppPreferences>,
-        private val serverDao: JellyfinServerDao,
-        private val rememberedTabDao: RememberedTabDao,
-        private val mostRecentServerProvider: MostRecentServerProvider,
-        private val playbackLanguageChoiceDao: PlaybackLanguageChoiceDao,
-        private val seriesTrackChoiceDao: SeriesTrackChoiceDao,
     ) {
         val pkgInfo: PackageInfo get() = context.packageManager.getPackageInfo(context.packageName, 0)
         val currentVersion: Version get() = Version.fromString(pkgInfo.versionName!!)
@@ -107,11 +64,7 @@ class AppUpgradeHandler
             }
             try {
                 copySubfont(true)
-                upgradeApp(
-                    Version.fromString(previousVersion ?: "0.0.0"),
-                    Version.fromString(newVersion),
-                    appPreferences,
-                )
+                upgradeApp(previousVersion?.let(Version::tryFromString), Version.fromString(newVersion))
             } catch (ex: Exception) {
                 Timber.e(ex, "Exception during app upgrade")
             }
@@ -133,10 +86,6 @@ class AppUpgradeHandler
                     }
                     Timber.i("Wrote font %s to local", fontFileName)
                 }
-//                val oldFontDir = File(context.filesDir, "fonts")
-//                if (oldFontDir.exists()) {
-//                    oldFontDir.deleteRecursively()
-//                }
             } catch (ex: Exception) {
                 Timber.e(ex, "Exception copying subfont.tff")
             }
@@ -150,349 +99,16 @@ class AppUpgradeHandler
         }
 
         /**
-         * Perform any needed upgrades
+         * Perform any needed upgrades, keyed to Peke's versions, e.g.
+         * `if (previous != null && previous.isLessThan(Version.fromString("0.2.0"))) { … }`
+         *
+         * @param previous the version upgraded from, null on a fresh install, which gets its defaults from
+         * `AppPreferencesSerializer` and needs no step
          */
-        suspend fun upgradeApp(
-            previous: Version,
+        private fun upgradeApp(
+            previous: Version?,
             current: Version,
-            appPreferences: DataStore<AppPreferences>,
         ) {
-            if (previous.isEqualOrBefore(Version.fromString("0.1.0-2-g0"))) {
-                appPreferences.updateData {
-                    it.updatePlaybackOverrides {
-                        ac3Supported = AppPreference.Ac3Supported.defaultValue
-                        downmixStereo = AppPreference.DownMixStereo.defaultValue
-//                        directPlayAss = AppPreference.DirectPlayAss.defaultValue
-                        directPlayPgs = AppPreference.DirectPlayPgs.defaultValue
-                    }
-                }
-            }
-            if (previous.isEqualOrBefore(Version.fromString("0.2.3-6-g0"))) {
-                appPreferences.updateData {
-                    it.updateInterfacePreferences {
-                        navDrawerSwitchOnFocus = AppPreference.NavDrawerSwitchOnFocus.defaultValue
-                    }
-                }
-            }
-            if (previous.isEqualOrBefore(Version.fromString("0.2.5-11-g0"))) {
-                appPreferences.updateData {
-                    it.updateInterfacePreferences {
-                        showClock = AppPreference.ShowClock.defaultValue
-                    }
-                }
-            }
-            if (previous.isEqualOrBefore(Version.fromString("0.2.7-1-g0"))) {
-                PreferencesViewModel.resetSubtitleSettings(appPreferences)
-            }
-            if (previous.isEqualOrBefore(Version.fromString("0.3.2-4-g0"))) {
-                appPreferences.updateData {
-                    it.updateSubtitlePreferences {
-                        margin = SubtitleSettings.Margin.defaultValue.toInt()
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.3.4"))) {
-                appPreferences.updateData {
-                    it.updateAdvancedPreferences {
-                        if (imageDiskCacheSizeBytes < (AppPreference.ImageDiskCacheSize.min * AppPreference.MEGA_BIT)) {
-                            imageDiskCacheSizeBytes =
-                                AppPreference.ImageDiskCacheSize.defaultValue * AppPreference.MEGA_BIT
-                        }
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.3.4-2-g0"))) {
-                appPreferences.updateData {
-                    it.updateMpvOptions {
-                        useGpuNext = AppPreference.MpvGpuNext.defaultValue
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.3.4-4-g0"))) {
-                appPreferences.updateData {
-                    it.update {
-                        signInAutomatically = AppPreference.SignInAuto.defaultValue
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.3.5-0-g0"))) {
-                appPreferences.updateData {
-                    it.updateSubtitlePreferences {
-                        if (edgeThickness < 1) {
-                            edgeThickness = SubtitleSettings.EdgeThickness.defaultValue.toInt()
-                        }
-                    }
-                }
-            }
-            if (previous.isEqualOrBefore(Version.fromString("0.3.5-56-g0"))) {
-                appPreferences.updateData {
-                    it.updateLiveTvPreferences {
-                        showHeader = AppPreference.LiveTvShowHeader.defaultValue
-                        favoriteChannelsAtBeginning =
-                            AppPreference.LiveTvFavoriteChannelsBeginning.defaultValue
-                        sortByRecentlyWatched =
-                            AppPreference.LiveTvChannelSortByWatched.defaultValue
-                        colorCodePrograms =
-                            AppPreference.LiveTvColorCodePrograms.defaultValue
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.3.6-52-g0"))) {
-                if (Build.MODEL.equals("shield android tv", ignoreCase = true)) {
-                    appPreferences.updateData {
-                        it.updateMpvOptions {
-                            useGpuNext = false
-                        }
-                    }
-                }
-            }
-
-            // TODO temporarily disabled until some MPV bugs are fixed
-//    if (previous.isEqualOrBefore(Version.fromString("0.4.0-1-g0"))) {
-//        appPreferences.updateData {
-//            it.updatePlaybackPreferences { playerBackend = PlayerBackend.PREFER_MPV }
-//        }
-//        showToast(context, context.getString(R.string.upgrade_mpv_toast), Toast.LENGTH_LONG)
-//    }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.4.0-2-g0"))) {
-                appPreferences.updateData {
-                    it.updateMpvOptions {
-                        useGpuNext = false
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.4.1-6-g0"))) {
-                appPreferences.updateData {
-                    it.updateInterfacePreferences {
-                        subtitlesPreferences =
-                            subtitlesPreferences
-                                .toBuilder()
-                                .apply {
-                                    imageSubtitleOpacity =
-                                        SubtitleSettings.ImageOpacity.defaultValue.toInt()
-                                }.build()
-                        // Copy current subtitle prefs as HDR ones
-                        hdrSubtitlesPreferences = subtitlesPreferences.toBuilder().build()
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.4.1-7-g0"))) {
-                appPreferences.updateData {
-                    it.updatePhotoPreferences {
-                        slideshowDuration = AppPreference.SlideshowDuration.defaultValue
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.4.1-14-g0"))) {
-                appPreferences.updateData {
-                    it.updateHomePagePreferences {
-                        maxDaysNextUp = AppPreference.MaxDaysNextUp.defaultValue.toInt()
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.5.3-0-g0"))) {
-                appPreferences.updateData {
-                    it.updateScreensaverPreferences {
-                        startDelay = ScreensaverPreference.DEFAULT_START_DELAY
-                        duration = ScreensaverPreference.DEFAULT_DURATION
-                        animate = ScreensaverPreference.Animate.defaultValue
-                        maxAgeFilter = ScreensaverPreference.DEFAULT_MAX_AGE
-                        clearItemTypes()
-                        addItemTypes(BaseItemKind.MOVIE.serialName)
-                        addItemTypes(BaseItemKind.SERIES.serialName)
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.5.4-6-g0"))) {
-                appPreferences.updateData {
-                    it.updateMusicPreferences {
-                        showBackdrop = true
-                        showLyrics = true
-                        showAlbumArt = true
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.5.4-15-g0"))) {
-                appPreferences.updateData {
-                    it.updateInterfacePreferences {
-                        showLogos = AppPreference.ShowLogos.defaultValue
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.6.2-1-g0"))) {
-                appPreferences.updateData {
-                    it.updatePlaybackOverrides {
-                        assPlaybackMode = AppPreference.AssSubtitleMode.defaultValue
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.6.2-18-g0"))) {
-                appPreferences.updateData {
-                    it.updatePlaybackPreferences { cinemaMode = AppPreference.CinemaMode.defaultValue }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.6.4-8-g0"))) {
-                appPreferences.updateData {
-                    it.updateSearchPreferences { showVoiceSearchButton = true }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.6.4-26-g0"))) {
-                appPreferences.updateData {
-                    it.updateInterfacePreferences {
-                        clearDisplayToggles()
-                        addAllDisplayToggles(AppPreference.DisplayTogglesPref.defaultValue)
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("1.0.1-2-g0"))) {
-                Timber.i("Starting tab migration")
-                val users = mutableMapOf<UUID, JellyfinUser?>()
-                val tabs =
-                    appPreferences.data.first().interfacePreferences.rememberedTabsMap.mapNotNull { (key, tabIndex) ->
-                        // "serverId_userId_itemId", itemId can have underscores
-                        try {
-                            val firstUnderScore = key.indexOf("_").takeIf { it >= 1 }
-                            if (firstUnderScore != null) {
-                                val secondUnderscore =
-                                    key
-                                        .indexOf("_", startIndex = firstUnderScore + 1)
-                                        .takeIf { it >= 1 }
-                                if (secondUnderscore != null) {
-                                    val serverId = key.substring(0, firstUnderScore).toUUIDOrNull()
-                                    val userId =
-                                        key
-                                            .substring(firstUnderScore + 1, secondUnderscore)
-                                            .toUUIDOrNull()
-                                    val itemId = key.substring(secondUnderscore + 1, key.length)
-                                    if (userId != null && serverId != null) {
-                                        return@mapNotNull users
-                                            .getOrPut(userId) {
-                                                serverDao.getUser(serverId, userId)
-                                            }?.let {
-                                                RememberedTab(it.rowId, itemId, tabIndex)
-                                            }
-                                    }
-                                }
-                            }
-                        } catch (ex: Exception) {
-                            Timber.w(ex, "Error parsing '%s'", key)
-                        }
-                        null
-                    }
-                Timber.v("Migrating %s tabs", tabs.size)
-                try {
-                    if (tabs.isNotEmpty()) {
-                        rememberedTabDao.saveAll(tabs)
-                    }
-                    appPreferences.updateData {
-                        it.updateInterfacePreferences {
-                            clearRememberedTabs()
-                        }
-                    }
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error saving migrated tabs")
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("1.0.2-8-g0"))) {
-                appPreferences.updateData {
-                    it.updateSubtitlePreferences {
-                        useSeparateHdr = it.interfacePreferences.shouldEnableSeparateHdrToggle()
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("1.0.6-0-g0"))) {
-                appPreferences.updateData {
-                    it.updateScreensaverPreferences {
-                        dimPercent = ScreensaverPreference.DimPercentage.defaultValue.toInt()
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("1.0.6-7-g0"))) {
-                // preferAc3Surround was mistaken enabled by default, reset it only if the user hasn't enabled experimental settings
-                appPreferences.updateData {
-                    if (!it.experimentalPreferences.enabled) {
-                        it.updateExperimentalPreferences {
-                            preferAc3Surround =
-                                ExperimentalPreference.PreferAc3ForSurround.defaultValue
-                        }
-                    } else {
-                        it
-                    }
-                }
-            }
-
-            if (current.isEqualOrBefore(Version.fromString("1.0.8-0-g0"))) {
-                try {
-                    val prefs = appPreferences.data.firstOrNull()
-                    val serverId = prefs?.currentServerId?.toUUIDOrNull()
-                    val userId = prefs?.currentUserId?.toUUIDOrNull()
-                    if (serverId != null && userId != null) {
-                        val server = serverDao.getServer(serverId)
-                        val user = server?.users?.firstOrNull { it.id == userId }
-                        if (server != null && user != null) {
-                            Timber.i("Migrating most recent server")
-                            mostRecentServerProvider.save(CurrentUser(server.server, user))
-                        }
-                    }
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error during migration for most recent server")
-                }
-                appPreferences.updateData {
-                    it.update {
-                        currentServerId = ""
-                        currentUserId = ""
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("1.0.10"))) {
-                // directPlayDolbyVisionEL was replaced by doviProfile7Override; carry the setting forward
-                appPreferences.updateData {
-                    if (it.playbackPreferences.overrides.directPlayDolbyVisionEL) {
-                        it.updatePlaybackOverrides {
-                            doviProfile7Override = HdrOverrideMode.HDR_OVERRIDE_ENABLE
-                            directPlayDolbyVisionEL = false
-                        }
-                    } else {
-                        it
-                    }
-                }
-            }
-
-            if (previous.isLessThan(Version.fromString("1.0.10-0-g0"))) {
-                val count = seriesTrackChoiceDao.count()
-                if (count == 0) {
-                    var offset = 0
-                    while (true) {
-                        val plcs = playbackLanguageChoiceDao.getAll(100, offset)
-                        if (plcs.isEmpty()) break
-                        offset += plcs.size
-
-                        val stcs = plcs.flatMap(SeriesTrackChoice::from)
-                        Timber.i("Migrating %s PLC to %s STC", plcs.size, stcs.size)
-                        seriesTrackChoiceDao.save(stcs)
-                    }
-                }
-            }
+            Timber.i("No upgrade steps from %s to %s", previous, current)
         }
     }

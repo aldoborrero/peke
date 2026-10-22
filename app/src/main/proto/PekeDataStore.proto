@@ -50,10 +50,8 @@ enum AssPlaybackMode{
 message PlaybackOverrides{
   bool ac3_supported = 1;
   bool downmix_stereo = 2;
-  bool direct_play_ass = 3 [deprecated = true];
   bool direct_play_pgs = 4;
   MediaExtensionStatus media_extensions_enabled = 5;
-  bool direct_play_dolby_vision_e_l = 6 [deprecated = true];
   bool decode_av1 = 7;
   AssPlaybackMode ass_playback_mode = 8;
   int32 max_resolution = 9;
@@ -103,7 +101,6 @@ enum DpadSeekMode {
 message HomePagePreferences{
   int32 max_items_per_row = 1;
   bool enable_rewatching_next_up = 2;
-  bool combine_continue_next = 3 [deprecated = true];
   int32 max_days_next_up = 4;
   bool click_to_play = 5;
 }
@@ -196,7 +193,6 @@ enum DisplayToggle{
 message InterfacePreferences {
   ThemeSongVolume play_theme_songs = 1;
   bool remember_selected_tab = 2;
-  map<string, int32> remembered_tabs = 3 [deprecated = true];
   AppThemeColors app_theme_colors = 4;
   bool nav_drawer_switch_on_focus = 5;
   bool show_clock = 6;
@@ -242,9 +238,6 @@ message ExperimentalPreferences {
 }
 
 message AppPreferences {
-  string current_server_id = 1 [deprecated = true];
-  string current_user_id = 2 [deprecated = true];
-
   PlaybackPreferences playback_preferences = 3;
   HomePagePreferences home_page_preferences = 4;
   InterfacePreferences interface_preferences = 5;

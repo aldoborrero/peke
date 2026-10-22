@@ -1,29 +1,18 @@
 package dev.aldoborrero.peke.data
 
-import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.aldoborrero.peke.data.model.GetItemsFilter
 import dev.aldoborrero.peke.data.model.ItemPlayback
 import dev.aldoborrero.peke.data.model.ItemTrackModification
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.LibraryDisplayInfo
-import dev.aldoborrero.peke.data.model.NavDrawerPinnedItem
 import dev.aldoborrero.peke.data.model.PlaybackEffect
-import dev.aldoborrero.peke.data.model.PlaybackLanguageChoice
 import dev.aldoborrero.peke.data.model.RememberedTab
-import dev.aldoborrero.peke.data.model.SeerrServer
-import dev.aldoborrero.peke.data.model.SeerrUser
 import dev.aldoborrero.peke.data.model.SeriesTrackChoice
-import dev.aldoborrero.peke.kids.data.KidProfile
-import dev.aldoborrero.peke.kids.data.KidProfileDao
-import dev.aldoborrero.peke.kids.server.KidsServer
-import dev.aldoborrero.peke.kids.server.KidsServerDao
 import dev.aldoborrero.peke.ui.components.ViewOptions
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -45,40 +34,14 @@ import java.util.UUID
         JellyfinServer::class,
         JellyfinUser::class,
         ItemPlayback::class,
-        NavDrawerPinnedItem::class,
         LibraryDisplayInfo::class,
         PlaybackEffect::class,
-        PlaybackLanguageChoice::class,
         ItemTrackModification::class,
-        SeerrServer::class,
-        SeerrUser::class,
         RememberedTab::class,
         SeriesTrackChoice::class,
-        KidProfile::class,
-        KidsServer::class,
     ],
-    version = 41,
+    version = 1,
     exportSchema = true,
-    autoMigrations = [
-        AutoMigration(3, 4),
-        AutoMigration(4, 5),
-        AutoMigration(5, 6),
-        AutoMigration(6, 7),
-        AutoMigration(7, 8),
-        AutoMigration(8, 9),
-        AutoMigration(9, 10),
-        AutoMigration(10, 11),
-        AutoMigration(11, 12),
-        AutoMigration(12, 20),
-        AutoMigration(20, 30),
-        AutoMigration(30, 31),
-        AutoMigration(31, 32),
-        AutoMigration(32, 33),
-        AutoMigration(33, 34),
-        AutoMigration(34, 35),
-        AutoMigration(35, 40),
-        AutoMigration(40, 41),
-    ],
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -86,23 +49,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun itemPlaybackDao(): ItemPlaybackDao
 
-    abstract fun serverPreferencesDao(): ServerPreferencesDao
-
     abstract fun libraryDisplayInfoDao(): LibraryDisplayInfoDao
-
-    abstract fun playbackLanguageChoiceDao(): PlaybackLanguageChoiceDao
-
-    abstract fun seerrServerDao(): SeerrServerDao
 
     abstract fun playbackEffectDao(): PlaybackEffectDao
 
     abstract fun rememberedTabDao(): RememberedTabDao
 
     abstract fun seriesTrackChoiceDao(): SeriesTrackChoiceDao
-
-    abstract fun kidProfileDao(): KidProfileDao
-
-    abstract fun kidsServerDao(): KidsServerDao
 }
 
 class Converters {
@@ -173,37 +126,4 @@ class ZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
     ) {
         encoder.encodeString(DateTimeFormatter.ISO_ZONED_DATE_TIME.format(value))
     }
-}
-
-object Migrations {
-    val Migrate2to3 =
-        object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE users RENAME TO users_old")
-                db.execSQL(
-                    """
-                    CREATE TABLE "users" (
-                      rowId integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-                      id text NOT NULL,
-                      name text,
-                      serverId text NOT NULL,
-                      accessToken text,
-                      FOREIGN KEY (serverId) REFERENCES "servers" (id) ON DELETE CASCADE ON UPDATE NO ACTION
-                    )
-                    """.trimIndent(),
-                )
-                db.execSQL("UPDATE servers SET id = REPLACE(id, '-', '')")
-                db.execSQL(
-                    """
-                    INSERT INTO users (id, name, serverId, accessToken)
-                        SELECT REPLACE(id, '-', ''), name, REPLACE(serverId, '-', ''), accessToken
-                        FROM users_old
-                    """.trimIndent(),
-                )
-                db.execSQL("DROP TABLE users_old")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_users_serverId ON users (serverId)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_users_id ON users (id)")
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_users_id_serverId ON users (id, serverId)")
-            }
-        }
 }

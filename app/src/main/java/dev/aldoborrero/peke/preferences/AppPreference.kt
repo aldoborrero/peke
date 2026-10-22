@@ -782,14 +782,6 @@ sealed interface AppPreference<Pref, T> {
                 setter = { prefs, _ -> prefs },
             )
 
-        val UserPinnedNavDrawerItems =
-            AppClickablePreference<AppPreferences>(
-                title = R.string.nav_drawer_pins,
-                summary = R.string.nav_drawer_pins_summary,
-                getter = { },
-                setter = { prefs, _ -> prefs },
-            )
-
         val CustomizeHome =
             AppDestinationPreference<AppPreferences>(
                 title = R.string.customize_home,
@@ -1197,7 +1189,6 @@ val basicPreferences =
                 listOf(
                     AppPreference.ProtectProfilePreference,
                     AppPreference.CustomizeHome,
-                    AppPreference.UserPinnedNavDrawerItems,
                     AppPreference.UserInterfaceLanguage,
                     AppPreference.UserProfileSettings,
                     AppPreference.KidsMode,

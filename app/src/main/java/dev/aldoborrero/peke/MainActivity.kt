@@ -39,6 +39,7 @@ import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsLiveTv
 import dev.aldoborrero.peke.kids.LocalKidsLocked
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
@@ -155,6 +156,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var kidsModeService: KidsModeService
 
     @Inject
+    lateinit var kidsDataCleaner: KidsDataCleaner
+
+    @Inject
     lateinit var kidsPluginService: KidsPluginService
 
     @Inject
@@ -184,6 +188,7 @@ class MainActivity : AppCompatActivity() {
         lifecycle.addObserver(kidsAllowanceService)
         lifecycle.addObserver(kidsModeService)
         lifecycle.addObserver(kidsMusicGuard)
+        if (savedInstanceState == null) lifecycleScope.launch { kidsDataCleaner.sweep() }
 
         val backStackStr = savedInstanceState?.getString(KEY_BACK_STACK)
         val restoredBackStack =

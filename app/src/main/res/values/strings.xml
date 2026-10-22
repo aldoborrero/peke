@@ -328,9 +328,7 @@
     <string name="auto_play_next_delay">Delay before playing next up</string>
     <string name="auto_play_next">Auto play next up</string>
     <string name="check_for_updates">Check for updates</string>
-    <string name="combine_continue_next_summary">Applies to TV Series only</string>
     <string name="combine_continue_next"><![CDATA[Combine Continue Watching & Next Up]]></string>
-    <string name="direct_play_ass">Use libass for ASS subtitles</string>
     <string name="direct_play_pgs">Direct play PGS subtitles</string>
     <string name="downmix_stereo">Always downmix to stereo</string>
     <string name="ffmpeg_extension_pref">Use FFmpeg decoder module</string>
@@ -338,8 +336,6 @@
     <string name="install_update">Install update</string>
     <string name="installed_version">Installed version</string>
     <string name="max_homepage_items">Max items on home page rows</string>
-    <string name="nav_drawer_pins_summary">Choose the default items to show, others will be hidden</string>
-    <string name="nav_drawer_pins">Customize Navigation Drawer Items</string>
     <string name="nav_drawer_switch_on_focus_summary_off">Click to switch pages</string>
     <string name="nav_drawer_switch_on_focus">Switch nav drawer pages on focus</string>
     <string name="pass_out_protection">Passout Protection</string>
@@ -498,8 +494,6 @@
     <string name="dolby_digital">DD</string>
     <string name="dolby_digital_plus">DD+</string>
     <string name="dts">DTS</string>
-    <string name="force_dovi_profile_7">Direct play Dolby Vision Profile 7</string>
-    <string name="force_dovi_profile_7_summary">Ignores device compatibility checks</string>
     <string name="prefer_dovi_over_hdr10_plus">Prefer Dolby Vision over HDR10+</string>
     <string name="prefer_dovi_over_hdr10_plus_summary">Removes HDR10+ metadata from Dolby Vision videos, for TVs that otherwise play them as HDR10+</string>
 
@@ -511,7 +505,6 @@
     <string name="password">Password</string>
     <string name="username">Username</string>
     <string name="software_decoding_av1">AV1 software decoding</string>
-    <string name="upgrade_mpv_toast">MPV is now the default player except for HDR.\nYou can change this in settings.</string>
     <string name="hdr_subtitle_style">HDR subtitle style</string>
     <string name="image_subtitle_opacity">Image subtitle opacity</string>
 

@@ -1,11 +1,10 @@
 package dev.aldoborrero.peke.kids.data
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import dev.aldoborrero.peke.data.model.JellyfinUser
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -16,22 +15,24 @@ import java.util.UUID
  * Marks a device user as a kid profile and holds its kids mode settings, as last read from the Kids plugin.
  *
  * A row exists if and only if the server last said the user is a kid. It is a cache: changes go to the server.
+ *
+ * It lives in [KidsDatabase], apart from the app database, so [userId] is not a foreign key: [KidsDataCleaner] removes
+ * rows whose user or server is removed.
  */
 @Entity(
     tableName = "kid_profiles",
-    foreignKeys = [
-        ForeignKey(
-            entity = JellyfinUser::class,
-            parentColumns = arrayOf("rowId"),
-            childColumns = arrayOf("userId"),
-            onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.CASCADE,
-        ),
-    ],
+    indices = [Index("serverId")],
 )
 @TypeConverters(KidProfileConverters::class)
 data class KidProfile(
+    /**
+     * The device user (`JellyfinUser.rowId` in the app database)
+     */
     @PrimaryKey val userId: Int,
+    /**
+     * The user's server, always set when the row is written from the server
+     */
+    val serverId: UUID? = null,
     val searchAllowed: Boolean = false,
     val autoplayEnabled: Boolean = false,
     val autoplayCap: Int = DEFAULT_AUTOPLAY_CAP,

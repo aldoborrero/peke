@@ -727,7 +727,6 @@ sealed interface StreamChoiceReason {
         ) = when (stc.parentType) {
             TrackChoiceParentType.SERIES -> Series(stc, scores)
             TrackChoiceParentType.SEASON -> Season(stc, scores)
-            TrackChoiceParentType.DEPRECATED -> Unknown
             TrackChoiceParentType.UNKNOWN -> Unknown
         }
 

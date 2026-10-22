@@ -36,7 +36,7 @@ class KidsApiTest {
 
     @Test
     fun `maps a server profile to the cache`() {
-        val profile = KidProfileMapper.fromServer(7, KidsJson.parseToJsonElement(profileJson).jsonObject)
+        val profile = KidProfileMapper.fromServer(7, null, KidsJson.parseToJsonElement(profileJson).jsonObject)
         assertEquals(7, profile.userId)
         assertEquals(3L, profile.revision)
         assertTrue(profile.searchAllowed)
@@ -54,7 +54,7 @@ class KidsApiTest {
 
     @Test
     fun `an update keeps unknown fields and sends every known one`() {
-        val cached = KidProfileMapper.fromServer(7, KidsJson.parseToJsonElement(profileJson).jsonObject)
+        val cached = KidProfileMapper.fromServer(7, null, KidsJson.parseToJsonElement(profileJson).jsonObject)
         val body = KidProfileMapper.toUpdate(cached.copy(searchAllowed = false, dailyAllowanceMinutes = null), 3, sendSessionLimit = false)
         assertEquals(JsonPrimitive(3L), body["Revision"])
         assertEquals(JsonPrimitive(false), body["SearchAllowed"])

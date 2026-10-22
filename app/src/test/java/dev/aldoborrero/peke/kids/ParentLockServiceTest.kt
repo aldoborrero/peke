@@ -56,6 +56,7 @@ class ParentLockServiceTest {
         }
         val jellyfinServerDao = mockk<JellyfinServerDao>()
         every { jellyfinServerDao.getServer(server.id) } returns JellyfinServerUsers(server, listOf(kid))
+        every { jellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(kid)))
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val api = http.api(dispatcher)
         val plugin = KidsPluginService(repository, api, serverDao, profileDao, clock, backgroundScope)

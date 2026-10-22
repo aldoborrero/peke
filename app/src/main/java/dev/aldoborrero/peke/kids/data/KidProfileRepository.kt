@@ -202,6 +202,6 @@ class KidProfileRepository
             user: JellyfinUser,
             obj: JsonObject,
         ) {
-            kidProfileDao.upsert(KidProfileMapper.fromServer(user.rowId, obj))
+            kidProfileDao.upsert(KidProfileMapper.fromServer(user.rowId, user.serverId, obj))
         }
     }

@@ -131,6 +131,7 @@ class ServerRepositoryTest {
             mockApiClient,
             testDispatcher,
             mockMostRecentServerProvider,
+            mockk(relaxed = true),
         )
 
     private val serverId = UUID.randomUUID()

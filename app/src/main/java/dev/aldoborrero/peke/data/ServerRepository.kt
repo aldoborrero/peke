@@ -5,6 +5,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.ServerUserConfig
+import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineDispatcher
@@ -46,6 +47,7 @@ class ServerRepository
         val apiClient: ApiClient,
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val mostRecentServerProvider: MostRecentServerProvider,
+        private val kidsDataCleaner: KidsDataCleaner,
     ) {
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
@@ -277,6 +279,7 @@ class ServerRepository
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
             }
+            kidsDataCleaner.onUserRemoved(user.rowId)
         }
 
         suspend fun removeServer(server: JellyfinServer) {
@@ -290,6 +293,7 @@ class ServerRepository
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
             }
+            kidsDataCleaner.onServerRemoved(server.id)
         }
 
         suspend fun switchServerOrUser() {

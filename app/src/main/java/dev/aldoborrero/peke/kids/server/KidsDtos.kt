@@ -237,10 +237,11 @@ object KidProfileMapper {
     fun sectionOf(name: String?): KidsHomeSection? = sectionNames.entries.firstOrNull { it.value.equals(name, ignoreCase = true) }?.key
 
     /**
-     * The cached profile for device user [userRowId] from a server profile object
+     * The cached profile for device user [userRowId] of server [serverId] from a server profile object
      */
     fun fromServer(
         userRowId: Int,
+        serverId: UUID?,
         obj: JsonObject,
     ): KidProfile {
         val sections =
@@ -256,6 +257,7 @@ object KidProfileMapper {
                 .orEmpty()
         return KidProfile(
             userId = userRowId,
+            serverId = serverId,
             searchAllowed = obj[SEARCH_ALLOWED].asBoolean() ?: false,
             autoplayEnabled = obj[AUTOPLAY_ENABLED].asBoolean() ?: false,
             autoplayCap = obj[AUTOPLAY_CAP].asInt() ?: KidProfile.DEFAULT_AUTOPLAY_CAP,

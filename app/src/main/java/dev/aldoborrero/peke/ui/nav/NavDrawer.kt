@@ -24,9 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -131,10 +129,6 @@ class NavDrawerViewModel
                     )
                 }
 
-                NavDrawerItem.More -> {
-                    setShowMore(!state.value.moreExpanded)
-                }
-
                 NavDrawerItem.LiveTv -> {
                     setIndex(index)
                     navigationManager.navigateToFromDrawer(Destination.KidsLiveTv)
@@ -151,10 +145,6 @@ class NavDrawerViewModel
             _state.update { it.copy(selectedIndex = index) }
         }
 
-        fun setShowMore(value: Boolean) {
-            _state.update { it.copy(moreExpanded = value) }
-        }
-
         fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
 
         /**
@@ -165,19 +155,11 @@ class NavDrawerViewModel
         fun updateSelectedIndex(items: List<NavDrawerItem>? = null) {
             viewModelScope.launchDefault {
                 val asDestinations =
-                    if (items != null) {
-                        items
-                    } else {
-                        buildList {
-                            addAll(serviceState.value.items)
-                            addAll(serviceState.value.moreItems)
-                        }
-                    }.map {
+                    (items ?: serviceState.value.items).map {
                         when (it) {
                             is ServerNavDrawerItem -> it.destination
                             is NavDrawerItem.Favorites -> Destination.Favorites
                             is NavDrawerItem.LiveTv -> Destination.KidsLiveTv
-                            else -> null
                         }
                     }
 
@@ -218,7 +200,6 @@ class NavDrawerViewModel
 
 data class NavDrawerState(
     val selectedIndex: Int = -1,
-    val moreExpanded: Boolean = false,
 )
 
 /**
@@ -236,13 +217,6 @@ sealed interface NavDrawerItem {
             get() = "a_favorites"
 
         override fun name(context: Context): String = context.getString(R.string.favorites)
-    }
-
-    object More : NavDrawerItem {
-        override val id: String
-            get() = "a_more"
-
-        override fun name(context: Context): String = context.getString(R.string.more)
     }
 
     /**
@@ -318,15 +292,10 @@ fun NavDrawer(
     }
     val serviceState by viewModel.serviceState.collectAsState()
     val drawerItems = if (showLibraries) serviceState.items else customization.navDrawerItems
-    val drawerMoreItems = if (showLibraries) serviceState.moreItems else emptyList()
     val state by viewModel.state.collectAsState()
-    val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
 
-    BackHandler(enabled = moreExpanded && drawerState.currentValue == DrawerValue.Open) {
-        viewModel.setShowMore(false)
-    }
     // Leaving the app from the home page goes through the profile's gate, if it has one
     BackHandler(enabled = profileGate != null && drawerState.currentValue == DrawerValue.Open && destination is Destination.Home) {
         shownProfileGate = profileGate
@@ -480,7 +449,6 @@ fun NavDrawer(
                             NavItem(
                                 library = it,
                                 selected = selectedIndex == index,
-                                moreExpanded = moreExpanded,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
                                 onClick = {
@@ -493,60 +461,6 @@ fun NavDrawer(
                                             Modifier.focusRequester(focusRequester),
                                         ),
                             )
-                        }
-                        if (drawerMoreItems.isNotEmpty()) {
-                            item {
-                                val index = drawerItems.size
-                                val interactionSource = remember { MutableInteractionSource() }
-                                NavItem(
-                                    library = NavDrawerItem.More,
-                                    selected = false,
-                                    moreExpanded = moreExpanded,
-                                    drawerOpen = isOpen,
-                                    interactionSource = interactionSource,
-                                    onClick = {
-                                        viewModel.onClickDrawerItem(index, NavDrawerItem.More)
-                                    },
-                                    modifier =
-                                        Modifier
-                                            .ifElse(
-                                                selectedIndex == index,
-                                                Modifier.focusRequester(focusRequester),
-                                            ),
-                                )
-                            }
-                        }
-                        if (moreExpanded) {
-                            itemsIndexed(drawerMoreItems) { index, it ->
-                                val adjustedIndex =
-                                    remember(serviceState) { (index + drawerItems.size) }
-                                val interactionSource = remember { MutableInteractionSource() }
-                                NavItem(
-                                    library = it,
-                                    selected = selectedIndex == adjustedIndex,
-                                    moreExpanded = moreExpanded,
-                                    drawerOpen = isOpen,
-                                    onClick = {
-                                        viewModel.onClickDrawerItem(
-                                            adjustedIndex,
-                                            it,
-                                        )
-                                    },
-                                    containerColor =
-                                        if (isOpen) {
-                                            MaterialTheme.colorScheme.surface.copy(alpha = .5f)
-                                        } else {
-                                            Color.Unspecified
-                                        },
-                                    interactionSource = interactionSource,
-                                    modifier =
-                                        Modifier
-                                            .ifElse(
-                                                selectedIndex == adjustedIndex,
-                                                Modifier.focusRequester(focusRequester),
-                                            ),
-                                )
-                            }
                         }
                         if (customization.allows(RestrictedFeature.SETTINGS)) {
                             item {
@@ -698,7 +612,6 @@ fun NavigationDrawerScope.NavItem(
     library: NavDrawerItem,
     onClick: () -> Unit,
     selected: Boolean,
-    moreExpanded: Boolean,
     drawerOpen: Boolean,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
@@ -711,10 +624,6 @@ fun NavigationDrawerScope.NavItem(
             when (library) {
                 NavDrawerItem.Favorites -> {
                     R.string.fa_heart
-                }
-
-                NavDrawerItem.More -> {
-                    R.string.fa_ellipsis
                 }
 
                 NavDrawerItem.LiveTv -> {
@@ -766,17 +675,6 @@ fun NavigationDrawerScope.NavItem(
                 }
             }
         },
-        trailingContent =
-            if (library is NavDrawerItem.More) {
-                {
-                    Icon(
-                        imageVector = if (moreExpanded) Icons.Default.ArrowDropDown else Icons.Default.KeyboardArrowLeft,
-                        contentDescription = null,
-                    )
-                }
-            } else {
-                null
-            },
         interactionSource = interactionSource,
     ) {
         Text(

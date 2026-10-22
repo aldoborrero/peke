@@ -155,9 +155,14 @@ class ParentLockService
         suspend fun target(): Pair<JellyfinServer, JellyfinUser>? {
             val current = serverRepository.current.value
             if (current != null && current.user.accessToken != null) return current.server to current.user
-            val serverId = kidProfileDao.mostRecentServerId() ?: return null
-            val server = withContext(PekeDispatchers.IO) { serverDao.getServer(serverId) } ?: return null
-            val kidIds = kidProfileDao.userIdsForServer(serverId).toSet()
+            val kidIds = kidProfileDao.allUserIds().toSet()
+            if (kidIds.isEmpty()) return null
+            // The server of the kid used most recently on this device
+            val server =
+                withContext(PekeDispatchers.IO) { serverDao.getServers() }
+                    .filter { s -> s.users.any { it.rowId in kidIds } }
+                    .maxByOrNull { s -> s.users.filter { it.rowId in kidIds }.maxOf { it.lastUsed?.toEpochSecond() ?: Long.MIN_VALUE } }
+                    ?: return null
             val user =
                 server.users
                     .filter { it.accessToken != null }

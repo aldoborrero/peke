@@ -1,0 +1,158 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "735546f7f4b9da3b0f8c6a941357ba8b",
+    "entities": [
+      {
+        "tableName": "kid_profiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `serverId` TEXT, `searchAllowed` INTEGER NOT NULL, `autoplayEnabled` INTEGER NOT NULL, `autoplayCap` INTEGER NOT NULL, `pickedItemIds` TEXT NOT NULL, `sections` TEXT NOT NULL, `revision` INTEGER NOT NULL, `dailyAllowanceMinutes` INTEGER, `sessionLimitMinutes` INTEGER, `serverJson` TEXT, PRIMARY KEY(`userId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "searchAllowed",
+            "columnName": "searchAllowed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoplayEnabled",
+            "columnName": "autoplayEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoplayCap",
+            "columnName": "autoplayCap",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pickedItemIds",
+            "columnName": "pickedItemIds",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sections",
+            "columnName": "sections",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dailyAllowanceMinutes",
+            "columnName": "dailyAllowanceMinutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sessionLimitMinutes",
+            "columnName": "sessionLimitMinutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "serverJson",
+            "columnName": "serverJson",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_kid_profiles_serverId",
+            "unique": false,
+            "columnNames": [
+              "serverId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_kid_profiles_serverId` ON `${TABLE_NAME}` (`serverId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "kids_servers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`serverId` TEXT NOT NULL, `apiVersion` INTEGER, `features` TEXT NOT NULL, `checkedAt` INTEGER, `lockType` TEXT, `verifier` TEXT, `lockChangedAt` TEXT, `offlineFailures` INTEGER NOT NULL, `offlineBlockedAt` INTEGER, PRIMARY KEY(`serverId`))",
+        "fields": [
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiVersion",
+            "columnName": "apiVersion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "features",
+            "columnName": "features",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkedAt",
+            "columnName": "checkedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lockType",
+            "columnName": "lockType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "verifier",
+            "columnName": "verifier",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lockChangedAt",
+            "columnName": "lockChangedAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "offlineFailures",
+            "columnName": "offlineFailures",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "offlineBlockedAt",
+            "columnName": "offlineBlockedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "serverId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '735546f7f4b9da3b0f8c6a941357ba8b')"
+    ]
+  }
+}

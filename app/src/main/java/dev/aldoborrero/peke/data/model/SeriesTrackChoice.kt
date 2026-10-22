@@ -85,51 +85,6 @@ data class SeriesTrackChoice(
         title = stream?.stream?.title,
         audioChannels = stream?.stream?.channels,
     )
-
-    companion object {
-        /**
-         * Convert the old [PlaybackLanguageChoice] into [SeriesTrackChoice]s
-         */
-        fun from(plc: PlaybackLanguageChoice): List<SeriesTrackChoice> =
-            buildList {
-                if (plc.subtitleLanguage != null) {
-                    add(
-                        SeriesTrackChoice(
-                            userId = plc.userId,
-                            parentId = plc.seriesId,
-                            parentType = TrackChoiceParentType.DEPRECATED,
-                            type = SeriesTrackChoiceType.SUBTITLE,
-                            itemId = plc.itemId,
-                            language = plc.subtitleLanguage,
-                            activation = if (plc.subtitlesDisabled == true) ActivationFlag.DISABLED else ActivationFlag.ACTIVATED,
-                            trackFlags = 0,
-                            codec = null,
-                            relativeTrackIndex = null,
-                            title = null,
-                            audioChannels = null,
-                        ),
-                    )
-                }
-                if (plc.audioLanguage != null) {
-                    add(
-                        SeriesTrackChoice(
-                            userId = plc.userId,
-                            parentId = plc.seriesId,
-                            parentType = TrackChoiceParentType.DEPRECATED,
-                            type = SeriesTrackChoiceType.AUDIO,
-                            itemId = plc.itemId,
-                            language = plc.audioLanguage,
-                            activation = ActivationFlag.ACTIVATED,
-                            trackFlags = 0,
-                            codec = null,
-                            relativeTrackIndex = null,
-                            title = null,
-                            audioChannels = null,
-                        ),
-                    )
-                }
-            }
-    }
 }
 
 enum class SeriesTrackChoiceType(
@@ -186,11 +141,6 @@ enum class TrackChoiceParentType {
      * Parent ID is from the season
      */
     SEASON,
-
-    /**
-     * Parent ID is from the deprecated [PlaybackLanguageChoice]
-     */
-    DEPRECATED,
 
     /**
      * Parent ID origin is unknown

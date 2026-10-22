@@ -2,10 +2,8 @@ package dev.aldoborrero.peke.services
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.aldoborrero.peke.data.ServerPreferencesDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinUser
-import dev.aldoborrero.peke.data.model.NavPinType
 import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
 import dev.aldoborrero.peke.ui.collectLatestIn
@@ -15,7 +13,6 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.nav.NavDrawerItem
 import dev.aldoborrero.peke.ui.nav.ServerNavDrawerItem
 import dev.aldoborrero.peke.ui.showToast
-import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.supportedCollectionTypes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
@@ -49,7 +45,6 @@ class NavDrawerService
         @param:DefaultCoroutineScope private val coroutineScope: CoroutineScope,
         private val api: ApiClient,
         private val serverRepository: ServerRepository,
-        private val serverPreferencesDao: ServerPreferencesDao,
         private val musicService: MusicService,
     ) {
         private val _state = MutableStateFlow(NavDrawerItemState())
@@ -165,23 +160,6 @@ class NavDrawerService
         }
 
         /**
-         * Get the libraries that the user has not "pinned". These will show in the More section.
-         */
-        suspend fun getFilteredUserLibraries(
-            user: JellyfinUser,
-            tvAccess: Boolean,
-        ): List<Library> {
-            val pins =
-                serverPreferencesDao
-                    .getNavDrawerPinnedItems(user)
-                    .associateBy { it.itemId }
-            val libraries =
-                getAllUserLibraries(user.id, tvAccess)
-                    .filterNot { pins[ServerNavDrawerItem.getId(it.itemId)]?.type == NavPinType.UNPINNED }
-            return libraries
-        }
-
-        /**
          * Update the current state of the nav drawer items
          */
         suspend fun updateNavDrawer(
@@ -213,34 +191,10 @@ class NavDrawerService
                             type = it.collectionType,
                         )
                     }
-            val allItems = builtins + libraries
-
-            val navDrawerPins =
-                withContext(PekeDispatchers.IO) {
-                    serverPreferencesDao.getNavDrawerPinnedItems(user).associateBy { it.itemId }
-                }
-
-            val items = mutableListOf<NavDrawerItem>()
-            val moreItems = mutableListOf<NavDrawerItem>()
-            allItems
-                // Sort by order if non-default, existing items before customize will have -1 value
-                // New items from the server will get Int.MAX_VALUE
-                // Items the user doesn't have access to anymore will be skipped
-                .sortedBy { navDrawerPins[it.id]?.order?.takeIf { it >= 0 } ?: Int.MAX_VALUE }
-                .forEach {
-                    // Assume pinned if unknown
-                    val pinned = navDrawerPins[it.id]?.type ?: NavPinType.PINNED
-                    if (pinned == NavPinType.PINNED) {
-                        items.add(it)
-                    } else {
-                        moreItems.add(it)
-                    }
-                }
 
             _state.update {
                 it.copy(
-                    items = items,
-                    moreItems = moreItems,
+                    items = builtins + libraries,
                     allLibraries = allLibraries,
                 )
             }
@@ -249,7 +203,6 @@ class NavDrawerService
 
 data class NavDrawerItemState(
     val items: List<NavDrawerItem> = emptyList(),
-    val moreItems: List<NavDrawerItem> = emptyList(),
     val nowPlayingEnabled: Boolean = false,
     val nowPlayingTitle: String? = null,
     val allLibraries: List<Library> = emptyList(),

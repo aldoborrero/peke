@@ -177,13 +177,13 @@ class KidsLiveTvTest {
     fun `the profile's channels are read and sent back on every save`() {
         val json =
             """{"UserId":"${kid.id}","Revision":5,"SearchAllowed":false,"LiveTvChannelIds":["$peke","not-an-id"]}"""
-        val cached = KidProfileMapper.fromServer(kid.rowId, KidsJson.parseToJsonElement(json).jsonObject)
+        val cached = KidProfileMapper.fromServer(kid.rowId, kid.serverId, KidsJson.parseToJsonElement(json).jsonObject)
         assertEquals(listOf(peke), KidProfileMapper.liveTvChannelIds(cached))
         val body = KidProfileMapper.toUpdate(cached.copy(searchAllowed = true), cached.revision, sendSessionLimit = true)
         assertEquals("""["$peke","not-an-id"]""", body[KidProfileMapper.LIVE_TV_CHANNEL_IDS].toString())
 
         // A plugin without live TV never sent the field, so none is sent
-        val older = KidProfileMapper.fromServer(kid.rowId, KidsJson.parseToJsonElement("""{"Revision":1}""").jsonObject)
+        val older = KidProfileMapper.fromServer(kid.rowId, kid.serverId, KidsJson.parseToJsonElement("""{"Revision":1}""").jsonObject)
         assertTrue(KidProfileMapper.liveTvChannelIds(older).isEmpty())
         assertNull(KidProfileMapper.toUpdate(older, 1, sendSessionLimit = true)[KidProfileMapper.LIVE_TV_CHANNEL_IDS])
     }

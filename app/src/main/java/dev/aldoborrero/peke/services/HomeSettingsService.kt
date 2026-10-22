@@ -42,12 +42,10 @@ import dev.aldoborrero.peke.util.GetRecordingsRequestHandler
 import dev.aldoborrero.peke.util.GetStudiosRequestHandler
 import dev.aldoborrero.peke.util.HomeRowLoadingState
 import dev.aldoborrero.peke.util.HomeRowLoadingState.Success
-import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -269,8 +267,7 @@ class HomeSettingsService
             val user = serverRepository.currentUser?.takeIf { it.id == userId } ?: return null
             return profilePolicy.homeSettings(user) {
                 val tvAccess = serverRepository.currentUserDto?.takeIf { it.id == userId }?.tvAccess ?: false
-                // Reads the nav drawer pins from the database, which Room refuses on the main thread
-                withContext(PekeDispatchers.IO) { navDrawerService.getFilteredUserLibraries(user, tvAccess) }
+                navDrawerService.getAllUserLibraries(user.id, tvAccess)
             }
         }
 
@@ -294,14 +291,8 @@ class HomeSettingsService
          */
         suspend fun createDefault(userId: UUID): HomePageResolvedSettings {
             Timber.v("Creating default settings")
-            val user = serverRepository.currentUser?.takeIf { it.id == userId }
             val userDto = serverRepository.currentUserDto?.takeIf { it.id == userId }
-            val libraries =
-                if (user != null) {
-                    navDrawerService.getFilteredUserLibraries(user, userDto?.tvAccess ?: false)
-                } else {
-                    navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
-                }
+            val libraries = navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
 
             val includedIds =
                 libraries

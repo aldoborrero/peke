@@ -22,14 +22,10 @@ import dev.aldoborrero.peke.data.AppDatabase
 import dev.aldoborrero.peke.data.ItemPlaybackDao
 import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.LibraryDisplayInfoDao
-import dev.aldoborrero.peke.data.Migrations
 import dev.aldoborrero.peke.data.MostRecentServerProvider
 import dev.aldoborrero.peke.data.PlaybackEffectDao
-import dev.aldoborrero.peke.data.PlaybackLanguageChoiceDao
 import dev.aldoborrero.peke.data.RememberedTabDao
-import dev.aldoborrero.peke.data.SeerrServerDao
 import dev.aldoborrero.peke.data.SeriesTrackChoiceDao
-import dev.aldoborrero.peke.data.ServerPreferencesDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppPreferencesSerializer
@@ -221,8 +217,7 @@ object TestDatabaseModule {
                 .inMemoryDatabaseBuilder(
                     context,
                     AppDatabase::class.java,
-                ).addMigrations(Migrations.Migrate2to3)
-                .allowMainThreadQueries()
+                ).allowMainThreadQueries()
                 .setQueryCallback({ sqlQuery, args ->
                     Timber.v("sqlQuery=$sqlQuery, args=$args")
                 }, PekeDispatchers.IO.asExecutor())
@@ -238,19 +233,7 @@ object TestDatabaseModule {
 
         @Provides
         @Singleton
-        fun serverPreferencesDao(db: AppDatabase): ServerPreferencesDao = db.serverPreferencesDao()
-
-        @Provides
-        @Singleton
         fun libraryDisplayInfoDao(db: AppDatabase): LibraryDisplayInfoDao = db.libraryDisplayInfoDao()
-
-        @Provides
-        @Singleton
-        fun playbackLanguageChoiceDao(db: AppDatabase): PlaybackLanguageChoiceDao = db.playbackLanguageChoiceDao()
-
-        @Provides
-        @Singleton
-        fun seerrServerDao(db: AppDatabase): SeerrServerDao = db.seerrServerDao()
 
         @Provides
         @Singleton

@@ -2,31 +2,22 @@ package dev.aldoborrero.peke.kids.server
 
 import androidx.room.Dao
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
-import dev.aldoborrero.peke.data.model.JellyfinServer
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
 /**
  * What the device knows about one server's Kids plugin: what it last advertised, and the household lock cached for
  * unlocking offline
+ *
+ * It lives in [dev.aldoborrero.peke.kids.data.KidsDatabase]; [dev.aldoborrero.peke.kids.data.KidsDataCleaner]
+ * removes the row when its server is removed.
  */
-@Entity(
-    tableName = "kids_servers",
-    foreignKeys = [
-        ForeignKey(
-            entity = JellyfinServer::class,
-            parentColumns = arrayOf("id"),
-            childColumns = arrayOf("serverId"),
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
-)
+@Entity(tableName = "kids_servers")
 data class KidsServer(
     @PrimaryKey val serverId: UUID,
     /**
@@ -128,4 +119,7 @@ interface KidsServerDao {
 
     @Query("DELETE FROM kids_servers WHERE serverId=:serverId")
     suspend fun delete(serverId: UUID)
+
+    @Query("SELECT serverId FROM kids_servers")
+    suspend fun allServerIds(): List<UUID>
 }

@@ -219,7 +219,6 @@ private fun ThemeExample(theme: AppThemeColors) {
                                 library = NavDrawerItem.Favorites,
                                 onClick = { },
                                 selected = false,
-                                moreExpanded = false,
                                 drawerOpen = true,
                                 modifier = Modifier,
                             )
@@ -227,7 +226,6 @@ private fun ThemeExample(theme: AppThemeColors) {
                                 library = NavDrawerItem.Favorites,
                                 onClick = { },
                                 selected = false,
-                                moreExpanded = false,
                                 drawerOpen = true,
                                 modifier = Modifier,
                                 interactionSource = source,
@@ -243,7 +241,6 @@ private fun ThemeExample(theme: AppThemeColors) {
                                 library = NavDrawerItem.Favorites,
                                 onClick = { },
                                 selected = true,
-                                moreExpanded = false,
                                 drawerOpen = true,
                                 modifier = Modifier,
                             )
@@ -251,7 +248,6 @@ private fun ThemeExample(theme: AppThemeColors) {
                                 library = NavDrawerItem.Favorites,
                                 onClick = { },
                                 selected = true,
-                                moreExpanded = false,
                                 drawerOpen = true,
                                 modifier = Modifier,
                                 interactionSource = source,

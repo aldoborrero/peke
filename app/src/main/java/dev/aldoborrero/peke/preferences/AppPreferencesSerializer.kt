@@ -63,7 +63,6 @@ class AppPreferencesSerializer
                                         .apply {
                                             ac3Supported = AppPreference.Ac3Supported.defaultValue
                                             downmixStereo = AppPreference.DownMixStereo.defaultValue
-//                                            directPlayAss = AppPreference.DirectPlayAss.defaultValue
                                             directPlayPgs = AppPreference.DirectPlayPgs.defaultValue
                                             mediaExtensionsEnabled =
                                                 AppPreference.FfmpegPreference.defaultValue
@@ -145,6 +144,7 @@ class AppPreferencesSerializer
                                             animate = ScreensaverPreference.Animate.defaultValue
                                             maxAgeFilter = ScreensaverPreference.DEFAULT_MAX_AGE
                                             showClock = ScreensaverPreference.ShowClock.defaultValue
+                                            dimPercent = ScreensaverPreference.DimPercentage.defaultValue.toInt()
                                             clearItemTypes()
                                             addItemTypes(BaseItemKind.MOVIE.serialName)
                                             addItemTypes(BaseItemKind.SERIES.serialName)

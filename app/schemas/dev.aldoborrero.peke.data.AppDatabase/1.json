@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 40,
-    "identityHash": "b297c087485321c3ee8282ad1ff675a0",
+    "version": 1,
+    "identityHash": "e235697b78ad52bf255e76d8ad1799b1",
     "entities": [
       {
         "tableName": "servers",
@@ -242,57 +242,6 @@
         ]
       },
       {
-        "tableName": "NavDrawerPinnedItem",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `itemId` TEXT NOT NULL, `type` TEXT NOT NULL, `order` INTEGER NOT NULL DEFAULT -1, PRIMARY KEY(`userId`, `itemId`), FOREIGN KEY(`userId`) REFERENCES `users`(`rowId`) ON UPDATE CASCADE ON DELETE CASCADE )",
-        "fields": [
-          {
-            "fieldPath": "userId",
-            "columnName": "userId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "itemId",
-            "columnName": "itemId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "type",
-            "columnName": "type",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "order",
-            "columnName": "order",
-            "affinity": "INTEGER",
-            "notNull": true,
-            "defaultValue": "-1"
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "userId",
-            "itemId"
-          ]
-        },
-        "foreignKeys": [
-          {
-            "table": "users",
-            "onDelete": "CASCADE",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "userId"
-            ],
-            "referencedColumns": [
-              "rowId"
-            ]
-          }
-        ]
-      },
-      {
         "tableName": "LibraryDisplayInfo",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `itemId` TEXT NOT NULL, `sort` TEXT NOT NULL, `direction` TEXT NOT NULL, `filter` TEXT NOT NULL DEFAULT '{}', `viewOptions` TEXT, PRIMARY KEY(`userId`, `itemId`), FOREIGN KEY(`userId`) REFERENCES `users`(`rowId`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
@@ -453,64 +402,6 @@
         }
       },
       {
-        "tableName": "PlaybackLanguageChoice",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `seriesId` TEXT NOT NULL, `itemId` TEXT, `audioLanguage` TEXT, `subtitleLanguage` TEXT, `subtitlesDisabled` INTEGER, PRIMARY KEY(`userId`, `seriesId`), FOREIGN KEY(`userId`) REFERENCES `users`(`rowId`) ON UPDATE CASCADE ON DELETE CASCADE )",
-        "fields": [
-          {
-            "fieldPath": "userId",
-            "columnName": "userId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "seriesId",
-            "columnName": "seriesId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "itemId",
-            "columnName": "itemId",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "audioLanguage",
-            "columnName": "audioLanguage",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "subtitleLanguage",
-            "columnName": "subtitleLanguage",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "subtitlesDisabled",
-            "columnName": "subtitlesDisabled",
-            "affinity": "INTEGER"
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "userId",
-            "seriesId"
-          ]
-        },
-        "foreignKeys": [
-          {
-            "table": "users",
-            "onDelete": "CASCADE",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "userId"
-            ],
-            "referencedColumns": [
-              "rowId"
-            ]
-          }
-        ]
-      },
-      {
         "tableName": "ItemTrackModification",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `itemId` TEXT NOT NULL, `trackIndex` INTEGER NOT NULL, `delayMs` INTEGER NOT NULL, PRIMARY KEY(`userId`, `itemId`, `trackIndex`), FOREIGN KEY(`userId`) REFERENCES `users`(`rowId`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
@@ -554,121 +445,6 @@
             "onUpdate": "CASCADE",
             "columns": [
               "userId"
-            ],
-            "referencedColumns": [
-              "rowId"
-            ]
-          }
-        ]
-      },
-      {
-        "tableName": "seerr_servers",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `url` TEXT NOT NULL, `name` TEXT, `version` TEXT)",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "url",
-            "columnName": "url",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "name",
-            "columnName": "name",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "version",
-            "columnName": "version",
-            "affinity": "TEXT"
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_seerr_servers_url",
-            "unique": true,
-            "columnNames": [
-              "url"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_seerr_servers_url` ON `${TABLE_NAME}` (`url`)"
-          }
-        ]
-      },
-      {
-        "tableName": "seerr_users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`jellyfinUserRowId` INTEGER NOT NULL, `serverId` INTEGER NOT NULL, `authMethod` TEXT NOT NULL, `username` TEXT, `password` TEXT, `credential` TEXT, PRIMARY KEY(`jellyfinUserRowId`, `serverId`), FOREIGN KEY(`serverId`) REFERENCES `seerr_servers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`jellyfinUserRowId`) REFERENCES `users`(`rowId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
-        "fields": [
-          {
-            "fieldPath": "jellyfinUserRowId",
-            "columnName": "jellyfinUserRowId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "serverId",
-            "columnName": "serverId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "authMethod",
-            "columnName": "authMethod",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "username",
-            "columnName": "username",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "password",
-            "columnName": "password",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "credential",
-            "columnName": "credential",
-            "affinity": "TEXT"
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "jellyfinUserRowId",
-            "serverId"
-          ]
-        },
-        "foreignKeys": [
-          {
-            "table": "seerr_servers",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "serverId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "users",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "jellyfinUserRowId"
             ],
             "referencedColumns": [
               "rowId"
@@ -828,7 +604,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b297c087485321c3ee8282ad1ff675a0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e235697b78ad52bf255e76d8ad1799b1')"
     ]
   }
 }

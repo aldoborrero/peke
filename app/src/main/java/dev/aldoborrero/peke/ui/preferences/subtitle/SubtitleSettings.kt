@@ -23,9 +23,7 @@ import dev.aldoborrero.peke.preferences.AppSliderPreference
 import dev.aldoborrero.peke.preferences.AppSwitchPreference
 import dev.aldoborrero.peke.preferences.BackgroundStyle
 import dev.aldoborrero.peke.preferences.EdgeStyle
-import dev.aldoborrero.peke.preferences.InterfacePreferences
 import dev.aldoborrero.peke.preferences.SubtitlePreferences
-import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.ui.indexOfFirstOrNull
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.ConditionalPreferences
@@ -429,21 +427,3 @@ object SubtitleSettings {
 }
 
 inline fun SubtitlePreferences.update(block: SubtitlePreferences.Builder.() -> Unit): SubtitlePreferences = toBuilder().apply(block).build()
-
-fun InterfacePreferences.shouldEnableSeparateHdrToggle(): Boolean {
-    // If already separate, leave it
-    if (subtitlesPreferences.useSeparateHdr) return true
-    val defaultStyle =
-        SubtitlePreferences
-            .newBuilder()
-            .apply {
-                resetSubtitles()
-            }.build()
-    // If SDR and HDR are the same, don't separate
-    return if (subtitlesPreferences == hdrSubtitlesPreferences) {
-        false
-    } else {
-        // If different, but HDR has not been changed from original settings, don't separate
-        hdrSubtitlesPreferences != defaultStyle
-    }
-}
