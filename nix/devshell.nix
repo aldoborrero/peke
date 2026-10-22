@@ -12,10 +12,22 @@ let
       includeSystemImages = false;
       includeSources = false;
     }).androidsdk;
+
   sdkRoot = "${androidSdk}/libexec/android-sdk";
 
-  # Headless JADX engine used by the REA MCP server for APK analysis.
-  # Hash pinned by REA (src/android/JadxRelease.ts).
+  traceProcessor = pkgs.stdenv.mkDerivation {
+    pname = "trace-processor-shell";
+    version = "57.2";
+    src = pkgs.fetchurl {
+      url = "https://commondatastorage.googleapis.com/perfetto-luci-artifacts/v57.2/linux-amd64/trace_processor_shell";
+      sha256 = "55ba613fc6d4f71df81eee2dbfc293020063655c241b3e314bff75345b802684";
+    };
+    dontUnpack = true;
+    nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+    buildInputs = [ pkgs.stdenv.cc.cc.lib ];
+    installPhase = "install -Dm755 $src $out/bin/trace_processor_shell";
+  };
+
   jadxHeadlessMcp = pkgs.fetchurl {
     url = "https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.7.1/jadx-headless-mcp-0.7.1-all.jar";
     sha256 = "6e5eacf500b64292bfb73c49797c1958f6ee44646e43e868039ae7feb573ff75";
@@ -23,11 +35,22 @@ let
 in
 perSystem.devshell.mkShell {
   packages = with pkgs; [
-    nixfmt-tree # same formatter `nix fmt` uses, for the nix/ files
+    perSystem.self.formatter # treefmt, the same formatter `nix fmt` runs
 
     # Android build: JDK for Gradle/AGP, SDK with platform-tools (adb) and build-tools (apksigner)
     jdk21
     androidSdk
+
+    # Tools the repo's agent skills call (.claude/skills). The SDK already provides `android`, apkanalyzer,
+    # r8, retrace and lint, so the skills' curl installers aren't needed.
+    ktlint # Kotlin style, the same version as the pre-commit hook
+    detekt # Kotlin static analysis
+    perfetto # record traces on a device (android-profiler)
+    traceProcessor # query Perfetto traces with PerfettoSQL (android-profiler)
+    (python3.withPackages (p: [ p.protobuf ])) # helper scripts (android-profiler) and R8 report decoding (r8-analyzer)
+    jq # spec-kit scripts parse JSON safely with it
+    bundletool # inspect and size app bundles and APK splits
+    scrcpy # mirror and control a TV or device over adb
 
     # APK reverse engineering (REA MCP providers)
     apktool

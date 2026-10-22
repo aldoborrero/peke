@@ -1,5 +1,5 @@
 {
-  description = "Wholphin - an OSS Android TV client for Jellyfin";
+  description = "Peke for Jellyfin - a kids-only Android TV client for Jellyfin";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";
@@ -9,6 +9,9 @@
 
     devshell.url = "github:numtide/devshell";
     devshell.inputs.nixpkgs.follows = "nixpkgs";
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
