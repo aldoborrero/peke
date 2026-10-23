@@ -1,5 +1,10 @@
 # Feature Specification: Kids mode backed by the Jellyfin Kids server plugin (client)
 
+> **Superseded in part (2026-10-22, [003-peke-foundation](../003-peke-foundation/spec.md))**: this app is now Peke for
+> Jellyfin, a kids-only app (constitution 2.0.0). Kids mode is no longer a per-profile mode inside Wholphin, and
+> non-kid profiles no longer get the regular app: they get the grown-up shell. Build commands are flavor-less
+> (`assembleDebug testDebugUnitTest` instead of `*DefaultDebug*`).
+
 **Feature Branch**: `feature/kids-mode`
 
 **Created**: 2026-10-17 (study) · **Rewritten**: 2026-10-18 as the client spec

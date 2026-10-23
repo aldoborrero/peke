@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name" translatable="false">Wholphin</string>
-    <string name="app_name_long" translatable="false">Wholphin</string>
+    <string name="app_name" translatable="false">Peke</string>
+    <string name="app_name_long" translatable="false">Peke for Jellyfin</string>
 
     <string name="about">About</string>
     <string name="active_recordings">Active Recordings</string>
@@ -59,7 +59,6 @@
     <string name="hide_debug_info">Hide debug info</string>
     <string name="hide">Hide</string>
     <string name="home">Home</string>
-    <string name="immediate">Immediate</string>
     <string name="intro">Intro</string>
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Library</string>
@@ -274,11 +273,6 @@
         <item quantity="one">%s download</item>
         <item quantity="other">%s downloads</item>
     </plurals>
-    <plurals name="hours">
-        <item quantity="zero">%d hours</item>
-        <item quantity="one">%d hour</item>
-        <item quantity="other">%d hours</item>
-    </plurals>
     <plurals name="days">
         <item quantity="zero">%s days</item>
         <item quantity="one">%s day</item>
@@ -325,12 +319,8 @@
     <string name="advanced_ui">Advanced UI</string>
     <string name="app_theme">Application Theme</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
-    <string name="auto_play_next_delay">Delay before playing next up</string>
-    <string name="auto_play_next">Auto play next up</string>
     <string name="check_for_updates">Check for updates</string>
-    <string name="combine_continue_next_summary">Applies to TV Series only</string>
     <string name="combine_continue_next"><![CDATA[Combine Continue Watching & Next Up]]></string>
-    <string name="direct_play_ass">Use libass for ASS subtitles</string>
     <string name="direct_play_pgs">Direct play PGS subtitles</string>
     <string name="downmix_stereo">Always downmix to stereo</string>
     <string name="ffmpeg_extension_pref">Use FFmpeg decoder module</string>
@@ -338,16 +328,9 @@
     <string name="install_update">Install update</string>
     <string name="installed_version">Installed version</string>
     <string name="max_homepage_items">Max items on home page rows</string>
-    <string name="nav_drawer_pins_summary">Choose the default items to show, others will be hidden</string>
-    <string name="nav_drawer_pins">Customize Navigation Drawer Items</string>
-    <string name="nav_drawer_switch_on_focus_summary_off">Click to switch pages</string>
-    <string name="nav_drawer_switch_on_focus">Switch nav drawer pages on focus</string>
-    <string name="pass_out_protection">Passout Protection</string>
-    <string name="play_theme_music">Play theme music</string>
     <string name="playback_overrides">Playback overrides</string>
     <string name="remember_selected_tab">Remember selected tabs</string>
     <string name="rewatch_next_up">Enable rewatching in next up</string>
-    <string name="seek_bar_steps">Seek bar steps</string>
     <string name="send_app_logs_summary">Useful for debugging</string>
     <string name="send_app_logs">Send app logs to current server</string>
     <string name="send_crash_reports_summary">Will try to send to last connected server</string>
@@ -362,8 +345,6 @@
     <string name="skip_previews_behavior">Skip previews behavior</string>
     <string name="skip_recap_behavior">Skip recap behavior</string>
     <string name="update_available">Update available</string>
-    <string name="update_url_summary">URL used to check for app updates</string>
-    <string name="update_url">Update URL</string>
     <string name="font_size">Font size</string>
     <string name="font_color">Font color</string>
     <string name="font_opacity">Font opacity</string>
@@ -498,17 +479,9 @@
     <string name="dolby_digital">DD</string>
     <string name="dolby_digital_plus">DD+</string>
     <string name="dts">DTS</string>
-    <string name="force_dovi_profile_7">Direct play Dolby Vision Profile 7</string>
-    <string name="force_dovi_profile_7_summary">Ignores device compatibility checks</string>
     <string name="prefer_dovi_over_hdr10_plus">Prefer Dolby Vision over HDR10+</string>
     <string name="prefer_dovi_over_hdr10_plus_summary">Removes HDR10+ metadata from Dolby Vision videos, for TVs that otherwise play them as HDR10+</string>
 
-    <string name="discover">Discover</string>
-    <string name="request">Request</string>
-    <string name="pending">Pending</string>
-    <string name="seerr_integration">Seerr integration</string>
-    <string name="remove_seerr_server">Remove Seerr Server</string>
-    <string name="seerr_server_added">Seerr server added</string>
     <string name="quick_connect">Quick Connect</string>
     <string name="quick_connect_summary">Authorize another device to log in to your account</string>
     <string name="quick_connect_code">Enter Quick Connect code</string>
@@ -516,13 +489,7 @@
     <string name="quick_connect_success">Device authorized successfully</string>
     <string name="password">Password</string>
     <string name="username">Username</string>
-    <string name="url">URL</string>
-    <string name="trending">Trending</string>
-    <string name="upcoming_movies">Upcoming Movies</string>
-    <string name="upcoming_tv">Upcoming TV Shows</string>
-    <string name="request_4k">Request in 4K</string>
     <string name="software_decoding_av1">AV1 software decoding</string>
-    <string name="upgrade_mpv_toast">MPV is now the default player except for HDR.\nYou can change this in settings.</string>
     <string name="hdr_subtitle_style">HDR subtitle style</string>
     <string name="image_subtitle_opacity">Image subtitle opacity</string>
 
@@ -579,7 +546,6 @@
     <string name="settings_saved">Settings saved</string>
     <string name="display_presets">Display presets</string>
     <string name="display_presets_description">Built-in presets to quickly style all rows</string>
-    <string name="customize_home_summary">Choose rows and images on the home page</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transcode non-stereo audio to AC3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Use AC3 for surround sound audio</string>
     <string name="start_after">Start after</string>
@@ -600,8 +566,8 @@
     <string name="content_scale_fill">Fill</string>
     <string name="content_scale_fill_width">Fill width</string>
     <string name="content_scale_fill_height">Fill height</string>
-    <string name="display_preset_default">Wholphin Default</string>
-    <string name="display_preset_compact">Wholphin Compact</string>
+    <string name="display_preset_default">Default</string>
+    <string name="display_preset_compact">Compact</string>
     <string name="display_preset_series_thumb">Series Thumb images</string>
     <string name="display_preset_episode_thumbnails">Episode Thumbnail images</string>
 
@@ -610,14 +576,6 @@
     <string name="volume_medium">Medium</string>
     <string name="volume_high">High</string>
     <string name="volume_full">Full</string>
-    <string-array name="theme_song_volume">
-        <item>@string/disabled</item>
-        <item>@string/volume_lowest</item>
-        <item>@string/volume_low</item>
-        <item>@string/volume_medium</item>
-        <item>@string/volume_high</item>
-        <item>@string/volume_full</item>
-    </string-array>
 
     <string name="purple">Purple</string>
     <string name="orange">Orange</string>
@@ -709,12 +667,10 @@
     <string name="exoplayer" translatable="false">ExoPlayer</string>
     <string name="mpv" translatable="false">MPV</string>
     <string name="prefer_mpv">Prefer MPV</string>
-    <string name="external_player">External Player</string>
     <string-array name="player_backend_options">
         <item>@string/exoplayer</item>
         <item>@string/mpv</item>
         <item>@string/prefer_mpv</item>
-        <item>@string/external_player</item>
     </string-array>
 
     <string name="player_backend_options_subtitles_prefer_mpv">Use ExoPlayer for HDR playback</string>
@@ -722,7 +678,6 @@
         <item /><!-- Intentionally blank -->
         <item /><!-- Intentionally blank -->
         <item>@string/player_backend_options_subtitles_prefer_mpv</item>
-        <item /><!-- Intentionally blank -->
     </string-array>
 
     <string name="aspect_ratios_poster">Poster (2:3)</string>
@@ -754,11 +709,6 @@
 
     <string name="backdrop_style_dynamic">Image with dynamic color</string>
     <string name="backdrop_style_image">Image only</string>
-    <string name="enter_url_api_key"><![CDATA[Enter URL & API Key]]></string>
-    <string name="api_key">API Key</string>
-    <string name="seerr_login">Login to Seerr server</string>
-    <string name="seerr_jellyfin_user">Jellyfin user</string>
-    <string name="seerr_local_user">Local user</string>
     <string name="search_and_download_subtitles"><![CDATA[Search & download subtitles]]></string>
     <string name="no_subtitles_found">No remote subtitles were found</string>
     <string name="series_continueing">Present</string>
@@ -818,24 +768,19 @@
     <string name="play_as_type">Play as?</string>
     <string name="visualizer_rationale">Visualizing the currently playing audio requires permission to record audio.</string>
     <string name="continue_string">Continue</string>
-    <string name="select_all">Select all</string>
     <string name="separate_types">Separate types</string>
     <string name="prefer_logos">Prefer showing logos for titles</string>
-    <string name="updated_toast">Wholphin updated to %s</string>
+    <string name="updated_toast">Peke updated to %s</string>
     <string name="remove_continue_watching">Remove from continue watching</string>
     <string name="remove_next_up">Remove series from next up</string>
     <string name="view_removed_next_up">View series removed from next up</string>
     <string name="view_more">View more</string>
-    <string name="discover_tv">Discover TV Shows</string>
-    <string name="discover_movies">Discover Movies</string>
     <string name="studios_in">Studios in %1$s</string>
     <string name="last_played">Last played</string>
-    <string name="system_default">System default</string>
     <string name="ass_subtitle_mode_libass">Direct play with libass</string>
     <string name="ass_subtitle_mode_exoplayer">Direct play with ExoPlayer built-in</string>
     <string name="ass_subtitle_mode_transcode">Burn in/transcode on server</string>
     <string name="ass_subtitle_playback">SSA/ASS subtitle playback</string>
-    <string name="cinema_mode">Cinema mode</string>
     <string name="show_more">Show %1$s more</string>
     <string name="skip_behavior">Skip behavior</string>
     <string name="skip_behavior_summary">For intros, credits, etc</string>
@@ -862,13 +807,6 @@
     <string name="tomatoes">Tomatoes</string>
     <string name="sort">Sort</string>
     <string name="split_into_separate_rows">Split into separate rows</string>
-    <string name="genre_movies">%1$s Movies</string>
-    <string name="genre_tv_shows">%1$s TV Shows</string>
-    <string name="quality_profile">Quality profile</string>
-    <string name="is_default">Default</string>
-    <string name="root_folder">Root folder</string>
-    <string name="popularity">Popularity</string>
-    <string name="production_status">Production status</string>
     <string name="different_for_hdr">Use different style for HDR</string>
     <string name="experimental_settings">Experimental settings</string>
     <string name="confirm_enable_experimental_title">Enable experimental settings?</string>
@@ -893,7 +831,6 @@
     </string-array>
 
     <string name="blocklisted">Blocklisted</string>
-    <string name="unavailable">Unavailable</string>
     <string name="subtitle_mode">Subtitle mode</string>
 
     <string name="use_user_profile">Use your profile setting</string>
@@ -1011,7 +948,7 @@
     <string name="kids_timer_bar_bottom">At the bottom</string>
     <string name="kids_profiles">Kid profiles</string>
     <string name="kids_profile_on">Opens in kids mode</string>
-    <string name="kids_profile_off">Regular Wholphin</string>
+    <string name="kids_profile_off">Grown-up: sets up this TV only</string>
     <string name="kids_search_allowed">Allow search</string>
     <string name="kids_autoplay">Autoplay next episode</string>
     <string name="kids_autoplay_cap">Episodes in a row</string>
@@ -1089,4 +1026,8 @@
     <string name="kids_session_limit_summary">Counted on the server across every device, then a break</string>
     <string name="kids_household_code">Household parent code</string>
     <string name="kids_household_code_summary">The same code on every TV of this server</string>
+    <string name="peke_shell_subtitle">Set up this TV for the kids. Grown-ups watch with another Jellyfin app.</string>
+    <string name="peke_shell_switch_user">Switch user</string>
+    <string name="peke_plugin_needed">Peke needs the Jellyfin Kids plugin (0.0.7.0 or later) on this server. Ask the server\'s administrator to install or update it.</string>
+    <string name="peke_license_credit">Peke for Jellyfin is a fork of Wholphin by damontecres, licensed under the GNU GPL version 2. Source: github.com/aldoborrero/peke. Wholphin: github.com/damontecres/Wholphin. Peke is not an official Jellyfin app.</string>
 </resources>

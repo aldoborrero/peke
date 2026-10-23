@@ -188,4 +188,3 @@ class KidsConfigSourceResolver(...)  // per serverId, from cached /KidsMode/Info
 - Anything in the 12.1 and 12.2 release notes, which were not read in full.
 - Whether the 12.x dashboard still renders legacy `data-role="page"` config pages unchanged. Ported plugins such as Playback Reporting still ship HTML/JS pages, which suggests it does.
 - Whether SDK `get<T>` decoding works for app-defined `@Serializable` types. It uses kotlinx and likely does, but test it.
-

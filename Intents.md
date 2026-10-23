@@ -3,9 +3,11 @@
 > [!IMPORTANT]
 > This feature is experimental and the exact behaviors and/or parameters may change at any time
 
-Wholphin accepts [intents](https://developer.android.com/guide/components/intents-filters) to load or play specified media.
+Peke accepts [intents](https://developer.android.com/guide/components/intents-filters) to load or play specified media.
 
-Parameters can be specified as "extras" (eg `--es query value`) or as query parameters to the data URI (eg `-d wholphin://search?query=value`).
+While a kid is using Peke, external intents are ignored; for a grown-up they open the grown-up shell.
+
+Parameters can be specified as "extras" (eg `--es query value`) or as query parameters to the data URI (eg `-d peke://search?query=value`).
 
 UUID parameters can be specified with or without hyphens.
 
@@ -33,13 +35,13 @@ Full format
 ```bash
 adb shell am start \
   -a android.intent.action.SEARCH \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es query "Avengers"
 ```
 
 URI based
 ```bash
-adb shell am start -d 'wholphin://search?query=Avengers'
+adb shell am start -d 'peke://search?query=Avengers'
 ```
 
 Multi-word query:
@@ -47,11 +49,11 @@ Multi-word query:
 # Whole shell command is wrapped in double quotes
 adb shell "am start \
   -a android.intent.action.SEARCH \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es query 'Avengers Endgame'"
 
-adb shell am start -d 'wholphin://search?query=Avengers+Endgame'
-adb shell am start -d 'wholphin://search?query=Avengers%20Endgame'
+adb shell am start -d 'peke://search?query=Avengers+Endgame'
+adb shell am start -d 'peke://search?query=Avengers%20Endgame'
 ```
 
 ## View
@@ -72,18 +74,18 @@ Full format
 ```bash
 adb shell am start \
   -a android.intent.action.VIEW \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d"
 ```
 
 URI based
 ```bash
-adb shell am start -d 'wholphin://view?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d'
+adb shell am start -d 'peke://view?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d'
 ```
 
 ## Playback
 
-Action: `com.github.damontecres.wholphin.PLAYBACK`
+Action: `dev.aldoborrero.peke.PLAYBACK`
 
 Shorthand action: `play`
 
@@ -97,36 +99,36 @@ Parameters:
 Full format
 ```bash
 adb shell am start \
-  -a com.github.damontecres.wholphin.PLAYBACK \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -a dev.aldoborrero.peke.PLAYBACK \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d"
 ```
 
 URI based
 ```bash
-adb shell am start -d 'wholphin://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d'
+adb shell am start -d 'peke://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d'
 ```
 
 Start at 4m30s:
 ```bash
 adb shell am start \
-  -a com.github.damontecres.wholphin.PLAYBACK \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -a dev.aldoborrero.peke.PLAYBACK \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d" \
   --el position 270000
 
-adb shell am start -d 'wholphin://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d\&position=270000'
+adb shell am start -d 'peke://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d\&position=270000'
 ```
 
 Shuffle a series (`itemId` is the Series ID):
 ```bash
 adb shell am start \
-  -a com.github.damontecres.wholphin.PLAYBACK \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -a dev.aldoborrero.peke.PLAYBACK \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d" \
   --ez shuffle true
 
-adb shell am start -d 'wholphin://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d\&shuffle=true'
+adb shell am start -d 'peke://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d\&shuffle=true'
 ```
 
 ## More examples
@@ -138,7 +140,7 @@ Full format
 # Switch user, go to item
 adb shell am start \
   -a android.intent.action.VIEW \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d" \
   --es serverId "341880f9-ca88-4038-8718-f6b2407950b1" \
   --es userId "5c8575e0-468d-44fb-8c70-00aa79160587"
@@ -146,14 +148,14 @@ adb shell am start \
 # Switch user, go to home screen
 adb shell am start \
   -a android.intent.action.VIEW \
-  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  -n 'dev.aldoborrero.peke/dev.aldoborrero.peke.MainActivity' \
   --es serverId "341880f9-ca88-4038-8718-f6b2407950b1" \
   --es userId "5c8575e0-468d-44fb-8c70-00aa79160587"
 ```
 
 URI based
 ```bash
-adb shell am start -d 'wholphin://view?itemId=66c80aaac9c17d3761782d2205520229\&serverId=341880f9-ca88-4038-8718-f6b2407950b1\&userId=5c8575e0-468d-44fb-8c70-00aa79160587'
+adb shell am start -d 'peke://view?itemId=66c80aaac9c17d3761782d2205520229\&serverId=341880f9-ca88-4038-8718-f6b2407950b1\&userId=5c8575e0-468d-44fb-8c70-00aa79160587'
 ```
 
 ### Debug build
@@ -163,6 +165,6 @@ Debug builds have a different package, so you must specify the component by its 
 ```bash
 adb shell am start \
   -a android.intent.action.VIEW \
-  -n 'com.github.damontecres.wholphin.debug/com.github.damontecres.wholphin.MainActivity' \
+  -n 'dev.aldoborrero.peke.debug/dev.aldoborrero.peke.MainActivity' \
   --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d"
 ```

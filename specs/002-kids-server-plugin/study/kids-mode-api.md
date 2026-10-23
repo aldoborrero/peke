@@ -196,4 +196,3 @@ suspend fun ApiClient.detectKidsPlugin(): KidsModeInfo? =
     try { get<KidsModeInfo>("/KidsMode/Info").content.takeIf { it.apiVersion >= 1 } }
     catch (e: InvalidStatusException) { if (e.status == 404) null else throw e }
 ```
-

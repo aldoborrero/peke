@@ -1,3 +1,5 @@
+# Third-party agent skills, spec-kit's managed files and generated Room schemas are kept as published
+exclude: ^(\.claude/skills/|\.specify/|app/schemas/)
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

@@ -1,0 +1,211 @@
+package dev.aldoborrero.peke.services
+
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.data.model.ServerUserConfig
+import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
+import dev.aldoborrero.peke.ui.collectLatestIn
+import dev.aldoborrero.peke.ui.launchDefault
+import dev.aldoborrero.peke.ui.main.settings.Library
+import dev.aldoborrero.peke.ui.nav.Destination
+import dev.aldoborrero.peke.ui.nav.NavDrawerItem
+import dev.aldoborrero.peke.ui.nav.ServerNavDrawerItem
+import dev.aldoborrero.peke.ui.showToast
+import dev.aldoborrero.peke.util.supportedCollectionTypes
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.api.client.extensions.liveTvApi
+import org.jellyfin.sdk.api.client.extensions.userViewsApi
+import org.jellyfin.sdk.model.api.CollectionType
+import org.jellyfin.sdk.model.api.UserDto
+import timber.log.Timber
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.time.Duration.Companion.hours
+
+/**
+ * Gets the items to show in the nav drawer
+ */
+@Singleton
+class NavDrawerService
+    @Inject
+    constructor(
+        @param:ApplicationContext private val context: Context,
+        @param:DefaultCoroutineScope private val coroutineScope: CoroutineScope,
+        private val api: ApiClient,
+        private val serverRepository: ServerRepository,
+        private val musicService: MusicService,
+    ) {
+        private val _state = MutableStateFlow(NavDrawerItemState())
+        val state: StateFlow<NavDrawerItemState> = _state
+
+        init {
+            // Handle updating the nav drawer when the user changes
+            combine(
+                serverRepository.currentUserFlow,
+                serverRepository.currentUserDtoFlow,
+            ) { user, userDto ->
+                user to userDto
+            }.collectLatestIn(coroutineScope) { (user, userDto) ->
+                Timber.d(
+                    "User updated: user=%s, userDto=%s",
+                    user?.id,
+                    userDto?.id,
+                )
+                try {
+                    if (user != null && userDto != null && user.id == userDto.id) {
+                        updateNavDrawer(user, userDto)
+                    } else {
+                        _state.update { NavDrawerItemState() }
+                    }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error updating nav drawer")
+                    showToast(context, "Error fetching user's views")
+                }
+            }
+
+            // Handle when music is actively playing or not
+            coroutineScope.launchDefault {
+                musicService.state.collectLatest { music ->
+                    Timber.v("MusicService updated")
+                    when (music.status) {
+                        NowPlayingStatus.PLAYING -> {
+                            _state.update {
+                                it.copy(
+                                    nowPlayingEnabled = true,
+                                    nowPlayingTitle = music.currentItemTitle,
+                                )
+                            }
+                        }
+
+                        NowPlayingStatus.IDLE -> {
+                            _state.update {
+                                it.copy(
+                                    nowPlayingEnabled = false,
+                                    nowPlayingTitle = null,
+                                )
+                            }
+                        }
+
+                        NowPlayingStatus.PAUSED -> {
+                            delay(2.hours)
+                            _state.update {
+                                it.copy(
+                                    nowPlayingEnabled = false,
+                                    nowPlayingTitle = null,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Get all the libraries the user has access to
+         */
+        suspend fun getAllUserLibraries(
+            userId: UUID,
+            tvAccess: Boolean,
+        ): List<Library> {
+            val userViews =
+                api.userViewsApi
+                    .getUserViews(userId = userId)
+                    .content.items
+            val recordingFolders =
+                if (tvAccess) {
+                    try {
+                        api.liveTvApi
+                            .getRecordingFolders(userId = userId)
+                            .content.items
+                            .map { it.id }
+                            .toSet()
+                    } catch (ex: InvalidStatusException) {
+                        if (ex.status == 401 || ex.status == 403) {
+                            Timber.w("Got HTTP %s querying for recording folders", ex.status)
+                            emptySet()
+                        } else {
+                            throw ex
+                        }
+                    }
+                } else {
+                    emptySet()
+                }
+            val libraries =
+                userViews
+                    .filter { it.collectionType in supportedCollectionTypes || it.id in recordingFolders }
+                    .map {
+                        Library(
+                            itemId = it.id,
+                            name = it.name ?: "",
+                            type = it.type,
+                            collectionType = it.collectionType ?: CollectionType.UNKNOWN,
+                            isRecordingFolder = it.id in recordingFolders,
+                        )
+                    }
+            return libraries
+        }
+
+        /**
+         * Update the current state of the nav drawer items
+         */
+        suspend fun updateNavDrawer(
+            user: JellyfinUser,
+            userDto: ServerUserConfig,
+        ) {
+            val builtins =
+                buildList {
+                    add(NavDrawerItem.Favorites)
+                }
+            val allLibraries = getAllUserLibraries(user.id, userDto.tvAccess)
+            val libraries =
+                allLibraries
+                    .map {
+                        val destination =
+                            if (it.isRecordingFolder) {
+                                Destination.Recordings(it.itemId)
+                            } else {
+                                Destination.MediaItem(
+                                    it.itemId,
+                                    it.type,
+                                    it.collectionType,
+                                )
+                            }
+                        ServerNavDrawerItem(
+                            itemId = it.itemId,
+                            name = it.name,
+                            destination = destination,
+                            type = it.collectionType,
+                        )
+                    }
+
+            _state.update {
+                it.copy(
+                    items = builtins + libraries,
+                    allLibraries = allLibraries,
+                )
+            }
+        }
+    }
+
+data class NavDrawerItemState(
+    val items: List<NavDrawerItem> = emptyList(),
+    val nowPlayingEnabled: Boolean = false,
+    val nowPlayingTitle: String? = null,
+    val allLibraries: List<Library> = emptyList(),
+)
+
+val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true

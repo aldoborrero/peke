@@ -1,8 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: New feature / UI suggestion
-    url: https://github.com/damontecres/Wholphin/discussions/new?category=ideas
-    about: Please request new features here
-  - name: Questions
-    url: https://github.com/damontecres/Wholphin/discussions/new?category=q-a
-    about: Please ask questions here
+  - name: Server rules (screen time, parent code, enforcement, live TV channels)
+    url: https://github.com/aldoborrero/jellyfin-kids/issues
+    about: These are decided by the Jellyfin Kids plugin; report them there

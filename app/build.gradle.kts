@@ -1,5 +1,4 @@
 import com.android.build.api.dsl.ApplicationExtension
-import com.android.build.api.dsl.ProductFlavor
 import com.android.build.api.variant.FilterConfiguration
 import com.google.protobuf.gradle.id
 import com.mikepenz.aboutlibraries.plugin.DuplicateMode
@@ -17,7 +16,6 @@ plugins {
     alias(libs.plugins.protobuf)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias(libs.plugins.aboutLibraries)
-    alias(libs.plugins.openapi.generator)
 }
 
 val isCI = providers.environmentVariable("CI").orElse("false").map { it.toBoolean() }
@@ -36,6 +34,28 @@ val mpvModuleExists =
 val extensionsRepoActive =
     providers.provider { project.hasProperty("WholphinExtensionsUsername") }
 
+// Peke releases always ship MPV and the FFmpeg and AV1 decoders (direct play first), so a release build without them fails
+val isBuildingRelease =
+    providers.provider {
+        gradle.startParameter.taskNames.any { it.lowercase().contains("release") }
+    }
+if (isBuildingRelease.get()) {
+    val missing =
+        listOf(
+            "FFmpeg decoder" to ffmpegModuleExists,
+            "AV1 decoder" to av1ModuleExists,
+            "MPV" to mpvModuleExists,
+        ).filterNot { (_, local) -> local.get() || extensionsRepoActive.get() }
+            .map { it.first }
+    if (missing.isNotEmpty()) {
+        throw GradleException(
+            "Peke release builds need ${missing.joinToString()}: set WholphinExtensionsUsername and " +
+                "WholphinExtensionsPassword (Gradle properties or ORG_GRADLE_PROJECT_* environment variables), " +
+                "see specs/003-peke-foundation/quickstart.md",
+        )
+    }
+}
+
 // See https://issuetracker.google.com/issues/402800800
 val isBuildingBundle =
     providers.provider {
@@ -44,7 +64,7 @@ val isBuildingBundle =
 
 val gitTags =
     providers
-        .exec { commandLine("git", "tag", "--list", "v*", "p*") }
+        .exec { commandLine("git", "tag", "--list", "v*") }
         .standardOutput.asText
         .get()
 
@@ -68,18 +88,20 @@ kotlin {
 private fun Provider<String>.getInt() = get().toInt()
 
 configure<ApplicationExtension> {
-    namespace = "com.github.damontecres.wholphin"
+    namespace = "dev.aldoborrero.peke"
     compileSdk = libs.versions.compileSdk.getInt()
 
     defaultConfig {
-        applicationId = "com.github.damontecres.wholphin"
+        applicationId = "dev.aldoborrero.peke"
         minSdk = libs.versions.minSdk.getInt()
         targetSdk = libs.versions.targetSdk.getInt()
-        versionCode = gitTags.trim().lines().size
+        versionCode = gitTags.lines().count { it.isNotBlank() }.coerceAtLeast(1)
         versionName = gitDescribe.trim().removePrefix("v").ifBlank { "0.0.0" }
-        testInstrumentationRunner = "com.github.damontecres.wholphin.test.WholphinTestRunner"
+        testInstrumentationRunner = "dev.aldoborrero.peke.test.PekeTestRunner"
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
+        buildConfigField("boolean", "UPDATING_ENABLED", "true")
+        manifestPlaceholders["leanback"] = false
     }
 
     signingConfigs {
@@ -131,38 +153,6 @@ configure<ApplicationExtension> {
             applicationIdSuffix = ".debug"
         }
     }
-    flavorDimensions += "version"
-    productFlavors {
-        val featureLeanback = "leanback"
-        val featureUpdate = "UPDATING_ENABLED"
-        val featureDiscover = "DISCOVER_ENABLED"
-
-        fun ProductFlavor.setFeatureFlag(
-            name: String,
-            enabled: Boolean,
-        ) {
-            this.buildConfigField("boolean", name, "Boolean.parseBoolean(\"${enabled}\")")
-        }
-        create("default") {
-            dimension = "version"
-            isDefault = true
-            manifestPlaceholders += mapOf(featureLeanback to false)
-            setFeatureFlag(featureUpdate, true)
-            setFeatureFlag(featureDiscover, true)
-        }
-        create("appstore") {
-            dimension = "version"
-            manifestPlaceholders += mapOf(featureLeanback to true)
-            setFeatureFlag(featureUpdate, false)
-            setFeatureFlag(featureDiscover, true)
-        }
-        create("firetv") {
-            dimension = "version"
-            manifestPlaceholders += mapOf(featureLeanback to true)
-            setFeatureFlag(featureUpdate, false)
-            setFeatureFlag(featureDiscover, false)
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -191,12 +181,6 @@ configure<ApplicationExtension> {
         }
     }
 
-    sourceSets {
-        getByName("main") {
-            kotlin.directories += "$buildDir/generated/seerr_api/src/main/kotlin"
-        }
-    }
-
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -208,6 +192,7 @@ configure<ApplicationExtension> {
     }
     androidResources {
         generateLocaleConfig = true
+        localeFilters += listOf("en", "es")
     }
 }
 
@@ -221,7 +206,7 @@ androidComponents {
                         .getFilter(FilterConfiguration.FilterType.ABI)
                         .let { if (it != null) "-${it.identifier}" else "" }
                 val outputFileName =
-                    "Wholphin-${variant.flavorName}-${variant.buildType}-${output.versionName.get()}-${output.versionCode.get()}$abi.apk"
+                    "Peke-${variant.buildType}-${output.versionName.get()}-${output.versionCode.get()}$abi.apk"
                 output.outputFileName = outputFileName
             }
     }
@@ -260,33 +245,6 @@ aboutLibraries {
     }
 }
 
-openApiGenerate {
-    generatorName.set("kotlin")
-    inputSpec.set("$projectDir/src/main/seerr/seerr-api.yml")
-    templateDir.set("$projectDir/src/main/seerr/templates")
-    outputDir.set("$buildDir/generated/seerr_api")
-    apiPackage.set("com.github.damontecres.wholphin.api.seerr")
-    modelPackage.set("com.github.damontecres.wholphin.api.seerr.model")
-    groupId.set("com.github.damontecres.wholphin.api.seerr")
-    id.set("seerr-api")
-    packageName.set("com.github.damontecres.wholphin.api.seerr")
-    additionalProperties.apply {
-        put("serializationLibrary", "kotlinx_serialization")
-        put("sortModelPropertiesByRequiredFlag", true)
-        put("sortParamsByRequiredFlag", true)
-        put("useCoroutines", true)
-        put("enumPropertyNaming", "UPPERCASE")
-        put("modelMutable", false)
-
-        // Note: this is only for downloading files, so it's not necessary to enable
-        put("supportAndroidApiLevel25AndBelow", false)
-    }
-}
-
-tasks.named("preBuild") {
-    dependsOn.add(tasks.named("openApiGenerate"))
-}
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -302,7 +260,6 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.protobuf.kotlin.lite)
-    implementation(libs.androidx.tvprovider)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.profileinstaller)
@@ -330,7 +287,6 @@ dependencies {
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-    implementation(libs.androidx.material3.adaptive.navigation3)
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
 
@@ -340,10 +296,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.preference.ktx)
-    implementation(libs.androidx.room.testing)
     implementation(libs.androidx.palette.ktx)
     implementation(libs.androidx.media3.effect)
-    implementation(libs.androidx.runner)
     ksp(libs.androidx.room.compiler)
     ksp(libs.hilt.android.compiler)
     ksp(libs.androidx.hilt.compiler)
@@ -355,8 +309,6 @@ dependencies {
     implementation(libs.multiplatform.markdown.renderer)
     implementation(libs.multiplatform.markdown.renderer.m3)
     implementation(libs.programguide)
-    implementation(libs.acra.http)
-    implementation(libs.acra.dialog)
     implementation(libs.acra.limiter)
     compileOnly(libs.auto.service.annotations)
     ksp(libs.auto.service.ksp)
@@ -408,5 +360,9 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.androidx.junit)
 }
