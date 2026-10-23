@@ -40,9 +40,6 @@ enum class RestrictedFeature {
     /** Live TV recordings: record buttons, series recordings, the DVR schedule (timers) and recording folders */
     LIVE_TV_RECORDINGS,
 
-    /** Links that open another app, such as remote (YouTube) trailers */
-    EXTERNAL_APPS,
-
     /** The people rows (cast & crew, guest stars) on details pages */
     PEOPLE,
 }

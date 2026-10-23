@@ -40,10 +40,8 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Person
-import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.data.model.studioNames
 import dev.aldoborrero.peke.preferences.UserPreferences
-import dev.aldoborrero.peke.services.TrailerService
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.RequestOrRestoreFocus
 import dev.aldoborrero.peke.ui.cards.ExtrasRow
@@ -68,7 +66,6 @@ import dev.aldoborrero.peke.ui.components.OverviewText
 import dev.aldoborrero.peke.ui.components.PersonContextActions
 import dev.aldoborrero.peke.ui.components.QuickDetails
 import dev.aldoborrero.peke.ui.components.TitleOrLogo
-import dev.aldoborrero.peke.ui.components.TrailerButton
 import dev.aldoborrero.peke.ui.data.AddPlaylistViewModel
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialog
 import dev.aldoborrero.peke.ui.data.ItemDetailsDialogInfo
@@ -99,8 +96,6 @@ fun SeriesDetails(
         ),
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-
     val state by viewModel.state.collectAsState()
     val playlistState by playlistViewModel.playlistState.collectAsState()
 
@@ -179,7 +174,6 @@ fun SeriesDetails(
                 preferences = preferences,
                 series = series,
                 seasons = state.seasons,
-                trailers = state.trailers,
                 extras = state.extras,
                 people = state.people,
                 similar = state.similar,
@@ -231,9 +225,6 @@ fun SeriesDetails(
                 favoriteOnClick = {
                     val favorite = series.data.userData?.isFavorite ?: false
                     viewModel.setFavorite(series.id, !favorite, null)
-                },
-                trailerOnClick = {
-                    TrailerService.onClick(context, it, viewModel::navigateTo)
                 },
                 onClickExtra = { _, extra ->
                     viewModel.navigateTo(extra.destination)
@@ -297,8 +288,7 @@ fun SeriesDetails(
 private const val HEADER_ROW = 0
 private const val SEASONS_ROW = HEADER_ROW + 1
 private const val PEOPLE_ROW = SEASONS_ROW + 1
-private const val TRAILER_ROW = PEOPLE_ROW + 1
-private const val EXTRAS_ROW = TRAILER_ROW + 1
+private const val EXTRAS_ROW = PEOPLE_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 
 @Composable
@@ -307,7 +297,6 @@ fun SeriesDetailsContent(
     series: BaseItem,
     seasons: List<BaseItem?>,
     similar: List<BaseItem>,
-    trailers: List<Trailer>,
     extras: List<ExtrasItem>,
     people: List<Person>,
     played: Boolean,
@@ -320,7 +309,6 @@ fun SeriesDetailsContent(
     playOnClick: (Boolean) -> Unit,
     watchOnClick: () -> Unit,
     favoriteOnClick: () -> Unit,
-    trailerOnClick: (Trailer) -> Unit,
     onClickExtra: (Int, ExtrasItem) -> Unit,
     onShowContextMenu: (ContextMenu) -> Unit,
     actions: ContextMenuActions,
@@ -424,18 +412,6 @@ fun SeriesDetailsContent(
                             iconStringRes = R.string.fa_heart,
                             onClick = favoriteOnClick,
                             iconColor = if (favorite) Color.Red else Color.Unspecified,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        TrailerButton(
-                            trailers = trailers,
-                            trailerOnClick = trailerOnClick,
                             modifier =
                                 Modifier.onFocusChanged {
                                     if (it.isFocused) {

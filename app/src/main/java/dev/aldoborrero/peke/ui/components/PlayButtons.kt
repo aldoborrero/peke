@@ -54,8 +54,6 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.model.LocalTrailer
-import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.data.ChooseVersionParams
@@ -82,12 +80,10 @@ fun ExpandablePlayButtons(
     watched: Boolean,
     favorite: Boolean,
     canDelete: Boolean,
-    trailers: List<Trailer>?,
     playOnClick: (position: Duration) -> Unit,
     watchOnClick: () -> Unit,
     favoriteOnClick: () -> Unit,
     moreOnClick: () -> Unit,
-    trailerOnClick: (Trailer) -> Unit,
     onConfirmDelete: () -> Unit,
     chooseVersionParams: ChooseVersionParams?,
     buttonOnFocusChanged: (FocusState) -> Unit,
@@ -105,7 +101,6 @@ fun ExpandablePlayButtons(
     }
 
     var chooseVersion by remember { mutableStateOf<DialogParams?>(null) }
-    val shownTrailers = allowedTrailers(trailers)
     val itemMenus = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
 
     LazyRow(
@@ -187,15 +182,6 @@ fun ExpandablePlayButtons(
             )
         }
 
-        if (shownTrailers != null) {
-            item("trailers") {
-                TrailerButton(
-                    trailers = shownTrailers,
-                    trailerOnClick = trailerOnClick,
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
         if (canDelete) {
             item("delete") {
                 DeleteButton(
@@ -393,55 +379,6 @@ fun ExpandableFaButton(
 }
 
 @Composable
-fun TrailerButton(
-    trailers: List<Trailer>,
-    trailerOnClick: (Trailer) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var showDialog by remember { mutableStateOf(false) }
-    val shown = allowedTrailers(trailers) ?: return
-    ExpandableFaButton(
-        title =
-            if (shown.isEmpty()) {
-                R.string.no_trailers
-            } else if (shown.size == 1) {
-                R.string.play_trailer
-            } else {
-                R.string.trailers_title
-            },
-        iconStringRes = R.string.fa_film,
-        enabled = shown.isNotEmpty(),
-        onClick = {
-            if (shown.size == 1) {
-                trailerOnClick.invoke(shown.first())
-            } else {
-                showDialog = true
-            }
-        },
-        modifier = modifier,
-    )
-    if (showDialog) {
-        TrailerDialog(
-            onDismissRequest = { showDialog = false },
-            trailers = shown,
-            onClick = trailerOnClick,
-        )
-    }
-}
-
-/**
- * The [trailers] this profile may open. Remote trailers open another app, so without [RestrictedFeature.EXTERNAL_APPS]
- * only local ones are left, and null when there are none.
- */
-@Composable
-private fun allowedTrailers(trailers: List<Trailer>?): List<Trailer>? =
-    if (LocalInterfaceCustomization.current.allows(RestrictedFeature.EXTERNAL_APPS)) {
-        trailers
-    } else {
-        trailers?.filterIsInstance<LocalTrailer>()?.ifEmpty { null }
-    }
-
-@Composable
 fun DeleteButton(
     onConfirmDelete: () -> Unit,
     title: String,
@@ -510,8 +447,6 @@ private fun ExpandablePlayButtonsPreview() {
             favoriteOnClick = {},
             moreOnClick = {},
             buttonOnFocusChanged = {},
-            trailers = listOf(),
-            trailerOnClick = {},
             canDelete = true,
             onConfirmDelete = {},
             chooseVersionParams = null,

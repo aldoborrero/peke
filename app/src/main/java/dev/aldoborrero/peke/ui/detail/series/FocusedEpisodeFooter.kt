@@ -51,8 +51,6 @@ fun FocusedEpisodeFooter(
             watchOnClick = watchOnClick,
             favoriteOnClick = favoriteOnClick,
             buttonOnFocusChanged = buttonOnFocusChanged,
-            trailers = null,
-            trailerOnClick = {},
             canDelete = canDelete,
             onConfirmDelete = onConfirmDelete,
             chooseVersionParams =

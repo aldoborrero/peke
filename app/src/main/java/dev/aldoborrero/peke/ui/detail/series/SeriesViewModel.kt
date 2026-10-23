@@ -17,7 +17,6 @@ import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.ItemPlayback
 import dev.aldoborrero.peke.data.model.Person
-import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.ExtrasService
@@ -27,7 +26,6 @@ import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
-import dev.aldoborrero.peke.services.TrailerService
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
 import dev.aldoborrero.peke.ui.ItemRowFields
@@ -35,7 +33,6 @@ import dev.aldoborrero.peke.ui.equalsNotNull
 import dev.aldoborrero.peke.ui.gt
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.launchIO
-import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.lt
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.showToast
@@ -88,7 +85,6 @@ class SeriesViewModel
         private val itemPlaybackRepository: ItemPlaybackRepository,
         private val favoriteWatchManager: FavoriteWatchManager,
         private val peopleFavorites: PeopleFavorites,
-        private val trailerService: TrailerService,
         private val extrasService: ExtrasService,
         val streamChoiceService: StreamChoiceService,
         val serverReportService: ServerReportService,
@@ -198,7 +194,6 @@ class SeriesViewModel
                         _state.update { it.copy(extras = extras) }
                     }
                 }
-                val remoteTrailers = trailerService.getRemoteTrailers(series)
                 this@SeriesViewModel.position.update {
                     it.copy(
                         episodeRowIndex =
@@ -210,16 +205,10 @@ class SeriesViewModel
                         series = DataLoadingState.Success(series),
                         seasons = seasons,
                         episodes = episodes,
-                        trailers = remoteTrailers,
                     )
                 }
 
                 if (seriesPageType == SeriesPageType.DETAILS) {
-                    viewModelScope.launchIO {
-                        trailerService.getLocalTrailers(series).letNotEmpty { localTrailers ->
-                            _state.update { it.copy(trailers = localTrailers + remoteTrailers) }
-                        }
-                    }
                     viewModelScope.launchIO {
                         val people = peopleFavorites.getPeopleFor(series)
                         _state.update { it.copy(people = people) }
@@ -845,7 +834,6 @@ data class SeriesState(
     val series: DataLoadingState<BaseItem> = DataLoadingState.Pending,
     val seasons: List<BaseItem?> = emptyList(),
     val episodes: EpisodeList = EpisodeList.Loading,
-    val trailers: List<Trailer> = emptyList(),
     val extras: List<ExtrasItem> = emptyList(),
     val people: List<Person> = emptyList(),
     val similar: List<BaseItem> = emptyList(),

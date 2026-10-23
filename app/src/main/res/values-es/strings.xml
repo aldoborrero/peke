@@ -379,9 +379,6 @@
     <string name="voice_error_timeout">Se agotó el tiempo de espera para el reconocimiento de voz</string>
     <string name="retry">Reintentar</string>
     <string name="resolution_switching">Cambio de resolución</string>
-    <string name="local">Local</string>
-    <string name="play_trailer">Reproducir trailer</string>
-    <string name="no_trailers">Sin trailers</string>
     <string name="clear_track_choices">Opciones de pista claras</string>
     <string name="dts_x">DTS:X</string>
     <string name="dts_hd">DTS:HD</string>

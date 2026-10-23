@@ -276,8 +276,6 @@ fun EpisodeDetailsContent(
                                 }
                             }
                         },
-                        trailers = null,
-                        trailerOnClick = {},
                         canDelete = canDelete,
                         onConfirmDelete = onConfirmDelete,
                         chooseVersionParams =

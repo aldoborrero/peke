@@ -16,7 +16,6 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Chapter
 import dev.aldoborrero.peke.data.model.ItemPlayback
 import dev.aldoborrero.peke.data.model.Person
-import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.ExtrasService
 import dev.aldoborrero.peke.services.FavoriteWatchManager
@@ -25,13 +24,11 @@ import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.StreamChoiceService
-import dev.aldoborrero.peke.services.TrailerService
 import dev.aldoborrero.peke.services.UserPreferencesService
 import dev.aldoborrero.peke.services.deleteItem
 import dev.aldoborrero.peke.ui.ItemRowFields
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.launchIO
-import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.showToast
 import dev.aldoborrero.peke.util.DataLoadingState
@@ -61,7 +58,6 @@ class MovieViewModel
         val serverReportService: ServerReportService,
         private val favoriteWatchManager: FavoriteWatchManager,
         private val peopleFavorites: PeopleFavorites,
-        private val trailerService: TrailerService,
         private val extrasService: ExtrasService,
         private val userPreferencesService: UserPreferencesService,
         private val backdropService: BackdropService,
@@ -111,26 +107,15 @@ class MovieViewModel
                         movie,
                         userPreferencesService.getCurrent(),
                     )
-                val remoteTrailers = trailerService.getRemoteTrailers(movie)
                 val chapters = Chapter.fromDto(movie.data)
                 _state.update {
                     it.copy(
                         loading = DataLoadingState.Success(movie),
                         chosenStreams = chosenStreams,
-                        trailers = remoteTrailers,
                         chapters = chapters,
                     )
                 }
                 backdropService.submit(movie)
-                viewModelScope.launchIO {
-                    trailerService.getLocalTrailers(movie).letNotEmpty { localTrailers ->
-                        _state.update {
-                            it.copy(
-                                trailers = localTrailers + remoteTrailers,
-                            )
-                        }
-                    }
-                }
                 viewModelScope.launchIO {
                     val people = peopleFavorites.getPeopleFor(movie)
                     _state.update {
@@ -267,7 +252,6 @@ class MovieViewModel
 
 data class MovieState(
     val loading: DataLoadingState<BaseItem> = DataLoadingState.Pending,
-    val trailers: List<Trailer> = emptyList(),
     val people: List<Person> = emptyList(),
     val chapters: List<Chapter> = emptyList(),
     val extras: List<ExtrasItem> = emptyList(),
