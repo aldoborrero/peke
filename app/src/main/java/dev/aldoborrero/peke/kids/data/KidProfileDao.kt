@@ -17,6 +17,9 @@ interface KidProfileDao {
     @Query("SELECT userId FROM kid_profiles")
     suspend fun allUserIds(): List<Int>
 
+    @Query("SELECT userId FROM kid_profiles")
+    fun observeUserIds(): Flow<List<Int>>
+
     @Query("SELECT COUNT(*) FROM kid_profiles")
     fun observeCount(): Flow<Int>
 

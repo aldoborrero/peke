@@ -8,7 +8,7 @@ import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
  */
 sealed interface GrownUpRoute {
     /**
-     * Not known yet whether the device is locked to kids
+     * Not known yet whether the device is locked to kids, or whether the user is a kid after all
      */
     data object Loading : GrownUpRoute
 
@@ -38,12 +38,16 @@ private val settingsScreens =
 
 /**
  * @param lockEngaged whether the device's kids lock is engaged, null until known
+ * @param notAKid whether the server confirmed that the current user has no kid profile, false until it answered. Right
+ * after a kid signs in their profile may not be cached yet, and they must neither get the shell nor be sent back to
+ * the user list.
  */
 fun grownUpRoute(
     destination: Destination,
     lockEngaged: Boolean?,
+    notAKid: Boolean,
 ): GrownUpRoute =
-    when (lockEngaged) {
+    when (lockEngaged.takeIf { notAKid }) {
         null -> {
             GrownUpRoute.Loading
         }

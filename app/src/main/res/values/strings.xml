@@ -877,6 +877,7 @@
     <string name="remove_from_playlist">Remove from playlist</string>
     <string name="login_credentials_expired">Credentials expired, please login in again</string>
     <string name="login_not_authorized">You are not authorized to access the server at this time</string>
+    <string name="login_sign_in_refused">Jellyfin didn\'t allow this sign-in. The account may be signed in on too many devices, disabled, or not allowed from here. A server administrator can check it in the dashboard.</string>
     <string name="max_resolution">Max resolution before transcoding</string>
 
     <string name="resolution_8k">8K</string>
@@ -1013,7 +1014,7 @@
     <string name="kids_admin_failed">Couldn\'t sign in</string>
     <string name="kids_cant_reach_server">Can\'t reach the server. Try again in a moment.</string>
     <string name="kids_sign_in_same_user">While the TV is locked to kids mode, only %1$s can sign in here. Nothing was changed.</string>
-    <string name="kids_sign_in_locked">While the TV is locked to kids mode, only a kid can sign in again. Nothing was changed.</string>
+    <string name="kids_sign_in_locked">This TV is in kids mode. Pick a kid from the list, or enter the parent code to add someone else.</string>
     <string name="kids_save_failed">Couldn\'t save the change</string>
     <string name="kids_changed_elsewhere">These settings changed on another device. Showing the current ones.</string>
     <string name="kids_admin_needed">Kids mode is set up by an administrator. Open Kids settings from an administrator profile, or use the Kids page in the Jellyfin dashboard.</string>

@@ -35,6 +35,8 @@ import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchIO
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 // Top scrim configuration for text readability (clock, season tabs)
@@ -46,10 +48,29 @@ class ApplicationContentViewModel
     @Inject
     constructor(
         val backdropService: BackdropService,
-        kidsModeService: KidsModeService,
+        private val kidsModeService: KidsModeService,
         private val setupNavigationManager: SetupNavigationManager,
     ) : ViewModel() {
         val lockEngaged = kidsModeService.lockEngaged
+
+        private val _notAKid = MutableStateFlow<Int?>(null)
+
+        /**
+         * The row of the user the server confirmed has no kid profile, null while unknown
+         */
+        val notAKid: StateFlow<Int?> = _notAKid
+
+        /**
+         * Ask the server whether [user], who has no cached kid profile, is a kid after all, as right after a kid
+         * signs in. Without an answer the cached profile decides, so a lost cache still keeps the lock (fail closed).
+         */
+        suspend fun checkNotAKid(
+            server: JellyfinServer,
+            user: JellyfinUser,
+        ) {
+            _notAKid.value = null
+            if (kidsModeService.refreshedProfileFor(server, user) == null) _notAKid.value = user.rowId
+        }
 
         fun toKidsUserList(server: JellyfinServer) {
             setupNavigationManager.navigateTo(SetupDestination.UserList(server))
@@ -92,6 +113,12 @@ fun ApplicationContent(
         // Peke is for kids: anyone else only gets the grown-up shell
         val grownUp = LocalKidsMode.current == KidsModeState.Inactive
         val lockEngaged by viewModel.lockEngaged.collectAsState()
+        // A user without a cached kid profile may be a kid whose profile is still being read, so wait for the server
+        LaunchedEffect(server.id, user.rowId, grownUp) {
+            if (grownUp) viewModel.checkNotAKid(server, user)
+        }
+        val notAKidRow by viewModel.notAKid.collectAsState()
+        val notAKid = notAKidRow == user.rowId
         NavDisplay(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
@@ -107,7 +134,7 @@ fun ApplicationContent(
                     if (kidsLoading) {
                         LoadingPage(Modifier.fillMaxSize())
                     } else if (grownUp) {
-                        when (val route = grownUpRoute(key, lockEngaged)) {
+                        when (val route = grownUpRoute(key, lockEngaged, notAKid)) {
                             GrownUpRoute.Loading -> {
                                 LoadingPage(Modifier.fillMaxSize())
                             }

@@ -48,19 +48,28 @@ class GrownUpRoutesTest {
 
     @Test
     fun grownUpsReachOnlyTheSetupPages() {
-        allowed.forEach { assertEquals(it.toString(), GrownUpRoute.Show(it), grownUpRoute(it, lockEngaged = false)) }
-        blocked.forEach { assertEquals(it.toString(), GrownUpRoute.Shell, grownUpRoute(it, lockEngaged = false)) }
+        allowed.forEach { assertEquals(it.toString(), GrownUpRoute.Show(it), grownUpRoute(it, lockEngaged = false, notAKid = true)) }
+        blocked.forEach { assertEquals(it.toString(), GrownUpRoute.Shell, grownUpRoute(it, lockEngaged = false, notAKid = true)) }
     }
 
     @Test
     fun anEngagedLockNeverOpensTheShell() {
         (allowed + blocked).forEach {
-            assertEquals(it.toString(), GrownUpRoute.KidsUserList, grownUpRoute(it, lockEngaged = true))
+            assertEquals(it.toString(), GrownUpRoute.KidsUserList, grownUpRoute(it, lockEngaged = true, notAKid = true))
         }
     }
 
     @Test
     fun anUnknownLockWaits() {
-        (allowed + blocked).forEach { assertEquals(GrownUpRoute.Loading, grownUpRoute(it, lockEngaged = null)) }
+        (allowed + blocked).forEach { assertEquals(GrownUpRoute.Loading, grownUpRoute(it, lockEngaged = null, notAKid = true)) }
+    }
+
+    @Test
+    fun aUserWhoMayStillBeAKidWaits() {
+        // Right after a kid signs in their profile may still be on its way: neither the shell nor a bounce to the
+        // user list, whatever the lock says
+        listOf(true, false, null).forEach { lock ->
+            (allowed + blocked).forEach { assertEquals(GrownUpRoute.Loading, grownUpRoute(it, lockEngaged = lock, notAKid = false)) }
+        }
     }
 }

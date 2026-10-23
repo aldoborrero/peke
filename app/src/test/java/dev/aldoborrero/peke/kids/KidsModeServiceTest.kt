@@ -17,6 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -176,6 +177,31 @@ class KidsModeServiceTest {
             current.value = CurrentUser(server, kid)
             advanceUntilIdle()
             assertEquals(true, service.locked.value)
+        }
+
+    @Test
+    fun `a kid new on this TV locks it at sign-in, once their profile is read`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val dao = FakeKidProfileDao { server.id }
+            val current = MutableStateFlow<CurrentUser?>(null)
+            val service = createService(current, dao)
+            // The profile isn't cached yet when the sign-in finishes; the server has it
+            coEvery { repository.refresh(server, kid) } coAnswers { dao.upsert(KidProfile(userId = kid.rowId)) }
+            advanceUntilIdle()
+            assertEquals(false, service.lockEngaged.value)
+            service.lockIfKidAfterSignIn(CurrentUser(server, kid))
+            advanceUntilIdle()
+            assertEquals(true, service.lockEngaged.value)
+            assertEquals(setOf(kid.rowId), service.kidRowIds.first())
+        }
+
+    @Test
+    fun `a grown-up's sign-in doesn't lock`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val service = createService(MutableStateFlow(null), FakeKidProfileDao { server.id })
+            service.lockIfKidAfterSignIn(CurrentUser(server, adult))
+            advanceUntilIdle()
+            assertEquals(false, service.lockEngaged.value)
         }
 
     @Test

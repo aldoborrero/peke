@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.kids
 
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
@@ -15,6 +16,7 @@ import dev.aldoborrero.peke.services.KeyValueService
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -112,6 +114,11 @@ class KidsModeService
                 .map { it == true }
                 .stateIn(scope, SharingStarted.Eagerly, null)
 
+        /**
+         * The device's users that have a cached kid profile, updated as the cache changes
+         */
+        val kidRowIds: Flow<Set<Int>> = kidProfileDao.observeUserIds().map { it.toSet() }.distinctUntilChanged()
+
         @Volatile
         private var lastProfileRefresh: Long? = null
 
@@ -157,6 +164,27 @@ class KidsModeService
          */
         suspend fun lockIfKid(user: JellyfinUser) {
             if (profileFor(user) != null) lock()
+        }
+
+        /**
+         * After a sign-in, read the user's profile from the server before [lockIfKid], so a kid who is new on this
+         * device also locks it
+         */
+        suspend fun lockIfKidAfterSignIn(current: CurrentUser) {
+            refreshedProfileFor(current.server, current.user)
+            lockIfKid(current.user)
+        }
+
+        /**
+         * Read [user]'s profile from the server, then look it up. Without a definite answer from the server the cached
+         * profile is kept, so a known kid stays a kid.
+         */
+        suspend fun refreshedProfileFor(
+            server: JellyfinServer,
+            user: JellyfinUser,
+        ): KidProfile? {
+            kidProfileRepository.refresh(server, user)
+            return profileFor(user)
         }
 
         private suspend fun lock() {

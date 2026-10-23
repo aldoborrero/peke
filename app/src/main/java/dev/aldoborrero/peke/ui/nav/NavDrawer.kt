@@ -248,6 +248,16 @@ data class ServerNavDrawerItem(
     }
 }
 
+/**
+ * Whether Back opens the nav drawer: only on the home page with the drawer closed. With the drawer open the app leaves
+ * Back to the system, which quits the app as in Wholphin. Back never opens the profile's gate; only its drawer entry
+ * does.
+ */
+internal fun backOpensNavDrawer(
+    drawerValue: DrawerValue,
+    destination: Destination,
+): Boolean = drawerValue == DrawerValue.Closed && destination is Destination.Home
+
 private const val HOME_INDEX = -1
 private const val SEARCH_INDEX = -2
 private const val NOW_PLAYING_INDEX = -3
@@ -286,7 +296,7 @@ fun NavDrawer(
     var shownProfileGate by remember { mutableStateOf<ProfileGate?>(null) }
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
-    BackHandler(enabled = (drawerState.currentValue == DrawerValue.Closed && destination is Destination.Home)) {
+    BackHandler(enabled = backOpensNavDrawer(drawerState.currentValue, destination)) {
         drawerState.setValue(DrawerValue.Open)
         focusRequester.requestFocus()
     }
@@ -295,11 +305,6 @@ fun NavDrawer(
     val state by viewModel.state.collectAsState()
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
-
-    // Leaving the app from the home page goes through the profile's gate, if it has one
-    BackHandler(enabled = profileGate != null && drawerState.currentValue == DrawerValue.Open && destination is Destination.Home) {
-        shownProfileGate = profileGate
-    }
 
     val closedDrawerWidth = CollapsedDrawerItemWidth
     val openDrawerWidth = ExpandedDrawerItemWidth
