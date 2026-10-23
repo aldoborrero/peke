@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.kids
 
 import dev.aldoborrero.peke.kids.ui.GrownUpRoute
 import dev.aldoborrero.peke.kids.ui.grownUpRoute
+import dev.aldoborrero.peke.kids.ui.unknownUserRoute
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -48,28 +49,36 @@ class GrownUpRoutesTest {
 
     @Test
     fun grownUpsReachOnlyTheSetupPages() {
-        allowed.forEach { assertEquals(it.toString(), GrownUpRoute.Show(it), grownUpRoute(it, lockEngaged = false, notAKid = true)) }
-        blocked.forEach { assertEquals(it.toString(), GrownUpRoute.Shell, grownUpRoute(it, lockEngaged = false, notAKid = true)) }
+        allowed.forEach { assertEquals(it.toString(), GrownUpRoute.Show(it), grownUpRoute(it, lockEngaged = false)) }
+        blocked.forEach { assertEquals(it.toString(), GrownUpRoute.Shell, grownUpRoute(it, lockEngaged = false)) }
     }
 
     @Test
     fun anEngagedLockNeverOpensTheShell() {
         (allowed + blocked).forEach {
-            assertEquals(it.toString(), GrownUpRoute.KidsUserList, grownUpRoute(it, lockEngaged = true, notAKid = true))
+            assertEquals(it.toString(), GrownUpRoute.KidsUserList, grownUpRoute(it, lockEngaged = true))
         }
     }
 
     @Test
     fun anUnknownLockWaits() {
-        (allowed + blocked).forEach { assertEquals(GrownUpRoute.Loading, grownUpRoute(it, lockEngaged = null, notAKid = true)) }
+        (allowed + blocked).forEach { assertEquals(GrownUpRoute.Loading, grownUpRoute(it, lockEngaged = null)) }
     }
 
     @Test
-    fun aUserWhoMayStillBeAKidWaits() {
+    fun aUserWhoMayStillBeAKidWaitsForTheServer() {
         // Right after a kid signs in their profile may still be on its way: neither the shell nor a bounce to the
         // user list, whatever the lock says
         listOf(true, false, null).forEach { lock ->
-            (allowed + blocked).forEach { assertEquals(GrownUpRoute.Loading, grownUpRoute(it, lockEngaged = lock, notAKid = false)) }
+            assertEquals(GrownUpRoute.Loading, unknownUserRoute(unanswered = false, lockEngaged = lock))
         }
+    }
+
+    @Test
+    fun aUserTheServerCouldNotAnswerForNeverGetsTheShell() {
+        // Fail closed: a locked TV goes back to the kids, an unlocked one offers to ask again
+        assertEquals(GrownUpRoute.KidsUserList, unknownUserRoute(unanswered = true, lockEngaged = true))
+        assertEquals(GrownUpRoute.Unanswered, unknownUserRoute(unanswered = true, lockEngaged = false))
+        assertEquals(GrownUpRoute.Loading, unknownUserRoute(unanswered = true, lockEngaged = null))
     }
 }

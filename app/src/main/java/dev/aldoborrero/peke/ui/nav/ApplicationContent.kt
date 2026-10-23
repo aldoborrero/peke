@@ -26,7 +26,9 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.ui.GrownUpRoute
 import dev.aldoborrero.peke.kids.ui.GrownUpShell
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
+import dev.aldoborrero.peke.kids.ui.KidsUnansweredPage
 import dev.aldoborrero.peke.kids.ui.grownUpRoute
+import dev.aldoborrero.peke.kids.ui.unknownUserRoute
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -35,8 +37,6 @@ import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchIO
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 // Top scrim configuration for text readability (clock, season tabs)
@@ -53,24 +53,12 @@ class ApplicationContentViewModel
     ) : ViewModel() {
         val lockEngaged = kidsModeService.lockEngaged
 
-        private val _notAKid = MutableStateFlow<Int?>(null)
-
         /**
-         * The row of the user the server confirmed has no kid profile, null while unknown
+         * Whether the server couldn't say if the current user is a kid, see [KidsModeService.unanswered]
          */
-        val notAKid: StateFlow<Int?> = _notAKid
+        val unanswered = kidsModeService.unanswered
 
-        /**
-         * Ask the server whether [user], who has no cached kid profile, is a kid after all, as right after a kid
-         * signs in. Without an answer the cached profile decides, so a lost cache still keeps the lock (fail closed).
-         */
-        suspend fun checkNotAKid(
-            server: JellyfinServer,
-            user: JellyfinUser,
-        ) {
-            _notAKid.value = null
-            if (kidsModeService.refreshedProfileFor(server, user) == null) _notAKid.value = user.rowId
-        }
+        fun retry() = kidsModeService.retry()
 
         fun toKidsUserList(server: JellyfinServer) {
             setupNavigationManager.navigateTo(SetupDestination.UserList(server))
@@ -108,17 +96,13 @@ fun ApplicationContent(
             viewModel = viewModel,
         )
         val navDrawerListState = rememberLazyListState()
-        // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown
+        // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown, nor the
+        // grown-up shell: that waits for the server to say the user isn't a kid
         val kidsLoading = LocalKidsMode.current == KidsModeState.Loading
         // Peke is for kids: anyone else only gets the grown-up shell
         val grownUp = LocalKidsMode.current == KidsModeState.Inactive
         val lockEngaged by viewModel.lockEngaged.collectAsState()
-        // A user without a cached kid profile may be a kid whose profile is still being read, so wait for the server
-        LaunchedEffect(server.id, user.rowId, grownUp) {
-            if (grownUp) viewModel.checkNotAKid(server, user)
-        }
-        val notAKidRow by viewModel.notAKid.collectAsState()
-        val notAKid = notAKidRow == user.rowId
+        val unanswered by viewModel.unanswered.collectAsState()
         NavDisplay(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
@@ -131,10 +115,9 @@ fun ApplicationContent(
                 key as Destination
                 val contentKey = "${key}_${server?.id}_${user?.id}"
                 NavEntry(key, contentKey = contentKey) {
-                    if (kidsLoading) {
-                        LoadingPage(Modifier.fillMaxSize())
-                    } else if (grownUp) {
-                        when (val route = grownUpRoute(key, lockEngaged, notAKid)) {
+                    if (kidsLoading || grownUp) {
+                        val route = if (grownUp) grownUpRoute(key, lockEngaged) else unknownUserRoute(unanswered, lockEngaged)
+                        when (route) {
                             GrownUpRoute.Loading -> {
                                 LoadingPage(Modifier.fillMaxSize())
                             }
@@ -142,6 +125,10 @@ fun ApplicationContent(
                             GrownUpRoute.KidsUserList -> {
                                 LaunchedEffect(Unit) { viewModel.toKidsUserList(server) }
                                 LoadingPage(Modifier.fillMaxSize())
+                            }
+
+                            GrownUpRoute.Unanswered -> {
+                                KidsUnansweredPage(onRetry = viewModel::retry, modifier = Modifier.fillMaxSize())
                             }
 
                             GrownUpRoute.Shell -> {

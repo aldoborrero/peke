@@ -14,8 +14,9 @@ import javax.inject.Singleton
 
 /**
  * Where an app launch goes while the TV is locked to kids mode and the last session didn't bring a user back: to the
- * kids side, never to the server list. That is the only kid on this TV, signed in again if their token still works, or
- * else the kids' user list of the server whose kid was used most recently, which only lists kids while locked.
+ * kids side, never to the server list. That is the only kid on this TV, signed in again if they have a saved token
+ * that still works and their profile doesn't require a login, or else the kids' user list of the server whose kid
+ * was used most recently, which only lists kids while locked.
  */
 @Singleton
 class KidsLockedLaunch
@@ -39,7 +40,8 @@ class KidsLockedLaunch
             val servers = withContext(PekeDispatchers.IO) { serverDao.getServers() }
             val kidServer = mostRecentKidServer(servers, kidIds) ?: return null
             val onlyKid = servers.flatMap { s -> s.users.filter { it.rowId in kidIds } }.singleOrNull()
-            if (signInAutomatically && onlyKid != null) {
+            // Only a saved session that may be used without signing in again; anything else needs the list
+            if (signInAutomatically && onlyKid != null && onlyKid.accessToken != null && !onlyKid.requireLogin) {
                 val current =
                     try {
                         serverRepository.tryChangeUser(onlyKid.serverId, onlyKid.id)

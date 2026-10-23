@@ -8,14 +8,16 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.data.KidProfileRepository
 import dev.aldoborrero.peke.kids.server.KidsPluginService
-import dev.aldoborrero.peke.kids.server.KidsServer
 import dev.aldoborrero.peke.kids.server.KidsServerState
 import dev.aldoborrero.peke.services.KeyValueService
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -40,7 +42,22 @@ class KidsModeServiceTest {
     private val server = JellyfinServer(id = UUID.randomUUID(), name = "server", url = "http://localhost", version = null)
     private val adult = JellyfinUser(rowId = 1, id = UUID.randomUUID(), name = "adult", serverId = server.id, accessToken = "a")
     private val kid = JellyfinUser(rowId = 2, id = UUID.randomUUID(), name = "kid", serverId = server.id, accessToken = "k")
-    private val repository = mockk<KidProfileRepository>(relaxed = true)
+    private val notKids = MutableStateFlow<Set<Int>>(emptySet())
+    private val repository =
+        mockk<KidProfileRepository>(relaxed = true) {
+            every { notKids } returns this@KidsModeServiceTest.notKids
+        }
+    private val pluginService = mockk<KidsPluginService>(relaxed = true)
+
+    /**
+     * The server answers that [user] isn't a kid
+     */
+    private fun answersNotAKid(user: JellyfinUser) {
+        coEvery { repository.refresh(any(), user) } coAnswers {
+            notKids.value += user.rowId
+            true
+        }
+    }
 
     private fun TestScope.store() =
         PreferenceDataStoreFactory.create(scope = backgroundScope) {
@@ -54,7 +71,6 @@ class KidsModeServiceTest {
     ): KidsModeService {
         val serverRepository = mockk<ServerRepository>()
         every { serverRepository.current } returns current
-        val pluginService = mockk<KidsPluginService>(relaxed = true)
         every { pluginService.current } returns plugin
         coEvery { pluginService.forget(any()) } coAnswers { dao.deleteForServer(firstArg()) }
         return KidsModeService(
@@ -69,8 +85,9 @@ class KidsModeServiceTest {
     }
 
     @Test
-    fun `inactive for users without a kid profile`() =
+    fun `inactive for users the server says aren't kids`() =
         runTest(UnconfinedTestDispatcher()) {
+            answersNotAKid(adult)
             val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
             val service = createService(current, FakeKidProfileDao())
             advanceUntilIdle()
@@ -132,16 +149,75 @@ class KidsModeServiceTest {
         }
 
     @Test
-    fun `the current user's profile is read once the plugin is available`() =
+    fun `the current user's profile is read once, after asking for the plugin if the server hasn't said`() =
         runTest(UnconfinedTestDispatcher()) {
-            val plugin = MutableStateFlow(KidsServerState.ABSENT)
+            every { pluginService.answered(server.id) } returns false
             val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, kid))
-            createService(current, FakeKidProfileDao { server.id }, plugin)
+            createService(current, FakeKidProfileDao { server.id })
             advanceUntilIdle()
-            coVerify(exactly = 0) { repository.refresh(any(), any()) }
-            plugin.value = KidsServerState.of(KidsServer(server.id, apiVersion = 1, features = KIDS_FEATURES), 0)
+            coVerifyOrder {
+                pluginService.check(server)
+                repository.refresh(server, kid)
+            }
+            coVerify(exactly = 1) { repository.refresh(any(), any()) }
+        }
+
+    @Test
+    fun `a user without a cached profile stays loading until the server says they aren't a kid`() =
+        runTest(UnconfinedTestDispatcher()) {
+            // No connection: no answer
+            coEvery { repository.refresh(any(), adult) } returns false
+            val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
+            val service = createService(current, FakeKidProfileDao { server.id })
             advanceUntilIdle()
-            coVerify(exactly = 1) { repository.refresh(server, kid) }
+            assertEquals(KidsModeState.Loading, service.state.value)
+            assertTrue(service.unanswered.value)
+
+            answersNotAKid(adult)
+            service.retry()
+            advanceUntilIdle()
+            assertEquals(KidsModeState.Inactive, service.state.value)
+            assertFalse(service.unanswered.value)
+        }
+
+    @Test
+    fun `a cached kid is a kid without an answer from the server`() =
+        runTest(UnconfinedTestDispatcher()) {
+            coEvery { repository.refresh(any(), kid) } returns false
+            val dao = FakeKidProfileDao { server.id }
+            dao.upsert(KidProfile(userId = kid.rowId))
+            val service = createService(MutableStateFlow(CurrentUser(server, kid)), dao)
+            advanceUntilIdle()
+            assertTrue(service.isActive)
+            assertFalse(service.unanswered.value)
+        }
+
+    @Test
+    fun `a sign-in waits for the read that started when the user became current`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val dao = FakeKidProfileDao { server.id }
+            val answer = CompletableDeferred<Unit>()
+            coEvery { repository.refresh(server, kid) } coAnswers {
+                answer.await()
+                dao.upsert(KidProfile(userId = kid.rowId))
+                true
+            }
+            val current = MutableStateFlow<CurrentUser?>(null)
+            val service = createService(current, dao)
+            // The sign-in made the kid current, then waits for their profile
+            current.value = CurrentUser(server, kid)
+            val signIn = async { service.lockIfKidAfterSignIn(CurrentUser(server, kid)) }
+            assertEquals(KidsModeState.Loading, service.state.value)
+            answer.complete(Unit)
+            signIn.await()
+            advanceUntilIdle()
+            assertEquals(true, service.lockEngaged.value)
+            assertTrue(service.isActive)
+            coVerify(exactly = 1) { repository.refresh(any(), any()) }
+            // Coming back soon after reads nothing again
+            service.onResume(mockk())
+            advanceUntilIdle()
+            coVerify(exactly = 1) { repository.refresh(any(), any()) }
         }
 
     @Test
@@ -186,7 +262,10 @@ class KidsModeServiceTest {
             val current = MutableStateFlow<CurrentUser?>(null)
             val service = createService(current, dao)
             // The profile isn't cached yet when the sign-in finishes; the server has it
-            coEvery { repository.refresh(server, kid) } coAnswers { dao.upsert(KidProfile(userId = kid.rowId)) }
+            coEvery { repository.refresh(server, kid) } coAnswers {
+                dao.upsert(KidProfile(userId = kid.rowId))
+                true
+            }
             advanceUntilIdle()
             assertEquals(false, service.lockEngaged.value)
             service.lockIfKidAfterSignIn(CurrentUser(server, kid))
@@ -209,7 +288,6 @@ class KidsModeServiceTest {
         runTest(UnconfinedTestDispatcher()) {
             val serverRepository = mockk<ServerRepository>()
             every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(CurrentUser(server, kid))
-            val pluginService = mockk<KidsPluginService>(relaxed = true)
             every { pluginService.current } returns MutableStateFlow(KidsServerState.ABSENT)
             val dao = FakeKidProfileDao { server.id }
             // A scope that hasn't run anything yet, as right after the app starts

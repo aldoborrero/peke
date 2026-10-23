@@ -168,6 +168,70 @@ class SwitchUserViewModelTest {
         }
 
     @Test
+    fun `when the TV locks the list shown narrows at once, without the network`() =
+        runTest(testDispatcher) {
+            savedUsers.value = listOf(kid, grownUp)
+            kidRows.value = setOf(kid.rowId)
+            val viewModel = viewModel()
+            viewModel.init()
+            advanceUntilIdle()
+            assertEquals(2, viewModel.state.value.users.size)
+
+            // The server can't be reached any more, which doesn't matter: nothing new has to appear
+            coEvery { userApi.getPublicUsers() } throws InvalidStatusException(503)
+            locked.value = true
+            advanceUntilIdle()
+            assertEquals(
+                listOf(kid),
+                viewModel.state.value.users
+                    .map { it.user },
+            )
+            assertTrue(viewModel.state.value.kidsLocked)
+            coVerify(exactly = 1) { userApi.getPublicUsers() }
+        }
+
+    @Test
+    fun `a failed reload still narrows the list to kids`() =
+        runTest(testDispatcher) {
+            savedUsers.value = listOf(grownUp)
+            val viewModel = viewModel()
+            viewModel.init()
+            advanceUntilIdle()
+            assertEquals(
+                listOf(grownUp),
+                viewModel.state.value.users
+                    .map { it.user },
+            )
+
+            // A kid new on this TV has to appear, but the server doesn't answer
+            coEvery { userApi.getPublicUsers() } throws InvalidStatusException(503)
+            savedUsers.value = listOf(kid, grownUp)
+            kidRows.value = setOf(kid.rowId)
+            locked.value = true
+            advanceUntilIdle()
+            assertEquals(
+                emptyList<JellyfinUser>(),
+                viewModel.state.value.users
+                    .map { it.user },
+            )
+            assertTrue(viewModel.state.value.kidsLocked)
+            assertEquals(LoadingState.Success, viewModel.state.value.loading)
+        }
+
+    @Test
+    fun `while locked a grown-up's saved tile is refused`() =
+        runTest(testDispatcher) {
+            savedUsers.value = listOf(kid, grownUp)
+            kidRows.value = setOf(kid.rowId)
+            locked.value = true
+            val viewModel = viewModel()
+            val result = viewModel.trySwitchUser(grownUp)
+            advanceUntilIdle()
+            assertEquals(SwitchUserResult.Error("locked", false), result.await())
+            coVerify(exactly = 0) { serverRepository.changeUser(any<JellyfinServer>(), any()) }
+        }
+
+    @Test
     fun `opening the user list keeps the most recent session`() =
         runTest(testDispatcher) {
             savedUsers.value = listOf(kid, grownUp)

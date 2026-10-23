@@ -171,12 +171,7 @@ class ServerRepository
 
         suspend fun getMostRecentServerInternal(recentServer: MostRecentServer): RestoredSession {
             val recentServer = recentServer ?: mostRecentServerProvider.get()
-            val serverId =
-                when (recentServer) {
-                    MostRecentServer.None -> null
-                    is MostRecentServer.Server -> recentServer.serverId
-                    is MostRecentServer.ServerAndUser -> recentServer.serverId
-                }
+            val serverId = recentServer.serverId
             val server = serverId?.let { serverDao.getServer(serverId)?.server }
             return if (server != null) {
                 RestoredSession.ServerOnly(server)

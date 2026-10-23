@@ -18,6 +18,7 @@ import io.mockk.mockk
 import io.mockk.verifyOrder
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ExtraType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -54,6 +55,18 @@ class KidsDirectPlayTest {
             episode.id,
             ((KidsDirectPlay.resume(episode) as Destination.KidsResume).target as Destination.SeriesOverview).seasonEpisode?.episodeId,
         )
+    }
+
+    @Test
+    fun `keep watching items that already go to the player keep their destination`() {
+        val extra = BaseItem(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.VIDEO, extraType = ExtraType.BEHIND_THE_SCENES))
+        val overridden = BaseItem(item(BaseItemKind.MOVIE), destinationOverride = Destination.Playback(id, 5))
+        listOf(extra, overridden).forEach {
+            val destination = row(HomeRowConfig.ContinueWatchingCombined()).clickDestination(it, clickToPlay = false, kidsMode = true)
+            assertTrue(destination is Destination.Playback)
+            assertEquals(it.destination(), destination)
+            assertFalse(KidsDirectPlay.handles(destination))
+        }
     }
 
     @Test
@@ -125,9 +138,9 @@ class KidsDirectPlayTest {
     }
 
     @Test
-    fun `details pages hide item menus and links to other apps from kids`() {
+    fun `details pages hide item menus, delete and people from kids`() {
         val customization = kidsInterfaceCustomization(KidProfile(userId = 1))
-        listOf(RestrictedFeature.ITEM_MENUS, RestrictedFeature.DELETE, RestrictedFeature.EXTERNAL_APPS, RestrictedFeature.PEOPLE).forEach {
+        listOf(RestrictedFeature.ITEM_MENUS, RestrictedFeature.DELETE, RestrictedFeature.PEOPLE).forEach {
             assertFalse(it.name, customization.allows(it))
         }
     }

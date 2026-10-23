@@ -35,9 +35,14 @@ import javax.inject.Inject
  */
 object KidsDirectPlay {
     /**
-     * Where a kid's click on [item] in keep watching goes: straight back into it
+     * Where a kid's click on [item] in keep watching goes: straight back into it. An item that already goes to the
+     * player (such as an extra, or one with a destination override) keeps its destination.
      */
-    fun resume(item: BaseItem): Destination = Destination.KidsResume(item.destination())
+    fun resume(item: BaseItem): Destination =
+        when (val destination = item.destination()) {
+            is Destination.MediaItem, is Destination.SeriesOverview -> Destination.KidsResume(destination)
+            else -> destination
+        }
 
     fun handles(destination: Destination): Boolean = destination is Destination.KidsResume || KidsItemTypes.refuses(destination)
 }

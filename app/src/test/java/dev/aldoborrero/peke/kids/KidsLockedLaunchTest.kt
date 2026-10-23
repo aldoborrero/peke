@@ -98,6 +98,16 @@ class KidsLockedLaunchTest {
         }
 
     @Test
+    fun `an only kid without a token or who must sign in goes to the kids list without trying`() =
+        runTest(testDispatcher) {
+            listOf(manuel.copy(accessToken = null), manuel.copy(requireLogin = true)).forEach { kid ->
+                servers = listOf(JellyfinServerUsers(home, listOf(kid)), JellyfinServerUsers(other, listOf(parent)))
+                assertEquals(SetupDestination.UserList(home), launch.destination(RestoredSession.None, signInAutomatically = true))
+            }
+            coVerify(exactly = 0) { serverRepository.tryChangeUser(any(), any()) }
+        }
+
+    @Test
     fun `with several kids the launch goes to the kids list of the most recent kid server`() =
         runTest(testDispatcher) {
             kidRows = setOf(manuel.rowId, lucia.rowId)

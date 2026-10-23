@@ -132,6 +132,12 @@ class KidsPluginService
             KidsServerState.of(kidsServerDao.get(serverId), kidProfileDao.userIdsForServer(serverId).size)
 
         /**
+         * Whether [serverId] gave a definite answer about the plugin in this run of the app, so that [state] is what
+         * the server said and not only what was cached
+         */
+        fun answered(serverId: UUID): Boolean = lastChecked.containsKey(serverId)
+
+        /**
          * Ask [server] whether it has the plugin, and remember a definite answer
          *
          * @return what is now known about the server

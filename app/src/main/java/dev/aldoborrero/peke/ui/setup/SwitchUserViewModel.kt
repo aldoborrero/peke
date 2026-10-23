@@ -94,13 +94,18 @@ class SwitchUserViewModel
             quickConnectJob?.cancel()
             usersJob?.cancel()
             _state.update { SwitchUserState() }
-            // Load the users again whenever the kids lock or who is a kid changes, for example right after a kid
-            // signed in and locked the device, so the list shows who may be picked now
+            allUsers = null
+            // When the kids lock or who is a kid changes, for example right after a kid signed in and locked the
+            // device, narrow the list already shown at once, without the network. Only a kid who must appear and
+            // isn't in it yet needs the server.
             usersJob =
                 viewModelScope.launchIO {
                     combine(kidsModeService.locked.filterNotNull(), kidsModeService.kidRowIds) { locked, kids -> locked to kids }
                         .distinctUntilChanged()
-                        .collectLatest { loadUsers() }
+                        .collectLatest { (_, kids) ->
+                            val loaded = allUsers
+                            if (loaded == null || missesKid(loaded, kids)) loadUsers() else showUsers(loaded)
+                        }
                 }
 
             viewModelScope.launchIO {
@@ -127,14 +132,23 @@ class SwitchUserViewModel
             }
         }
 
+        /**
+         * Every user of the server as last loaded, before the kids lock narrows them, null until loaded
+         */
+        @Volatile
+        private var allUsers: List<JellyfinUserAndImage>? = null
+
         private suspend fun loadUsers() {
             try {
                 val serverUsers = getUsers()
                 val (serverVersion, supported) = checkServerVersion()
+                allUsers = serverUsers
+                val (users, locked) = usersToShow(serverUsers)
                 _state.update {
                     it.copy(
                         loading = LoadingState.Success,
-                        users = serverUsers,
+                        users = users,
+                        kidsLocked = locked,
                         serverVersion = serverVersion,
                         serverVersionSupported = supported,
                     )
@@ -143,8 +157,11 @@ class SwitchUserViewModel
                 throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "Error fetching users for server $server")
-                // A failed reload keeps the list that is shown
-                if (_state.value.loading !is LoadingState.Success) {
+                // A failed reload keeps the list that is shown, narrowed to who may be picked now
+                val loaded = allUsers
+                if (loaded != null) {
+                    showUsers(loaded)
+                } else if (_state.value.loading !is LoadingState.Success) {
                     _state.update {
                         it.copy(
                             loading = LoadingState.Error(ex),
@@ -154,8 +171,39 @@ class SwitchUserViewModel
             }
         }
 
+        /**
+         * Show [users] as far as the kids lock allows right now, without the network
+         */
+        private suspend fun showUsers(users: List<JellyfinUserAndImage>) {
+            val (shown, locked) = usersToShow(users)
+            _state.update { it.copy(users = shown, kidsLocked = locked) }
+        }
+
+        private suspend fun usersToShow(users: List<JellyfinUserAndImage>): Pair<List<JellyfinUserAndImage>, Boolean> {
+            val locked = kidsModeService.isLockedNow()
+            return filterUsersForKidsLock(users, { it.user }, kidsModeService.kidUserRowIds(), locked) to locked
+        }
+
+        /**
+         * Whether a kid saved on this device for this server is missing from [users], so the list has to be loaded
+         * again for their tile
+         */
+        private suspend fun missesKid(
+            users: List<JellyfinUserAndImage>,
+            kids: Set<Int>,
+        ): Boolean {
+            val shown = users.filter { it.known }.map { it.user.rowId }.toSet()
+            val saved = withContext(PekeDispatchers.IO) { serverDao.getServer(server.id)?.users.orEmpty() }
+            return saved.any { it.rowId in kids && it.rowId !in shown }
+        }
+
         fun trySwitchUser(user: JellyfinUser): Deferred<SwitchUserResult> =
             viewModelScope.async(PekeDispatchers.IO) {
+                // The list only shows kids while locked; this holds even if a stale tile is picked
+                if (kidsModeService.isLockedNow() && kidsModeService.profileFor(user) == null) {
+                    Timber.w("Refusing to switch to a user who isn't a kid while locked to kids mode")
+                    return@async SwitchUserResult.Error(context.getString(R.string.kids_sign_in_locked), false)
+                }
                 try {
                     val current = serverRepository.changeUser(server, user)
                     kidsModeService.lockIfKid(current.user)
@@ -352,8 +400,8 @@ class SwitchUserViewModel
         fun removeUser(user: JellyfinUser) {
             viewModelScope.launchIO {
                 serverRepository.removeUser(user)
-                val serverUsers = getUsers()
-                _state.update { it.copy(users = serverUsers) }
+                allUsers = allUsers?.filterNot { it.known && it.user.rowId == user.rowId }
+                loadUsers()
             }
         }
 
@@ -399,12 +447,10 @@ class SwitchUserViewModel
                     kidsModeService.refreshServer(server)
                 } else {
                     // Everyone may be picked, so the list doesn't wait for the server; if the refresh finds kids and
-                    // that locks the device, the list is loaded again (see init)
+                    // that locks the device, the list is narrowed (see init)
                     viewModelScope.launchIO { kidsModeService.refreshServer(server) }
                 }
-                val locked = kidsModeService.isLockedNow()
-                _state.update { it.copy(kidsLocked = locked) }
-                filterUsersForKidsLock(users, { it.user }, kidsModeService.kidUserRowIds(), locked)
+                users
             }
 
         private suspend fun checkServerVersion(): Pair<String?, ServerVersionSupported> {
