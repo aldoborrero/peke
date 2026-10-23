@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 240">
+    <path d="M110 42 Q102 20 114 16 Q126 20 128 50 M170 42 Q178 20 166 16 Q154 20 152 50" fill="none" stroke="#65D9CE" stroke-width="12" stroke-linecap="round"></path>
+    <rect x="40" y="50" width="200" height="160" rx="52" fill="#65D9CE" stroke="#28335B" stroke-width="8"></rect>
+    <rect x="64" y="72" width="152" height="116" rx="36" fill="#FFDA70" stroke="#28335B" stroke-width="8"></rect>
+    <path d="M102 122 Q112 112 122 122 M158 122 Q168 112 178 122" fill="none" stroke="#28335B" stroke-width="8" stroke-linecap="round"></path>
+    <circle cx="96" cy="142" r="9" fill="#FF927E" opacity="0.75"></circle>
+    <circle cx="184" cy="142" r="9" fill="#FF927E" opacity="0.75"></circle>
+    <path d="M122 148 Q140 164 158 148" fill="none" stroke="#28335B" stroke-width="8" stroke-linecap="round"></path>
+    <path d="M246 108 q22 -10 24 -36" fill="none" stroke="#65D9CE" stroke-width="12" stroke-linecap="round"></path>
+    <circle cx="272" cy="64" r="14" fill="#65D9CE" stroke="#28335B" stroke-width="6"></circle>
+    <path d="M30 40 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5 z" fill="#FFDA70"></path>
+    <path d="M262 190 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z" fill="#B5A0EF"></path>
+  </svg>
