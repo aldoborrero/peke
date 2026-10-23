@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,7 +40,10 @@ class KidProfileRepositoryTest {
         """{"UserId":"${kid.id}","Revision":$revision,"SearchAllowed":false,"AutoplayEnabled":false,"AutoplayCap":3,""" +
             """"Sections":[{"Section":"Picked","Visible":true}],"PickedItemIds":[],"Extra":"kept"}"""
 
-    private suspend fun TestScope.repository(available: Boolean = true): KidProfileRepository {
+    private suspend fun TestScope.repository(
+        available: Boolean = true,
+        reachable: Boolean = true,
+    ): KidProfileRepository {
         val serverRepository = mockk<ServerRepository>()
         every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
         val jellyfinServerDao = mockk<JellyfinServerDao>()
@@ -47,9 +51,11 @@ class KidProfileRepositoryTest {
         every { jellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(adult, kid)))
         every { lock.auth() } returns KidsAuth(server, adult, "a", "g-1")
         val api = http.api(UnconfinedTestDispatcher(testScheduler))
+        http.offline = !reachable
         val plugin = KidsPluginService(serverRepository, api, FakeKidsServerDao(), profileDao, FakeClock(), backgroundScope)
         if (available) http.on("GET", "/Kids/Info", 200, """{"ApiVersion":1,"Features":[$KIDS_FEATURES_JSON]}""")
         plugin.check(server)
+        http.offline = false
         return KidProfileRepository(api, profileDao, jellyfinServerDao, plugin, lock)
     }
 
@@ -80,6 +86,43 @@ class KidProfileRepositoryTest {
             http.on("GET", "/Kids/Users/${kid.id}/Profile", 404, NOT_A_KID)
             repository.refresh(server, kid)
             assertNull(profileDao.get(kid.rowId))
+        }
+
+    @Test
+    fun `refresh says whether the server answered, and remembers who isn't a kid`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = repository()
+            http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(3))
+            assertTrue(repository.refresh(server, kid))
+
+            http.on("GET", "/Kids/Users/${adult.id}/Profile", 500)
+            assertFalse(repository.refresh(server, adult))
+            http.offline = true
+            assertFalse(repository.refresh(server, adult))
+            assertEquals(emptySet<Int>(), repository.notKids.value)
+
+            http.offline = false
+            http.on("GET", "/Kids/Users/${adult.id}/Profile", 404, NOT_A_KID)
+            assertTrue(repository.refresh(server, adult))
+            assertEquals(setOf(adult.rowId), repository.notKids.value)
+        }
+
+    @Test
+    fun `nobody is answered for while the plugin's state is unknown`() =
+        runTest(UnconfinedTestDispatcher()) {
+            // /Kids/Info couldn't be read: no answer
+            val unknown = repository(available = false, reachable = false)
+            assertFalse(unknown.refresh(server, adult))
+            assertEquals(emptySet<Int>(), unknown.notKids.value)
+        }
+
+    @Test
+    fun `a server that said it has no plugin answers that nobody is a kid`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = repository(available = false)
+            assertTrue(repository.refresh(server, adult))
+            assertEquals(setOf(adult.rowId), repository.notKids.value)
+            assertTrue(http.requests.none { it.path.startsWith("/Kids/Users") })
         }
 
     @Test
@@ -152,6 +195,8 @@ class KidProfileRepositoryTest {
             http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(4))
             repository.refreshServer(server)
             assertNull(profileDao.get(adult.rowId))
+            // Left out of the list: the server said the adult isn't a kid
+            assertEquals(setOf(adult.rowId), repository.notKids.value)
             assertEquals(4L, profileDao.get(kid.rowId)?.revision)
 
             // A failed list changes nothing

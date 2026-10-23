@@ -39,6 +39,9 @@ enum class RestrictedFeature {
 
     /** Live TV recordings: record buttons, series recordings, the DVR schedule (timers) and recording folders */
     LIVE_TV_RECORDINGS,
+
+    /** The people rows (cast & crew, guest stars) on details pages */
+    PEOPLE,
 }
 
 /**

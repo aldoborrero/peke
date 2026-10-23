@@ -29,18 +29,22 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * In kids mode, opening a video or a series plays it right away instead of showing its details page, and anything
- * kids don't get (music, people, photos) goes back with a message instead of opening a page
+ * In kids mode, an item opened from keep watching on the home plays right away instead of showing its details page,
+ * and anything kids don't get (music, people, photos) goes back with a message instead of opening a page. Opened from
+ * anywhere else, kids get the item's details page.
  */
 object KidsDirectPlay {
-    private val PLAYABLE = setOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE, BaseItemKind.VIDEO, BaseItemKind.MUSIC_VIDEO)
+    /**
+     * Where a kid's click on [item] in keep watching goes: straight back into it. An item that already goes to the
+     * player (such as an extra, or one with a destination override) keeps its destination.
+     */
+    fun resume(item: BaseItem): Destination =
+        when (val destination = item.destination()) {
+            is Destination.MediaItem, is Destination.SeriesOverview -> Destination.KidsResume(destination)
+            else -> destination
+        }
 
-    fun handles(destination: Destination): Boolean =
-        when (destination) {
-            is Destination.MediaItem -> destination.type in PLAYABLE || destination.type == BaseItemKind.SERIES
-            is Destination.SeriesOverview -> true
-            else -> false
-        } || KidsItemTypes.refuses(destination)
+    fun handles(destination: Destination): Boolean = destination is Destination.KidsResume || KidsItemTypes.refuses(destination)
 }
 
 @HiltViewModel
@@ -63,7 +67,7 @@ class KidsDirectPlayViewModel
                         null
                     }
                 withContext(PekeDispatchers.Main) {
-                    // Swap the details page for the player, so Back returns to where the kid was
+                    // Swap this loading page for the player, so Back returns to where the kid was
                     navigationManager.goBack()
                     if (item != null) navigationManager.navigateTo(Destination.Playback(item))
                 }
@@ -73,6 +77,10 @@ class KidsDirectPlayViewModel
 
         private suspend fun resolve(destination: Destination): BaseItem? =
             when (destination) {
+                is Destination.KidsResume -> {
+                    resolve(destination.target)
+                }
+
                 is Destination.SeriesOverview -> {
                     destination.seasonEpisode?.episodeId?.let { getItem(it) } ?: nextUp(destination.itemId)
                 }

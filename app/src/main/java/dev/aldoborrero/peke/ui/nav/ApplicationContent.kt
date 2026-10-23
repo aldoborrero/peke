@@ -26,7 +26,9 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.ui.GrownUpRoute
 import dev.aldoborrero.peke.kids.ui.GrownUpShell
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
+import dev.aldoborrero.peke.kids.ui.KidsUnansweredPage
 import dev.aldoborrero.peke.kids.ui.grownUpRoute
+import dev.aldoborrero.peke.kids.ui.unknownUserRoute
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -46,10 +48,17 @@ class ApplicationContentViewModel
     @Inject
     constructor(
         val backdropService: BackdropService,
-        kidsModeService: KidsModeService,
+        private val kidsModeService: KidsModeService,
         private val setupNavigationManager: SetupNavigationManager,
     ) : ViewModel() {
         val lockEngaged = kidsModeService.lockEngaged
+
+        /**
+         * Whether the server couldn't say if the current user is a kid, see [KidsModeService.unanswered]
+         */
+        val unanswered = kidsModeService.unanswered
+
+        fun retry() = kidsModeService.retry()
 
         fun toKidsUserList(server: JellyfinServer) {
             setupNavigationManager.navigateTo(SetupDestination.UserList(server))
@@ -87,11 +96,13 @@ fun ApplicationContent(
             viewModel = viewModel,
         )
         val navDrawerListState = rememberLazyListState()
-        // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown
+        // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown, nor the
+        // grown-up shell: that waits for the server to say the user isn't a kid
         val kidsLoading = LocalKidsMode.current == KidsModeState.Loading
         // Peke is for kids: anyone else only gets the grown-up shell
         val grownUp = LocalKidsMode.current == KidsModeState.Inactive
         val lockEngaged by viewModel.lockEngaged.collectAsState()
+        val unanswered by viewModel.unanswered.collectAsState()
         NavDisplay(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
@@ -104,10 +115,9 @@ fun ApplicationContent(
                 key as Destination
                 val contentKey = "${key}_${server?.id}_${user?.id}"
                 NavEntry(key, contentKey = contentKey) {
-                    if (kidsLoading) {
-                        LoadingPage(Modifier.fillMaxSize())
-                    } else if (grownUp) {
-                        when (val route = grownUpRoute(key, lockEngaged)) {
+                    if (kidsLoading || grownUp) {
+                        val route = if (grownUp) grownUpRoute(key, lockEngaged) else unknownUserRoute(unanswered, lockEngaged)
+                        when (route) {
                             GrownUpRoute.Loading -> {
                                 LoadingPage(Modifier.fillMaxSize())
                             }
@@ -115,6 +125,10 @@ fun ApplicationContent(
                             GrownUpRoute.KidsUserList -> {
                                 LaunchedEffect(Unit) { viewModel.toKidsUserList(server) }
                                 LoadingPage(Modifier.fillMaxSize())
+                            }
+
+                            GrownUpRoute.Unanswered -> {
+                                KidsUnansweredPage(onRetry = viewModel::retry, modifier = Modifier.fillMaxSize())
                             }
 
                             GrownUpRoute.Shell -> {

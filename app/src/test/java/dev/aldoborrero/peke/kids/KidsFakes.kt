@@ -42,6 +42,8 @@ class FakeKidProfileDao(
 
     override suspend fun allUserIds(): List<Int> = profiles.value.keys.toList()
 
+    override fun observeUserIds(): Flow<List<Int>> = profiles.map { it.keys.toList() }
+
     override fun observeCount(): Flow<Int> = profiles.map { it.size }
 
     private fun KidProfile.server(): UUID? = serverId ?: serverOf(userId)

@@ -35,6 +35,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.KidsLockedLaunch
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsLiveTv
 import dev.aldoborrero.peke.kids.LocalKidsLocked
@@ -79,6 +80,7 @@ import dev.aldoborrero.peke.util.DebugLogTree
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.requestSerializersModule
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterNotNull
@@ -454,6 +456,7 @@ class MainActivityViewModel
         private val appUpgradeHandler: AppUpgradeHandler,
         private val intentService: IntentService,
         private val kidsModeService: KidsModeService,
+        private val kidsLockedLaunch: KidsLockedLaunch,
     ) : ViewModel() {
         private val mutex = Mutex()
 
@@ -598,14 +601,26 @@ class MainActivityViewModel
                 )
             } else {
                 val restoredSession =
-                    if (signInAutomatically) {
-                        Timber.v("Sign in automatically")
-                        serverRepository.restoreLastSession()
-                    } else {
-                        serverRepository.getMostRecentServer()
+                    try {
+                        if (signInAutomatically) {
+                            Timber.v("Sign in automatically")
+                            serverRepository.restoreLastSession()
+                        } else {
+                            serverRepository.getMostRecentServer()
+                        }
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Error restoring the last session")
+                        null
                     }
                 Timber.d("Restore last session result=%s", restoredSession)
-                setupNavigationManager.navigateTo(restoredSession.destination)
+                // While locked to kids mode, a launch always goes back to the kids side
+                val destination =
+                    kidsLockedLaunch.destination(restoredSession, signInAutomatically)
+                        ?: restoredSession?.destination
+                        ?: SetupDestination.ServerList
+                setupNavigationManager.navigateTo(destination)
             }
         }
     }

@@ -12,6 +12,9 @@ import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsResult
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.util.PekeDispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -41,6 +44,9 @@ enum class SaveResult {
  * The server decides who is a kid. Reads update the cache only on a definite answer, so errors keep the last known
  * profiles (fail closed). Changes go to the server, authorised by the parent grant or an administrator, and are
  * based on the cached revision so that edits made elsewhere are never overwritten.
+ *
+ * Next to the cached profiles it remembers, for this run of the app, which users the server said are not kids
+ * ([notKids]): a user without a cached profile is only a grown-up once the server said so.
  */
 @Singleton
 class KidProfileRepository
@@ -54,19 +60,50 @@ class KidProfileRepository
     ) {
         private suspend fun available(server: JellyfinServer) = pluginService.state(server.id).status == KidsServerStatus.AVAILABLE
 
+        private val _notKids = MutableStateFlow<Set<Int>>(emptySet())
+
+        /**
+         * The users (rows) the server said in this run of the app have no kid profile: the plugin answered "not a
+         * kid" or left them out of its profile list, or the server definitely has no usable Kids plugin. Not stored,
+         * so after a restart a user without a cached profile waits for the server again.
+         */
+        val notKids: StateFlow<Set<Int>> = _notKids
+
+        private fun answeredNotAKid(rowId: Int) = _notKids.update { it + rowId }
+
         /**
          * Read [user]'s profile from the server with the user's own token
+         *
+         * @return whether the server gave a definite answer: a profile, or that [user] isn't a kid
          */
         suspend fun refresh(
             server: JellyfinServer,
             user: JellyfinUser,
-        ) {
-            val token = user.accessToken ?: return
-            if (!available(server)) return
-            when (val result = kidsApi.profile(server.url, token, user.id)) {
-                is KidsResult.Ok -> store(user, result.value)
-                KidsResult.NotAKid, KidsResult.NotFound -> deleteIfNotAKid(server, user, result)
-                else -> Timber.d("Keeping the cached kid profile of %s: %s", user.rowId, result)
+        ): Boolean {
+            val token = user.accessToken ?: return false
+            if (!available(server)) {
+                // Without a usable plugin nobody new is a kid there, but only once the server said so in this run
+                if (!pluginService.answered(server.id)) return false
+                answeredNotAKid(user.rowId)
+                return true
+            }
+            return when (val result = kidsApi.profile(server.url, token, user.id)) {
+                is KidsResult.Ok -> {
+                    store(user, result.value)
+                    true
+                }
+
+                KidsResult.NotAKid, KidsResult.NotFound -> {
+                    // A cached profile kept after an unclear 404 (fail closed) still makes them a kid
+                    deleteIfNotAKid(server, user, result)
+                    answeredNotAKid(user.rowId)
+                    true
+                }
+
+                else -> {
+                    Timber.d("Keeping the cached kid profile of %s: %s", user.rowId, result)
+                    false
+                }
             }
         }
 
@@ -88,6 +125,7 @@ class KidProfileRepository
                 return false
             }
             kidProfileDao.delete(user.rowId)
+            answeredNotAKid(user.rowId)
             return true
         }
 
@@ -110,6 +148,7 @@ class KidProfileRepository
                 val revision = refs[user.id]
                 if (revision == null) {
                     kidProfileDao.delete(user.rowId)
+                    answeredNotAKid(user.rowId)
                 } else if (kidProfileDao.get(user.rowId)?.revision != revision) {
                     refresh(server, user)
                 }
@@ -127,6 +166,7 @@ class KidProfileRepository
             return when (val result = kidsApi.deleteProfile(auth.server.url, auth.token, auth.grant, user.id)) {
                 is KidsResult.Ok -> {
                     kidProfileDao.delete(user.rowId)
+                    answeredNotAKid(user.rowId)
                     SaveResult.SAVED
                 }
 
@@ -203,5 +243,6 @@ class KidProfileRepository
             obj: JsonObject,
         ) {
             kidProfileDao.upsert(KidProfileMapper.fromServer(user.rowId, user.serverId, obj))
+            _notKids.update { it - user.rowId }
         }
     }

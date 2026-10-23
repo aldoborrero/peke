@@ -33,6 +33,7 @@ import org.jellyfin.sdk.model.DeviceInfo
 import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -105,19 +106,28 @@ class KidsApi
         private val deviceInfo: DeviceInfo,
         @param:IoDispatcher private val dispatcher: CoroutineDispatcher,
     ) {
-        suspend fun info(baseUrl: String): KidsResult<KidsInfo> = call(baseUrl, "Kids/Info", null) { decode(KidsInfo.serializer(), it) }
+        suspend fun info(baseUrl: String): KidsResult<KidsInfo> =
+            call(baseUrl, "Kids/Info", null, timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) { decode(KidsInfo.serializer(), it) }
 
         suspend fun profiles(
             baseUrl: String,
             token: String,
         ): KidsResult<List<KidProfileRef>> =
-            call(baseUrl, "Kids/Profiles", token) { decode(ListSerializer(KidProfileRef.serializer()), it) }
+            call(
+                baseUrl,
+                "Kids/Profiles",
+                token,
+                timeoutSeconds = LOOKUP_TIMEOUT_SECONDS,
+            ) { decode(ListSerializer(KidProfileRef.serializer()), it) }
 
         suspend fun profile(
             baseUrl: String,
             token: String,
             userId: UUID,
-        ): KidsResult<JsonObject> = call(baseUrl, "Kids/Users/$userId/Profile", token) { KidsJson.parseToJsonElement(it).jsonObject }
+        ): KidsResult<JsonObject> =
+            call(baseUrl, "Kids/Users/$userId/Profile", token, timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) {
+                KidsJson.parseToJsonElement(it).jsonObject
+            }
 
         suspend fun putProfile(
             baseUrl: String,
@@ -249,6 +259,7 @@ class KidsApi
             grant: String? = null,
             method: String = "GET",
             body: RequestBody? = null,
+            timeoutSeconds: Long? = null,
             parse: (String) -> T,
         ): KidsResult<T> {
             val url =
@@ -270,43 +281,47 @@ class KidsApi
                     }.build()
             return withContext(dispatcher) {
                 try {
-                    okHttpClient.newCall(request).execute().use { response ->
-                        val text = response.body.string()
-                        when (response.code) {
-                            in 200..299 -> {
-                                try {
-                                    KidsResult.Ok(parse(text))
-                                } catch (ex: Exception) {
-                                    Timber.w(ex, "Unreadable answer from %s", path)
+                    okHttpClient
+                        .newCall(request)
+                        .apply { timeoutSeconds?.let { timeout().timeout(it, TimeUnit.SECONDS) } }
+                        .execute()
+                        .use { response ->
+                            val text = response.body.string()
+                            when (response.code) {
+                                in 200..299 -> {
+                                    try {
+                                        KidsResult.Ok(parse(text))
+                                    } catch (ex: Exception) {
+                                        Timber.w(ex, "Unreadable answer from %s", path)
+                                        KidsResult.Failed(response.code)
+                                    }
+                                }
+
+                                400 -> {
+                                    KidsResult.Invalid(errorFields(text))
+                                }
+
+                                401, 403 -> {
+                                    KidsResult.Forbidden
+                                }
+
+                                404 -> {
+                                    if (isNotAKid(text)) KidsResult.NotAKid else KidsResult.NotFound
+                                }
+
+                                409 -> {
+                                    KidsResult.Conflict(objectOrNull(text))
+                                }
+
+                                429 -> {
+                                    KidsResult.Throttled(retryAfter(response.header("Retry-After"), text))
+                                }
+
+                                else -> {
                                     KidsResult.Failed(response.code)
                                 }
                             }
-
-                            400 -> {
-                                KidsResult.Invalid(errorFields(text))
-                            }
-
-                            401, 403 -> {
-                                KidsResult.Forbidden
-                            }
-
-                            404 -> {
-                                if (isNotAKid(text)) KidsResult.NotAKid else KidsResult.NotFound
-                            }
-
-                            409 -> {
-                                KidsResult.Conflict(objectOrNull(text))
-                            }
-
-                            429 -> {
-                                KidsResult.Throttled(retryAfter(response.header("Retry-After"), text))
-                            }
-
-                            else -> {
-                                KidsResult.Failed(response.code)
-                            }
                         }
-                    }
                 } catch (ex: IOException) {
                     Timber.d(ex, "Kids call %s failed", path)
                     KidsResult.Unreachable
@@ -325,6 +340,13 @@ class KidsApi
 
         companion object {
             const val GRANT_HEADER = "X-Kids-Grant"
+
+            /**
+             * The whole of a read that decides whether the current user is a kid, from connecting to the last byte.
+             * Until it answers a user without a cached kid profile waits, so this is kept short; a small JSON answer
+             * from a household server takes well under a second.
+             */
+            private const val LOOKUP_TIMEOUT_SECONDS = 5L
             private val JSON = "application/json".toMediaType()
 
             private fun String.toJsonBody() = toRequestBody(JSON)

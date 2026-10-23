@@ -379,9 +379,6 @@
     <string name="voice_error_timeout">Se agotó el tiempo de espera para el reconocimiento de voz</string>
     <string name="retry">Reintentar</string>
     <string name="resolution_switching">Cambio de resolución</string>
-    <string name="local">Local</string>
-    <string name="play_trailer">Reproducir trailer</string>
-    <string name="no_trailers">Sin trailers</string>
     <string name="clear_track_choices">Opciones de pista claras</string>
     <string name="dts_x">DTS:X</string>
     <string name="dts_hd">DTS:HD</string>
@@ -688,6 +685,7 @@
     <string name="remove_from_playlist">Eliminar de la lista de reproducción</string>
     <string name="login_credentials_expired">Credenciales caducadas, vuelve a iniciar sesión</string>
     <string name="login_not_authorized">No tienes autorización para acceder al servidor en este momento</string>
+    <string name="login_sign_in_refused">Jellyfin no ha permitido este inicio de sesión. Puede que la cuenta tenga la sesión iniciada en demasiados dispositivos, esté desactivada o no tenga permiso desde aquí. Un administrador del servidor puede revisarlo en el panel.</string>
 
     <string name="chosen_by">Elegido por %1$s</string>
     <string name="dovi_profile_5">Dolby Vision perfil 5</string>
@@ -829,7 +827,7 @@
     <string name="kids_session_limit_summary">Lo cuenta el servidor en todos los dispositivos y luego hay un descanso</string>
     <string name="kids_set_code_first">Pon primero el código de padres de la casa</string>
     <string name="kids_settings">Ajustes infantiles</string>
-    <string name="kids_sign_in_locked">Mientras la tele está bloqueada en modo infantil, solo un niño puede volver a iniciar sesión. No se ha cambiado nada.</string>
+    <string name="kids_sign_in_locked">Esta tele está en modo infantil. Elige a un niño de la lista o escribe el código de padres para añadir a otra persona.</string>
     <string name="kids_sign_in_same_user">Mientras la tele está bloqueada en modo infantil, aquí solo puede iniciar sesión %1$s. No se ha cambiado nada.</string>
     <string name="kids_sitting_over">Hora de descansar</string>
     <string name="kids_sitting_over_subtitle">Descansa un poco, %1$s</string>

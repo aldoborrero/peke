@@ -52,6 +52,9 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.data.model.HomeRowViewOptions
 import dev.aldoborrero.peke.data.model.QuickDetailsData
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.cards.BannerCard
@@ -135,17 +138,14 @@ fun HomePage(
 
             val onFocusPosition = remember { { it: RowColumn -> position = it } }
             val currentHomePrefs by rememberUpdatedState(preferences.appPreferences.homePagePreferences)
+            val kidsMode by rememberUpdatedState(LocalKidsMode.current.isActive)
             val onClickItem =
                 remember {
                     { clickedPosition: RowColumn, item: BaseItem ->
                         position = clickedPosition
-                        if (currentHomePrefs.clickToPlay &&
-                            homeRows.getOrNull(clickedPosition.row)?.isContinueWatchingNextUp == true
-                        ) {
-                            viewModel.navigationManager.navigateTo(Destination.Playback(item))
-                        } else {
-                            viewModel.navigationManager.navigateTo(item.destination())
-                        }
+                        viewModel.navigationManager.navigateTo(
+                            homeRows.getOrNull(clickedPosition.row).clickDestination(item, currentHomePrefs.clickToPlay, kidsMode),
+                        )
                     }
                 }
             val onLongClickItem =
@@ -274,6 +274,22 @@ val HomeRowLoadingState?.isContinueWatchingNextUp: Boolean
                 row?.rowType is HomeRowConfig.NextUp ||
                 row?.rowType is HomeRowConfig.ContinueWatchingCombined
         }
+
+/**
+ * Where clicking [item] in this row goes. A kid gets straight back into keep watching, see [KidsDirectPlay.resume], and
+ * the item's page from every other row.
+ */
+fun HomeRowLoadingState?.clickDestination(
+    item: BaseItem,
+    clickToPlay: Boolean,
+    kidsMode: Boolean,
+): Destination =
+    when {
+        !isContinueWatchingNextUp -> item.destination()
+        kidsMode -> KidsDirectPlay.resume(item)
+        clickToPlay -> Destination.Playback(item)
+        else -> item.destination()
+    }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

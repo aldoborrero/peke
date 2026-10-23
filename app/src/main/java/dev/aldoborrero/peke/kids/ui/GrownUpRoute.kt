@@ -8,7 +8,7 @@ import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
  */
 sealed interface GrownUpRoute {
     /**
-     * Not known yet whether the device is locked to kids
+     * Not known yet whether the device is locked to kids, or whether the user is a kid
      */
     data object Loading : GrownUpRoute
 
@@ -17,6 +17,12 @@ sealed interface GrownUpRoute {
      * back to the kids' user list, where only the parent gate leads out
      */
     data object KidsUserList : GrownUpRoute
+
+    /**
+     * The server couldn't say whether the user is a kid and the device isn't locked: not the grown-up shell, but a
+     * page to ask again
+     */
+    data object Unanswered : GrownUpRoute
 
     data object Shell : GrownUpRoute
 
@@ -37,6 +43,8 @@ private val settingsScreens =
     )
 
 /**
+ * Only for a user the server said is not a kid ([dev.aldoborrero.peke.kids.KidsModeState.Inactive])
+ *
  * @param lockEngaged whether the device's kids lock is engaged, null until known
  */
 fun grownUpRoute(
@@ -72,4 +80,22 @@ fun grownUpRoute(
                 }
             }
         }
+    }
+
+/**
+ * What a user gets while it isn't known whether they are a kid ([dev.aldoborrero.peke.kids.KidsModeState.Loading]):
+ * they have no cached kid profile, and the server hasn't said they aren't one. Never the grown-up shell.
+ *
+ * @param unanswered whether asking the server got no definite answer
+ * ([dev.aldoborrero.peke.kids.KidsModeService.unanswered])
+ * @param lockEngaged whether the device's kids lock is engaged, null until known
+ */
+fun unknownUserRoute(
+    unanswered: Boolean,
+    lockEngaged: Boolean?,
+): GrownUpRoute =
+    when {
+        !unanswered || lockEngaged == null -> GrownUpRoute.Loading
+        lockEngaged -> GrownUpRoute.KidsUserList
+        else -> GrownUpRoute.Unanswered
     }

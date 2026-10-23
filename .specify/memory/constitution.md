@@ -1,5 +1,10 @@
 <!--
 Sync Impact Report
+- Version change: 2.0.0 → 2.1.0 (2026-10-23). MINOR: Principle IV no longer gates leaving the
+  app. The Home button leaves any Android TV app and can't be blocked, so Back on the kids home
+  quits as in Wholphin; the gate covers every way to grown-up control instead, Peke opens no other
+  app for kids, and a relaunch while locked returns to the kid. Decided by the owner after the
+  first emulator test.
 - Version change: 1.2.0 → 2.0.0 (2026-10-22). MAJOR: the project is no longer "kids mode inside
   Wholphin" but Peke for Jellyfin, an independent kids-only Android TV app (hard fork of Wholphin,
   github.com/aldoborrero/peke). Principles I and II are redefined, a branding/licensing principle
@@ -86,8 +91,14 @@ switching TVs or clients; only presentation exists on the device.
 
 ### IV. Parent-Gated and Fail-Closed
 
-- Every way out of the kid context MUST pass a parent gate: settings, switching to a non-kid
-  profile, extending or disabling time limits, enabling search, blocking or unblocking content.
+- Every way from the kid context to grown-up control MUST pass a parent gate: settings, switching
+  to a non-kid profile or another user, extending or disabling time limits, enabling search,
+  blocking or unblocking content, leaving kids mode.
+- Leaving the app is not gated. The remote's Home button leaves any Android TV app and cannot be
+  blocked, so Back on the kids home quits as in Wholphin. What MUST hold instead: Peke opens no
+  other app itself (no external links or remote trailers for kids), and relaunching Peke while
+  the TV is locked returns to the kid. Whatever lies outside Peke is the TV's job (for example a
+  Google TV kids profile).
 - A grown-up profile gets only the grown-up shell: kids settings, a short "This TV" settings group,
   the user list and the license screen. It MUST NOT reach browsing, playback or any other
   Wholphin screen.
@@ -181,4 +192,4 @@ This constitution takes precedence over other practices for Peke.
 - **Compliance:** every plan includes a Constitution Check, and every review verifies Principles
   III, IV and VII explicitly. Any deviation is justified in the plan's complexity tracking.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-22
+**Version**: 2.1.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-23

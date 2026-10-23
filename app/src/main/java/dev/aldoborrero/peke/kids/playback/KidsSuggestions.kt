@@ -12,7 +12,6 @@ import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.ui.ItemRowFields
-import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,11 +65,12 @@ class KidsSuggestionsViewModel
         }
 
         /**
-         * Replace the current video with [item]. Series go through [KidsDirectPlay] to find the episode to play.
+         * Replace the player with [item]'s page, where the kid presses Play, so Back returns to where they were before
+         * the video
          */
         fun open(item: BaseItem) {
             navigationManager.goBack()
-            navigationManager.navigateTo(if (item.playable) Destination.Playback(item) else item.destination())
+            navigationManager.navigateTo(item.destination())
         }
     }
 

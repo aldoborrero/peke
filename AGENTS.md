@@ -42,7 +42,8 @@ this file win.
   keep rules, to save size.
 - Tests stay on JUnit4, Robolectric, MockK and Hilt. No test-framework migration and no new
   dependency without a plan entry.
-- Kid profiles never reach system Settings, the external world or grown-up screens without the
-  parent gate.
+- Kid profiles never reach system Settings, other apps, other users or grown-up screens without the
+  parent gate, and Peke never opens another app for a kid. Leaving Peke itself isn't gated: Back on
+  the kids home quits, as in Wholphin, and a relaunch while locked returns to the kid.
 - No analytics, telemetry or third-party uploads (Codecov, Perfetto share links, crash services).
   Traces and logs from devices stay local.

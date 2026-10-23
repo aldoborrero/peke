@@ -3,6 +3,7 @@ package dev.aldoborrero.peke.kids.gate
 import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
+import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.server.KidsApi
@@ -157,12 +158,7 @@ class ParentLockService
             if (current != null && current.user.accessToken != null) return current.server to current.user
             val kidIds = kidProfileDao.allUserIds().toSet()
             if (kidIds.isEmpty()) return null
-            // The server of the kid used most recently on this device
-            val server =
-                withContext(PekeDispatchers.IO) { serverDao.getServers() }
-                    .filter { s -> s.users.any { it.rowId in kidIds } }
-                    .maxByOrNull { s -> s.users.filter { it.rowId in kidIds }.maxOf { it.lastUsed?.toEpochSecond() ?: Long.MIN_VALUE } }
-                    ?: return null
+            val server = mostRecentKidServer(withContext(PekeDispatchers.IO) { serverDao.getServers() }, kidIds) ?: return null
             val user =
                 server.users
                     .filter { it.accessToken != null }
@@ -521,3 +517,14 @@ internal object OfflineThrottle {
         return (wait - elapsed).coerceAtLeast(0)
     }
 }
+
+/**
+ * Of [servers], the one whose kid (a user in [kidIds]) was used most recently on this device, null if none has a kid
+ */
+fun mostRecentKidServer(
+    servers: List<JellyfinServerUsers>,
+    kidIds: Set<Int>,
+): JellyfinServerUsers? =
+    servers
+        .filter { s -> s.users.any { it.rowId in kidIds } }
+        .maxByOrNull { s -> s.users.filter { it.rowId in kidIds }.maxOf { it.lastUsed?.toEpochSecond() ?: Long.MIN_VALUE } }

@@ -31,9 +31,7 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Person
-import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.preferences.UserPreferences
-import dev.aldoborrero.peke.services.TrailerService
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.RequestOrRestoreFocus
 import dev.aldoborrero.peke.ui.cards.ChapterRow
@@ -58,6 +56,8 @@ import dev.aldoborrero.peke.ui.detail.PlaylistDialog
 import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
+import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.DataLoadingState
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.launch
@@ -79,7 +79,6 @@ fun MovieDetails(
         ),
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     LifecycleResumeEffect(Unit) {
         viewModel.init()
         onPauseOrDispose { }
@@ -213,9 +212,6 @@ fun MovieDetails(
                             actions = contextActions,
                         )
                 },
-                trailerOnClick = {
-                    TrailerService.onClick(context, it, viewModel::navigateTo)
-                },
                 onClickExtra = { index, extra ->
                     viewModel.navigateTo(extra.destination)
                 },
@@ -266,8 +262,7 @@ fun MovieDetails(
 
 private const val HEADER_ROW = 0
 private const val PEOPLE_ROW = HEADER_ROW + 1
-private const val TRAILER_ROW = PEOPLE_ROW + 1
-private const val CHAPTER_ROW = TRAILER_ROW + 1
+private const val CHAPTER_ROW = PEOPLE_ROW + 1
 private const val EXTRAS_ROW = CHAPTER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 
@@ -277,7 +272,6 @@ fun MovieDetailsContent(
     movie: BaseItem,
     state: MovieState,
     playOnClick: (Duration) -> Unit,
-    trailerOnClick: (Trailer) -> Unit,
     overviewOnClick: () -> Unit,
     watchOnClick: () -> Unit,
     favoriteOnClick: () -> Unit,
@@ -302,6 +296,7 @@ fun MovieDetailsContent(
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
 
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
+    val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
 
     Box(modifier = modifier) {
         LazyColumn(
@@ -348,11 +343,6 @@ fun MovieDetailsContent(
                                 }
                             }
                         },
-                        trailers = state.trailers,
-                        trailerOnClick = {
-                            position = TRAILER_ROW
-                            trailerOnClick.invoke(it)
-                        },
                         canDelete = canDelete,
                         onConfirmDelete = onConfirmDelete,
                         chooseVersionParams =
@@ -371,7 +361,7 @@ fun MovieDetailsContent(
                     )
                 }
             }
-            state.people.letNotEmpty { people ->
+            state.people.takeIf { showPeople }.orEmpty().letNotEmpty { people ->
                 item {
                     PersonRow(
                         people = people,

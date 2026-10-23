@@ -54,7 +54,6 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.data.ChooseVersionParams
@@ -81,12 +80,10 @@ fun ExpandablePlayButtons(
     watched: Boolean,
     favorite: Boolean,
     canDelete: Boolean,
-    trailers: List<Trailer>?,
     playOnClick: (position: Duration) -> Unit,
     watchOnClick: () -> Unit,
     favoriteOnClick: () -> Unit,
     moreOnClick: () -> Unit,
-    trailerOnClick: (Trailer) -> Unit,
     onConfirmDelete: () -> Unit,
     chooseVersionParams: ChooseVersionParams?,
     buttonOnFocusChanged: (FocusState) -> Unit,
@@ -104,6 +101,7 @@ fun ExpandablePlayButtons(
     }
 
     var chooseVersion by remember { mutableStateOf<DialogParams?>(null) }
+    val itemMenus = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -184,15 +182,6 @@ fun ExpandablePlayButtons(
             )
         }
 
-        if (trailers != null) {
-            item("trailers") {
-                TrailerButton(
-                    trailers = trailers,
-                    trailerOnClick = trailerOnClick,
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
         if (canDelete) {
             item("delete") {
                 DeleteButton(
@@ -205,15 +194,17 @@ fun ExpandablePlayButtons(
             }
         }
 
-        // More button
-        item("more") {
-            ExpandablePlayButton(
-                title = R.string.more,
-                resume = Duration.ZERO,
-                icon = Icons.Default.MoreVert,
-                onClick = { moreOnClick.invoke() },
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
+        // More button, which opens the item menu
+        if (itemMenus) {
+            item("more") {
+                ExpandablePlayButton(
+                    title = R.string.more,
+                    resume = Duration.ZERO,
+                    icon = Icons.Default.MoreVert,
+                    onClick = { moreOnClick.invoke() },
+                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                )
+            }
         }
     }
     chooseVersion?.let { params ->
@@ -388,42 +379,6 @@ fun ExpandableFaButton(
 }
 
 @Composable
-fun TrailerButton(
-    trailers: List<Trailer>,
-    trailerOnClick: (Trailer) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var showDialog by remember { mutableStateOf(false) }
-    ExpandableFaButton(
-        title =
-            if (trailers.isEmpty()) {
-                R.string.no_trailers
-            } else if (trailers.size == 1) {
-                R.string.play_trailer
-            } else {
-                R.string.trailers_title
-            },
-        iconStringRes = R.string.fa_film,
-        enabled = trailers.isNotEmpty(),
-        onClick = {
-            if (trailers.size == 1) {
-                trailerOnClick.invoke(trailers.first())
-            } else {
-                showDialog = true
-            }
-        },
-        modifier = modifier,
-    )
-    if (showDialog) {
-        TrailerDialog(
-            onDismissRequest = { showDialog = false },
-            trailers = trailers,
-            onClick = trailerOnClick,
-        )
-    }
-}
-
-@Composable
 fun DeleteButton(
     onConfirmDelete: () -> Unit,
     title: String,
@@ -492,8 +447,6 @@ private fun ExpandablePlayButtonsPreview() {
             favoriteOnClick = {},
             moreOnClick = {},
             buttonOnFocusChanged = {},
-            trailers = listOf(),
-            trailerOnClick = {},
             canDelete = true,
             onConfirmDelete = {},
             chooseVersionParams = null,

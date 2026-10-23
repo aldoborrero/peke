@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.RestoredSession
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.KidsLockedLaunch
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.update
@@ -60,6 +61,7 @@ class TestMainActivityViewModel {
     private val appUpgradeHandler: AppUpgradeHandler = mockk()
     private val intentService: IntentService = mockk()
     private val kidsModeService: KidsModeService = mockk { coEvery { isLockedNow() } returns false }
+    private val kidsLockedLaunch: KidsLockedLaunch = mockk { coEvery { destination(any(), any()) } returns null }
 
     val viewModel =
         MainActivityViewModel(
@@ -73,6 +75,7 @@ class TestMainActivityViewModel {
             appUpgradeHandler,
             intentService,
             kidsModeService,
+            kidsLockedLaunch,
         )
 
     private val serverId = UUID.randomUUID()
@@ -248,6 +251,37 @@ class TestMainActivityViewModel {
                     destination is SetupDestination.ServerList,
                 )
             }
+        }
+
+    @Test
+    fun `a locked launch with no saved session goes to the kids side`() =
+        runTest {
+            setupPreferences {
+                signInAutomatically = true
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
+            coEvery { serverRepository.restoreLastSession() } returns RestoredSession.None
+            coEvery { kidsLockedLaunch.destination(RestoredSession.None, true) } returns SetupDestination.UserList(server)
+
+            viewModel.handleAppStart()
+
+            verify(exactly = 1) { setupNavigationManager.navigateTo(SetupDestination.UserList(server)) }
+            verify(exactly = 0) { setupNavigationManager.navigateTo(SetupDestination.ServerList) }
+        }
+
+    @Test
+    fun `a locked launch whose restore fails goes to the kids side`() =
+        runTest {
+            setupPreferences {
+                signInAutomatically = true
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
+            coEvery { serverRepository.restoreLastSession() } throws IllegalStateException("offline")
+            coEvery { kidsLockedLaunch.destination(null, true) } returns SetupDestination.AppContent(currentUser)
+
+            viewModel.handleAppStart()
+
+            verify(exactly = 1) { setupNavigationManager.navigateTo(SetupDestination.AppContent(currentUser)) }
         }
 
     @Test

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -100,6 +101,41 @@ fun GrownUpShell(
             }
             ShellItem(R.string.peke_shell_switch_user, Icons.Default.Person) { viewModel.switchUser() }
             ShellItem(R.string.license_info, Icons.Default.Info) { viewModel.open(Destination.License) }
+        }
+    }
+}
+
+/**
+ * For a user the server couldn't say is or isn't a kid, on a TV that isn't locked to kids: ask again, or pick
+ * another user. Never the grown-up shell, which needs the server's "not a kid".
+ */
+@Composable
+fun KidsUnansweredPage(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: GrownUpShellViewModel = hiltViewModel(),
+) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.tryRequestFocus() }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.padding(horizontal = 48.dp, vertical = 32.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.app_name_long),
+            style = MaterialTheme.typography.displaySmall,
+        )
+        Text(
+            text = stringResource(R.string.kids_cant_reach_server),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
+        ) {
+            ShellItem(R.string.retry, Icons.Default.Refresh, Modifier.focusRequester(focus), onRetry)
+            ShellItem(R.string.peke_shell_switch_user, Icons.Default.Person) { viewModel.switchUser() }
         }
     }
 }

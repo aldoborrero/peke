@@ -115,6 +115,7 @@ class ServerRepositoryTest {
         coEvery { mockMostRecentServerProvider.save(any()) } just Runs
         coEvery { mockMostRecentServerProvider.clear() } just Runs
         coEvery { mockMostRecentServerProvider.clearUser() } just Runs
+        every { mockMostRecentServerProvider.get() } returns MostRecentServer.None
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -520,6 +521,36 @@ class ServerRepositoryTest {
 
             val result = create().restoreLastSession()
             assertTrue(result is RestoredSession.None)
+        }
+
+    @Test
+    fun `removing the saved user who isn't current clears the saved user`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.deleteUser(any(), any()) } just Runs
+            every { mockMostRecentServerProvider.get() } returns MostRecentServer.ServerAndUser(serverId, server.url, userId, "token")
+            create().removeUser(user)
+            coVerify(exactly = 1) { mockMostRecentServerProvider.clearUser() }
+            coVerify(exactly = 0) { mockMostRecentServerProvider.clear() }
+        }
+
+    @Test
+    fun `removing another user keeps the saved session`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.deleteUser(any(), any()) } just Runs
+            every { mockMostRecentServerProvider.get() } returns
+                MostRecentServer.ServerAndUser(serverId, server.url, UUID.randomUUID(), "token")
+            create().removeUser(user)
+            coVerify(exactly = 0) { mockMostRecentServerProvider.clearUser() }
+            coVerify(exactly = 0) { mockMostRecentServerProvider.clear() }
+        }
+
+    @Test
+    fun `removing the saved server that isn't current clears the saved session`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.deleteServer(any()) } just Runs
+            every { mockMostRecentServerProvider.get() } returns MostRecentServer.Server(serverId, server.url)
+            create().removeServer(server)
+            coVerify(exactly = 1) { mockMostRecentServerProvider.clear() }
         }
 }
 

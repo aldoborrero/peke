@@ -171,12 +171,7 @@ class ServerRepository
 
         suspend fun getMostRecentServerInternal(recentServer: MostRecentServer): RestoredSession {
             val recentServer = recentServer ?: mostRecentServerProvider.get()
-            val serverId =
-                when (recentServer) {
-                    MostRecentServer.None -> null
-                    is MostRecentServer.Server -> recentServer.serverId
-                    is MostRecentServer.ServerAndUser -> recentServer.serverId
-                }
+            val serverId = recentServer.serverId
             val server = serverId?.let { serverDao.getServer(serverId)?.server }
             return if (server != null) {
                 RestoredSession.ServerOnly(server)
@@ -275,6 +270,12 @@ class ServerRepository
                 }
                 mostRecentServerProvider.clearUser()
                 apiClient.update(accessToken = null)
+            } else {
+                // The saved session may be a user who isn't current, such as on the user list after a launch
+                val recent = mostRecentServerProvider.get()
+                if (recent is MostRecentServer.ServerAndUser && recent.serverId == user.serverId && recent.userId == user.id) {
+                    mostRecentServerProvider.clearUser()
+                }
             }
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
@@ -289,15 +290,13 @@ class ServerRepository
                 }
                 mostRecentServerProvider.clear()
                 apiClient.update(baseUrl = null, accessToken = null)
+            } else if (mostRecentServerProvider.get().serverId == server.id) {
+                mostRecentServerProvider.clear()
             }
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
             }
             kidsDataCleaner.onServerRemoved(server.id)
-        }
-
-        suspend fun switchServerOrUser() {
-            mostRecentServerProvider.clear()
         }
 
         suspend fun updateUserAuth(
@@ -353,3 +352,11 @@ data class CurrentUser(
     val server: JellyfinServer,
     val user: JellyfinUser,
 )
+
+private val MostRecentServer.serverId: UUID?
+    get() =
+        when (this) {
+            MostRecentServer.None -> null
+            is MostRecentServer.Server -> serverId
+            is MostRecentServer.ServerAndUser -> serverId
+        }
