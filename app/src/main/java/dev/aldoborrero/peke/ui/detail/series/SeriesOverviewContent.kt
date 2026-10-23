@@ -65,6 +65,8 @@ import dev.aldoborrero.peke.ui.logTab
 import dev.aldoborrero.peke.ui.playback.isPlayKeyUp
 import dev.aldoborrero.peke.ui.rememberInt
 import dev.aldoborrero.peke.ui.tryRequestFocus
+import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
+import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.ui.util.StringStringProvider
 import dev.aldoborrero.peke.ui.util.rememberDelayedNestedScroll
 import kotlinx.coroutines.launch
@@ -105,6 +107,7 @@ fun SeriesOverviewContent(
 ) {
     val scope = rememberCoroutineScope()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
     var selectedTabIndex by rememberSaveable(position.seasonTabIndex) { mutableIntStateOf(position.seasonTabIndex) }
     LaunchedEffect(selectedTabIndex) {
         logTab("series_overview", selectedTabIndex)
@@ -356,7 +359,7 @@ fun SeriesOverviewContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    if (castAndCrew.isNotEmpty()) {
+                    if (showPeople && castAndCrew.isNotEmpty()) {
                         PersonRow(
                             title = R.string.cast_and_crew,
                             people = castAndCrew,
@@ -367,7 +370,7 @@ fun SeriesOverviewContent(
                                     .focusRequester(castCrewRowFocusRequester),
                         )
                     }
-                    if (guestStars.isNotEmpty()) {
+                    if (showPeople && guestStars.isNotEmpty()) {
                         PersonRow(
                             title = R.string.guest_stars,
                             people = guestStars,

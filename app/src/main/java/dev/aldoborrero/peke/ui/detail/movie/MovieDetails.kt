@@ -58,6 +58,8 @@ import dev.aldoborrero.peke.ui.detail.PlaylistDialog
 import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
+import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.DataLoadingState
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.launch
@@ -302,6 +304,7 @@ fun MovieDetailsContent(
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
 
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
+    val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
 
     Box(modifier = modifier) {
         LazyColumn(
@@ -371,7 +374,7 @@ fun MovieDetailsContent(
                     )
                 }
             }
-            state.people.letNotEmpty { people ->
+            state.people.takeIf { showPeople }.orEmpty().letNotEmpty { people ->
                 item {
                     PersonRow(
                         people = people,

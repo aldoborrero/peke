@@ -54,6 +54,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.data.model.LocalTrailer
 import dev.aldoborrero.peke.data.model.Trailer
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
@@ -104,6 +105,8 @@ fun ExpandablePlayButtons(
     }
 
     var chooseVersion by remember { mutableStateOf<DialogParams?>(null) }
+    val shownTrailers = allowedTrailers(trailers)
+    val itemMenus = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -184,10 +187,10 @@ fun ExpandablePlayButtons(
             )
         }
 
-        if (trailers != null) {
+        if (shownTrailers != null) {
             item("trailers") {
                 TrailerButton(
-                    trailers = trailers,
+                    trailers = shownTrailers,
                     trailerOnClick = trailerOnClick,
                     modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
                 )
@@ -205,15 +208,17 @@ fun ExpandablePlayButtons(
             }
         }
 
-        // More button
-        item("more") {
-            ExpandablePlayButton(
-                title = R.string.more,
-                resume = Duration.ZERO,
-                icon = Icons.Default.MoreVert,
-                onClick = { moreOnClick.invoke() },
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
+        // More button, which opens the item menu
+        if (itemMenus) {
+            item("more") {
+                ExpandablePlayButton(
+                    title = R.string.more,
+                    resume = Duration.ZERO,
+                    icon = Icons.Default.MoreVert,
+                    onClick = { moreOnClick.invoke() },
+                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                )
+            }
         }
     }
     chooseVersion?.let { params ->
@@ -394,20 +399,21 @@ fun TrailerButton(
     modifier: Modifier = Modifier,
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val shown = allowedTrailers(trailers) ?: return
     ExpandableFaButton(
         title =
-            if (trailers.isEmpty()) {
+            if (shown.isEmpty()) {
                 R.string.no_trailers
-            } else if (trailers.size == 1) {
+            } else if (shown.size == 1) {
                 R.string.play_trailer
             } else {
                 R.string.trailers_title
             },
         iconStringRes = R.string.fa_film,
-        enabled = trailers.isNotEmpty(),
+        enabled = shown.isNotEmpty(),
         onClick = {
-            if (trailers.size == 1) {
-                trailerOnClick.invoke(trailers.first())
+            if (shown.size == 1) {
+                trailerOnClick.invoke(shown.first())
             } else {
                 showDialog = true
             }
@@ -417,11 +423,23 @@ fun TrailerButton(
     if (showDialog) {
         TrailerDialog(
             onDismissRequest = { showDialog = false },
-            trailers = trailers,
+            trailers = shown,
             onClick = trailerOnClick,
         )
     }
 }
+
+/**
+ * The [trailers] this profile may open. Remote trailers open another app, so without [RestrictedFeature.EXTERNAL_APPS]
+ * only local ones are left, and null when there are none.
+ */
+@Composable
+private fun allowedTrailers(trailers: List<Trailer>?): List<Trailer>? =
+    if (LocalInterfaceCustomization.current.allows(RestrictedFeature.EXTERNAL_APPS)) {
+        trailers
+    } else {
+        trailers?.filterIsInstance<LocalTrailer>()?.ifEmpty { null }
+    }
 
 @Composable
 fun DeleteButton(

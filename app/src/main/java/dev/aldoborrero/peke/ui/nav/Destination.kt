@@ -156,6 +156,15 @@ sealed class Destination(
     @Serializable
     data object KidsLiveTv : Destination(false)
 
+    /**
+     * A kid opening [target] from keep watching on the home: kids mode plays it right away instead of showing its page,
+     * see [dev.aldoborrero.peke.kids.playback.KidsDirectPlay]
+     */
+    @Serializable
+    data class KidsResume(
+        val target: Destination,
+    ) : Destination()
+
     @Serializable
     data object UpdateApp : Destination(true)
 

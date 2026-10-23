@@ -140,6 +140,11 @@ fun DestinationContent(
             )
         }
 
+        // Only kids mode plays these directly, see above
+        is Destination.KidsResume -> {
+            DestinationContent(destination.target, preferences, onClearBackdrop, modifier)
+        }
+
         is Destination.SeriesOverview -> {
             SeriesOverview(
                 preferences = preferences,
