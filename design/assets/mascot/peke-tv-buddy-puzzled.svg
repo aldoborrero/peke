@@ -1,9 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 240">
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 250">
+    <g transform="translate(0 10)">
     <path d="M110 42 Q102 20 114 16 Q126 20 128 50 M170 42 Q178 20 166 16 Q154 20 152 50" fill="none" stroke="#65D9CE" stroke-width="12" stroke-linecap="round"></path>
-    <rect x="40" y="50" width="200" height="160" rx="52" fill="#65D9CE" stroke="#28335B" stroke-width="8"></rect>
-    <rect x="64" y="72" width="152" height="116" rx="36" fill="#FFDA70" stroke="#28335B" stroke-width="8"></rect>
-    <circle cx="114" cy="118" r="9" fill="#28335B"></circle>
-    <circle cx="166" cy="118" r="9" fill="#28335B"></circle>
-    <path d="M122 152 L158 148" fill="none" stroke="#28335B" stroke-width="8" stroke-linecap="round"></path>
-    <text x="246" y="74" font-family="Nunito, sans-serif" font-size="60" font-weight="900" fill="#FF927E">?</text>
-  </svg>
+    <rect x="40" y="50" width="200" height="160" rx="52" fill="#65D9CE" stroke="#1F2747" stroke-width="8"></rect>
+    <rect x="64" y="72" width="152" height="116" rx="36" fill="#FFDA70" stroke="#1F2747" stroke-width="8"></rect>
+    <circle cx="114" cy="118" r="9" fill="#1F2747"></circle>
+    <circle cx="166" cy="118" r="9" fill="#1F2747"></circle>
+    <path d="M122 152 L158 148" fill="none" stroke="#1F2747" stroke-width="8" stroke-linecap="round"></path>
+    <path d="M260.4 60.02Q258.84 60.02 257.94 59Q257.04 57.98 257.04 56.3Q257.04 54.68 257.43 53.27Q257.82 51.86 258.69 50.45Q259.56 49.04 261 47.6Q261.96 46.58 262.53 45.8Q263.1 45.02 263.34 44.33Q263.58 43.64 263.58 42.92Q263.58 41.54 262.56 40.82Q261.54 40.1 259.62 40.1Q257.7 40.1 256.02 40.52Q254.34 40.94 252.78 41.78Q250.98 42.74 249.6 42.41Q248.22 42.08 247.44 41Q246.66 39.92 246.57 38.48Q246.48 37.04 247.35 35.66Q248.22 34.28 250.08 33.38Q252.54 32.18 255.3 31.61Q258.06 31.04 260.46 31.04Q264.6 31.04 267.75 32.36Q270.9 33.68 272.64 36.05Q274.38 38.42 274.38 41.6Q274.38 43.4 273.84 45.02Q273.3 46.64 272.1 48.17Q270.9 49.7 268.74 51.26Q266.88 52.64 265.86 53.69Q264.84 54.74 264.39 55.7Q263.94 56.66 263.7 57.8Q263.46 58.76 262.68 59.39Q261.9 60.02 260.4 60.02ZM260.22 74.36Q257.46 74.36 255.87 72.74Q254.28 71.12 254.28 68.48Q254.28 65.9 255.87 64.31Q257.46 62.72 260.22 62.72Q262.98 62.72 264.54 64.31Q266.1 65.9 266.1 68.48Q266.1 71.12 264.54 72.74Q262.98 74.36 260.22 74.36Z" fill="#FF927E"></path>
+    </g>
+</svg>

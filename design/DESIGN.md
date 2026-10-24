@@ -27,21 +27,41 @@ themes a household or a kid can pick later. PekeTV matches the PekeTV channel lo
 |---|---|---|---|---|
 | Background | `#1F2747` night | `#12202B` ink | `#1E1B18` espresso | `#FFF6E6` cream |
 | Surface (cards, chips) | `#28335B` navy | `#1D3340` deep sea | `#2E2925` cocoa | `#FFFFFF` white |
-| Primary (buttons, focus ring) | `#FF927E` coral | `#FF8A3D` tangerine | `#FF6B6B` coral | `#E4572E` tomato |
+| Primary (buttons, focus ring) | `#FF927E` coral | `#FF8A3D` tangerine | `#FF6B6B` coral | `#C63F1A` tomato |
 | On primary | `#1F2747` | `#12202B` | `#1E1B18` | `#FFFFFF` |
-| Secondary (live, TV, toggles on) | `#65D9CE` teal | `#2EC4B6` teal | `#5BD6A2` mint | `#3BA55C` leaf |
-| Time (time left, stars, code dots) | `#FFDA70` sunny | `#FFD23F` sun | `#FFC93C` honey | `#F6AE2D` marigold |
-| Tertiary (extras, posters) | `#B5A0EF` lilac | `#FF6F91` berry | `#8EC5FF` sky | `#7CC6FE` sky |
+| Secondary (live, TV, toggles on) | `#65D9CE` teal | `#80E2D8` aqua | `#5BD6A2` mint | `#1B5E31` forest |
+| Time (time left, stars, code dots) | `#FFDA70` sunny | `#FFD23F` sun | `#FFC93C` honey | `#9A6200` amber |
+| Tertiary (extras, posters) | `#B5A0EF` lilac | `#FF6F91` berry | `#8EC5FF` sky | `#2B7BC4` blue |
 | Text | `#FFFFFF` | `#FFFFFF` | `#FFF7EC` | `#1E2A33` |
 | Text, secondary | `#C8CDE6` | `#B9C7D0` | `#CFC3B5` | `#4F5B64` |
 | Outline (mascot, icons) | `#1F2747` | `#12202B` | `#1E1B18` | `#1E2A33` |
+| Focus border | `#FFFFFF` | `#FFFFFF` | `#FFFFFF` | `#1E2A33` |
 
 Rules:
 - **Text on primary uses "on primary"**, not white: white on coral doesn't reach 4.5:1.
-- **Body text and secondary text reach 4.5:1** on the background and on surfaces.
-- **Colours that must be told apart also differ in lightness.** Caramelo's coral and mint are close, so focus and
-  states never rely on hue alone there.
+- **Text reaches 4.5:1 and UI parts 3:1** on the background and on surfaces. Text means body text, secondary text,
+  "on primary" and the time left (drawn in "time"); UI parts are the focus border and ring, toggles and badges in
+  primary, secondary and tertiary.
+- **Colours that must be told apart also differ in lightness** (at least 1.5:1 between primary and secondary).
+  Mandarina's tangerine and teal were 1.08:1 apart, so its secondary is the lighter aqua. PekeTV keeps the channel
+  logo's coral and teal (1.28:1), so in every theme focus and states never rely on hue alone.
+- **Light themes use a dark focus border.** A white border disappears on Papel's cream and white, so Papel draws it in
+  its text colour.
 - **Papel is too bright for a dark room;** it's the daytime option, never the default.
+
+Contrast ratios (WCAG 2), each colour on the background / on surfaces:
+
+| Pair (minimum) | PekeTV | Mandarina | Caramelo | Papel |
+|---|---|---|---|---|
+| Text (4.5) | 14.59 / 12.25 | 16.57 / 13.13 | 16.13 / 13.54 | 13.65 / 14.64 |
+| Text, secondary (4.5) | 9.26 / 7.77 | 9.58 / 7.59 | 9.90 / 8.31 | 6.50 / 6.97 |
+| Time, as text (4.5) | 10.78 / 9.05 | 11.48 / 9.09 | 11.16 / 9.36 | 4.75 / 5.10 |
+| On primary, on primary (4.5) | 6.71 | 7.07 | 6.18 | 5.09 |
+| Primary, focus ring (3) | 6.71 / 5.64 | 7.07 / 5.60 | 6.18 / 5.18 | 4.74 / 5.09 |
+| Secondary (3) | 8.59 / 7.21 | 10.88 / 8.62 | 9.46 / 7.93 | 7.27 / 7.80 |
+| Tertiary (3) | 6.42 / 5.39 | 6.26 / 4.96 | 9.45 / 7.93 | 4.14 / 4.44 |
+| Focus border (3) | 14.59 / 12.25 | 16.57 / 13.13 | 17.14 / 14.38 | 13.65 / 14.64 |
+| Primary vs secondary (lightness) | 1.28 | 1.54 | 1.53 | 1.53 |
 
 ## Type
 
@@ -70,7 +90,7 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 ## Focus
 
 The focused element must be obvious from the sofa:
-- a **6 px white border**, then
+- a **6 px border in the theme's "focus border"** (white in the dark themes, dark `#1E2A33` in Papel), then
 - an **8 px ring in the primary colour** (coral in PekeTV), and
 - a **6–8% scale-up** for cards and avatars.
 
@@ -79,8 +99,9 @@ transform and opacity only, no blur, so cheap TV boxes keep up.
 
 ## The PekeTV buddy
 
-A rounded TV with a face: a teal frame, a sunny screen, two ear-like antennas, navy outline, rosy cheeks
-(`assets/mascot/`). It's the app icon, the logo and the narrator of the stop screens:
+A rounded TV with a face: a teal frame, a sunny screen, two ear-like teal antennas, a `#1F2747` night outline, rosy
+cheeks (`assets/mascot/`). Every mood and the app icon use the same outline colour. It's the app icon, the logo and
+the narrator of the stop screens:
 
 | Mood | Where |
 |---|---|
@@ -91,8 +112,12 @@ A rounded TV with a face: a teal frame, a sunny screen, two ear-like antennas, n
 | `-searching` (antennas looking for a signal) | Can't reach the server |
 | `-cheering` | Episodes in a row reached |
 
-The wordmark is "peke" in Nunito Black, one colour per letter: sunny, coral, teal, lilac (`assets/logo-peke.svg`).
-The banner adds "for Jellyfin" in white underneath; the app icon never carries text.
+The wordmark is "peke" in Nunito Black, one colour per letter: sunny, coral, teal, lilac. `assets/logo-peke.svg` has
+it as outlines, so it renders without Nunito installed and converts to a vector drawable; `assets/logo-peke-text.svg`
+keeps it as editable text. The banners add "for Jellyfin" in white underneath: the README banner
+(`docs/assets/banner.svg`) and the Android TV launcher banner (`assets/tv-banner.svg`, 320×180). The app icon never
+carries text. Apart from `logo-peke-text.svg`, text in the SVGs is converted to paths, since vector drawables
+drop `<text>`.
 
 ## Avatars
 
@@ -101,12 +126,27 @@ head, navy outline, shiny eyes, rosy cheeks) and differ by hair, accessories, sk
 child who can't read finds their own. A kid's avatar will be a field of their profile in the Jellyfin Kids plugin,
 picked by a grown-up, so every TV shows the same one.
 
+Each avatar sits on a round background in its own PekeTV colour:
+
+| Avatar | Background |
+|---|---|
+| Leo | `#FF927E` coral |
+| Max | `#FFDA70` sunny |
+| Nico | `#65D9CE` teal |
+| Lucy | `#B5A0EF` lilac |
+| Sara | `#C8CDE6` mist |
+| Mia | `#FFFFFF` white |
+
 ## Icons
 
-Twenty two-tone icons on a 48 grid (`assets/icons/`): filled shapes in the theme colours, a 3.5 px navy outline and a
-small white highlight on the rounder ones. Used at 48, 32 and 24 dp, converted to Android vector drawables. In the
-collapsed sidebar, icons that aren't selected are drawn as plain outlines in "text, secondary" so the rail stays
-quiet.
+Twenty icons on a 48 grid, used at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
+- **Two-tone** (`assets/icons/`): filled shapes in the PekeTV colours, a 3.5 px navy outline and a small white
+  highlight on the rounder ones. The colours are baked in, so this set is **PekeTV only**.
+- **Outline** (`assets/icons/outline/`): the same twenty as single-colour strokes in `currentColor`, tinted at runtime.
+  The collapsed sidebar draws icons that aren't selected this way in "text, secondary", so the rail stays quiet.
+
+The other themes use the outline set tinted with their own roles, or a two-tone set recoloured with their values at
+build time.
 
 ## Screens
 
@@ -150,4 +190,4 @@ grown-ups only. Every string ships in English and Spanish.
 | Type styles | `Typography`: displayLarge (display), headlineLarge (title), headlineMedium (headline), titleLarge (section), bodyLarge (body), bodyMedium (supporting), labelMedium (small) |
 | Corners | `Shapes`: small 16 px, medium 22–24 px, large 36 px; pills via `CircleShape` |
 | Focus | the components' focus border and scale (`Border`, `ClickableSurfaceScale`) set once in shared defaults |
-| Themes | Wholphin's `ThemeColors`/`AppThemeColors` gain PekeTV, Mandarina, Caramelo and Papel; the Wholphin ones go |
+| Themes | Wholphin's `ThemeColors`/`AppThemeColors` gain PekeTV, Mandarina, Caramelo and Papel; the Wholphin themes leave the picker, but their `AppThemeColors` proto values stay reserved (never renumbered or reused) and a saved one migrates to PekeTV |
