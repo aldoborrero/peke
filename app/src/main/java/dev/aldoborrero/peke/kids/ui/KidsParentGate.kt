@@ -6,34 +6,41 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.gate.LockChange
+import dev.aldoborrero.peke.kids.gate.PasscodeHasher
 import dev.aldoborrero.peke.kids.server.KidsDenial
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.ui.components.DialogItem
 import dev.aldoborrero.peke.ui.components.DialogItemEntry
 import dev.aldoborrero.peke.ui.components.DialogPopup
+import dev.aldoborrero.peke.ui.preferences.SetPinFlow
 
 /**
- * The single way out of kids mode: the household parent code, then a menu for grown-ups. On a server whose plugin
- * went away before this TV cached the code, a server administrator's sign-in only allows turning kids mode off there.
+ * The single way to grown-up control: the household parent code, then a menu for grown-ups (`contracts/tv-flows.md`).
+ * Nothing in it unlocks the TV; resetting it is the only way out of kids mode. On a server whose plugin went away
+ * before this TV cached the code, a server administrator's sign-in only allows resetting this TV.
  *
+ * @param withKid whether a kid's session is open behind the gate; from the picker or the "no kids" page there is none,
+ * and the menu leaves out that kid's items
  * @param onPassed where to go once the code is right, instead of the menu, such as a kid picked while another is
  * stopped
  */
 @Composable
 fun KidsParentGate(
     onDismissRequest: () -> Unit,
-    unlockOnly: Boolean = false,
+    withKid: Boolean = true,
     onPassed: (() -> Unit)? = null,
     viewModel: KidsParentGateViewModel = hiltViewModel(),
 ) {
-    viewModel.unlockOnly = unlockOnly
+    viewModel.withKid = withKid
     DisposableEffect(Unit) { onDispose { viewModel.reset() } }
     val context = LocalContext.current
     val stage by viewModel.stage.collectAsState()
@@ -77,6 +84,46 @@ fun KidsParentGate(
             )
         }
 
+        is GateStage.WrongCode -> {
+            // Try again comes first and is focused; recovery needs a server administrator
+            DialogPopup(
+                showDialog = true,
+                title = stringResource(R.string.kids_gate_wrong_passcode),
+                dialogItems =
+                    listOf(
+                        DialogItem(stringResource(R.string.peke_setup_try_again)) { viewModel.retryCode() },
+                        DialogItem(stringResource(R.string.kids_gate_forgot)) { viewModel.forgotCode() },
+                    ),
+                onDismissRequest = onDismissRequest,
+                dismissOnClick = false,
+                waitToLoad = false,
+            )
+        }
+
+        is GateStage.RecoveryCode -> {
+            key(s.type) {
+                SetPinFlow(
+                    currentPin = null,
+                    onAddPin = { code ->
+                        viewModel.setRecoveredCode(code) { result ->
+                            val message =
+                                when (result) {
+                                    LockChange.Done -> R.string.kids_gate_code_changed
+                                    LockChange.Unreachable -> R.string.kids_cant_reach_server
+                                    else -> R.string.kids_save_failed
+                                }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onRemovePin = {},
+                    onDismissRequest = onDismissRequest,
+                    isValid = { PasscodeHasher.isValid(it, s.type) },
+                    symbolFor = parentLockSymbol(s.type),
+                    hint = { ParentLockHint(s.type, it) },
+                )
+            }
+        }
+
         is GateStage.NoCode -> {
             DialogPopup(
                 showDialog = true,
@@ -90,6 +137,27 @@ fun KidsParentGate(
                             dismissOnClick = true,
                             onClick = {},
                         ),
+                        DialogItem(stringResource(if (s.notSet) R.string.kids_gate_set_code_admin else R.string.kids_gate_forgot)) {
+                            viewModel.forgotCode()
+                        },
+                    ),
+                onDismissRequest = onDismissRequest,
+                dismissOnClick = false,
+                waitToLoad = false,
+            )
+        }
+
+        GateStage.RecoveryOnly -> {
+            DialogPopup(
+                showDialog = true,
+                title = stringResource(R.string.kids_grown_ups),
+                dialogItems =
+                    listOf(
+                        DialogItem(
+                            headlineContent = { Text(stringResource(R.string.kids_gate_recovery_only)) },
+                            onClick = {},
+                        ),
+                        DialogItem(stringResource(R.string.kids_gate_forgot)) { viewModel.forgotCode() },
                     ),
                 onDismissRequest = onDismissRequest,
                 dismissOnClick = false,
@@ -134,7 +202,7 @@ fun KidsParentGate(
                             headlineContent = { Text(stringResource(pluginGoneTitle(plugin.outdated))) },
                             onClick = {},
                         ),
-                        DialogItem(stringResource(R.string.kids_turn_off_here), dismissOnClick = true) { viewModel.turnOffHere() },
+                        DialogItem(stringResource(R.string.peke_menu_reset), dismissOnClick = true) { viewModel.openReset() },
                     ),
                 onDismissRequest = onDismissRequest,
                 dismissOnClick = false,
@@ -175,18 +243,25 @@ fun KidsParentGate(
                                 onClick = {},
                             ),
                         )
-                        add(DialogItem(stringResource(R.string.kids_turn_off_here), dismissOnClick = true) { viewModel.turnOffHere() })
                         add(DialogItem.divider())
                     }
-                    if (canAddTime) {
-                        add(DialogItem(stringResource(R.string.kids_add_time)) { viewModel.chooseMinutes() })
+                    if (withKid) {
+                        if (canAddTime) {
+                            add(DialogItem(stringResource(R.string.kids_add_time)) { viewModel.chooseMinutes() })
+                        }
+                        listOfNotNull(todayLeft, sittingLeft, breakLeft).forEach { line ->
+                            add(DialogItem(headlineContent = { Text(line) }, onClick = {}))
+                        }
+                        add(DialogItem.divider())
+                        add(DialogItem(stringResource(R.string.kids_settings), dismissOnClick = true) { viewModel.openSettings() })
                     }
-                    listOfNotNull(todayLeft, sittingLeft, breakLeft).forEach { line ->
-                        add(DialogItem(headlineContent = { Text(line) }, onClick = {}))
+                    add(DialogItem(stringResource(R.string.peke_menu_kids_on_tv), dismissOnClick = true) { viewModel.openKidsOnTv() })
+                    if (withKid) {
+                        add(DialogItem(stringResource(R.string.peke_menu_this_tv), dismissOnClick = true) { viewModel.openThisTv() })
                     }
+                    add(DialogItem(stringResource(R.string.license_info), dismissOnClick = true) { viewModel.openLicense() })
                     add(DialogItem.divider())
-                    add(DialogItem(stringResource(R.string.kids_settings), dismissOnClick = true) { viewModel.openSettings() })
-                    add(DialogItem(stringResource(R.string.kids_leave), dismissOnClick = true) { viewModel.leave() })
+                    add(DialogItem(stringResource(R.string.peke_menu_reset), dismissOnClick = true) { viewModel.openReset() })
                 }
             DialogPopup(
                 showDialog = true,

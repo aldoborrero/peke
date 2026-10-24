@@ -31,6 +31,15 @@ class KidsDataCleaner
         }
 
         /**
+         * Removes every kid profile and every kids server, with its cached lock and verifier, for a reset of this TV.
+         * Also the rows of servers the app database no longer has.
+         */
+        suspend fun eraseAll() {
+            kidProfileDao.allUserIds().forEach { kidProfileDao.delete(it) }
+            kidsServerDao.allServerIds().forEach { kidsServerDao.delete(it) }
+        }
+
+        /**
          * Removes kids rows whose user or server no longer exists, such as after a crash between the two databases'
          * deletes
          */

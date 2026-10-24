@@ -243,10 +243,10 @@ fun KidsPicker(
         }
     }
     state.gate?.let {
-        KidsParentGate(onDismissRequest = viewModel::gateDismissed, onPassed = { viewModel.gatePassed() })
+        KidsParentGate(onDismissRequest = viewModel::gateDismissed, withKid = false, onPassed = { viewModel.gatePassed() })
     }
     if (grownUps) {
-        KidsParentGate(onDismissRequest = { grownUps = false })
+        KidsParentGate(onDismissRequest = { grownUps = false }, withKid = false)
     }
 }
 
@@ -278,7 +278,7 @@ fun NoKidsPage(modifier: Modifier = Modifier) {
         }
     }
     if (grownUps) {
-        KidsParentGate(onDismissRequest = { grownUps = false })
+        KidsParentGate(onDismissRequest = { grownUps = false }, withKid = false)
     }
 }
 

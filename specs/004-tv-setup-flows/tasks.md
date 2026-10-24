@@ -150,20 +150,20 @@ Every task description below uses these prefixes literally.
 
 ### Tests
 
-- [ ] T026 [P] [US3] Extend `test/kids/ParentLockServiceTest.kt`:
+- [x] T026 [P] [US3] Extend `test/kids/ParentLockServiceTest.kt`:
   - an admin token is no longer a grant;
   - with no kid token, the gate uses the offline verifier;
   - with no verifier, only recovery is offered.
-- [ ] T027 [P] [US3] Write `KidsOnTvViewModelTest` in `test/kids/setup/KidsOnTvViewModelTest.kt`:
+- [x] T027 [P] [US3] Write `KidsOnTvViewModelTest` in `test/kids/setup/KidsOnTvViewModelTest.kt`:
   - removing a kid logs out and deletes only that row;
   - adding a kid opens `AdminSession`, lists only household kids not yet on the TV, and closes the session afterwards.
 
 ### Implementation
 
-- [ ] T028 [US3] In `main/kids/gate/ParentLockService.kt`, remove `isAdmin()` from `auth()` (`:355-367`) and add the offline-verifier path for when no kid token works (research R7).
-- [ ] T029 [US3] Rebuild the parent menu in `main/kids/ui/KidsParentGate.kt` and `main/kids/ui/KidsParentGateViewModel.kt`. Items, as in `contracts/tv-flows.md`: add time, this kid's settings, kids on this TV, This TV, license, reset. Remove Leave and Turn off here.
-- [ ] T030 [US3] Implement the kids on this TV screen (list, remove, add through the `KIDS` and `SIGN_IN` steps with `AdminSession`) in `main/kids/setup/KidsOnTv.kt`.
-- [ ] T031 [US3] Guard the grown-up destinations (settings, debug, kids settings, license) with a live parent grant in `main/ui/nav/DestinationContent.kt` (`:107-130`, `372-391`). Without a grant, redirect to the gate (C12).
+- [x] T028 [US3] In `main/kids/gate/ParentLockService.kt`, remove `isAdmin()` from `auth()` (`:355-367`) and add the offline-verifier path for when no kid token works (research R7).
+- [x] T029 [US3] Rebuild the parent menu in `main/kids/ui/KidsParentGate.kt` and `main/kids/ui/KidsParentGateViewModel.kt`. Items, as in `contracts/tv-flows.md`: add time, this kid's settings, kids on this TV, This TV, license, reset. Remove Leave and Turn off here.
+- [x] T030 [US3] Implement the kids on this TV screen (list, remove, add through the `KIDS` and `SIGN_IN` steps with `AdminSession`) in `main/kids/setup/KidsOnTv.kt`.
+- [x] T031 [US3] Guard the grown-up destinations (settings, debug, kids settings, license) with a live parent grant in `main/ui/nav/DestinationContent.kt` (`:107-130`, `372-391`). Without a grant, redirect to the gate (C12).
 
 **Checkpoint**: everything grown-ups do goes through the gate; no step leaves the TV unlocked.
 
@@ -175,13 +175,13 @@ Every task description below uses these prefixes literally.
 
 **Independent Test**: quickstart scenario 6.
 
-- [ ] T032 [P] [US4] Write `ResetTvTest` in `test/kids/setup/ResetTvTest.kt`:
+- [x] T032 [P] [US4] Write `ResetTvTest` in `test/kids/setup/ResetTvTest.kt`:
   - every kid is logged out with their own device id;
   - offline, everything is still erased and a message names the dashboard;
   - `TvSetup`, the users, the servers and the kids data (`main/kids/data/KidsDataCleaner.kt`) are erased;
   - a warm resume after a reset shows setup.
-- [ ] T033 [US4] Implement `ResetTv` and its confirmation screen in `main/kids/setup/ResetTv.kt`, using `KidsDataCleaner` and `TvSetupRepository.erase`.
-- [ ] T034 [P] [US4] Add the reset strings to `res/values/strings.xml` and `res/values-es/strings.xml`.
+- [x] T033 [US4] Implement `ResetTv` and its confirmation screen in `main/kids/setup/ResetTv.kt`, using `KidsDataCleaner` and `TvSetupRepository.erase`.
+- [x] T034 [P] [US4] Add the reset strings to `res/values/strings.xml` and `res/values-es/strings.xml`.
 
 ---
 
@@ -191,12 +191,12 @@ Every task description below uses these prefixes literally.
 
 **Independent Test**: quickstart scenario 7.
 
-- [ ] T035 [P] [US5] Add the recovery cases to `test/kids/ParentLockServiceTest.kt`:
+- [x] T035 [P] [US5] Add the recovery cases to `test/kids/ParentLockServiceTest.kt`:
   - `PUT /Kids/Parent/Lock` is sent without the current code, using the admin token;
   - a non-admin is refused;
   - the session closes.
-- [ ] T036 [US5] Add Forgot the code? to the gate in `main/kids/ui/KidsParentGate.kt`, using `AdminSession` and `ParentLockService.setCode`.
-- [ ] T037 [P] [US5] Add the recovery strings to `res/values/strings.xml` and `res/values-es/strings.xml`.
+- [x] T036 [US5] Add Forgot the code? to the gate in `main/kids/ui/KidsParentGate.kt`, using `AdminSession` and `ParentLockService.setCode`.
+- [x] T037 [P] [US5] Add the recovery strings to `res/values/strings.xml` and `res/values-es/strings.xml`.
 
 ---
 

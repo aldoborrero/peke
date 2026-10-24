@@ -39,7 +39,7 @@ fun KidsLockGuard(
                 modifier = modifier,
             )
             if (showGate) {
-                KidsParentGate(onDismissRequest = { showGate = false }, unlockOnly = true)
+                KidsParentGate(onDismissRequest = { showGate = false }, withKid = false)
             }
         }
     }

@@ -86,4 +86,40 @@ sealed interface SetupDestination : NavKey {
      */
     @Serializable
     data object NoKids : SetupDestination
+
+    /**
+     * The kids on this TV, to remove one or add more (spec FR-014). Only with a live parent grant.
+     *
+     * @param fromKid opened from a kid's parent menu, so leaving returns to that kid
+     */
+    @Serializable
+    data class KidsOnTv(
+        val fromKid: Boolean = false,
+    ) : SetupDestination
+
+    /**
+     * Adding kids to this TV with [server]'s administrator: the setup's kids and sign-in steps, for household kids not
+     * on this TV yet. Only with a live parent grant.
+     */
+    @Serializable
+    data class AddKids(
+        val server: JellyfinServer,
+        val fromKid: Boolean = false,
+    ) : SetupDestination
+
+    /**
+     * Resetting this TV, after a confirmation (spec FR-015). Only with a live parent grant.
+     *
+     * @param fromKid opened from a kid's parent menu, so not resetting returns to that kid
+     */
+    @Serializable
+    data class ResetTv(
+        val fromKid: Boolean = false,
+    ) : SetupDestination
+
+    /**
+     * The license screen, from the parent menu when no kid is current. Only with a live parent grant.
+     */
+    @Serializable
+    data object License : SetupDestination
 }

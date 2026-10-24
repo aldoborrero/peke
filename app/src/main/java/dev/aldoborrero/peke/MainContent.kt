@@ -28,12 +28,16 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import dev.aldoborrero.peke.kids.setup.KidsOnTvPage
 import dev.aldoborrero.peke.kids.setup.KidsPicker
 import dev.aldoborrero.peke.kids.setup.NoKidsPage
+import dev.aldoborrero.peke.kids.setup.ResetTvPage
 import dev.aldoborrero.peke.kids.setup.SetupFlow
 import dev.aldoborrero.peke.kids.setup.TvSetupStep
+import dev.aldoborrero.peke.kids.ui.GrownUpGuard
 import dev.aldoborrero.peke.kids.ui.KidsLockGuard
 import dev.aldoborrero.peke.kids.ui.ProvideKidsUi
+import dev.aldoborrero.peke.kids.ui.SetupLicensePage
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -124,6 +128,36 @@ fun MainContent(
 
                                 SetupDestination.NoKids -> {
                                     NoKidsPage(Modifier.fillMaxSize())
+                                }
+
+                                // The parent menu's pages outside a kid's pages, only with a live parent grant (C12)
+                                is SetupDestination.KidsOnTv -> {
+                                    GrownUpGuard(inKidPages = false, modifier = Modifier.fillMaxSize()) {
+                                        KidsOnTvPage(fromKid = key.fromKid, modifier = Modifier.fillMaxSize())
+                                    }
+                                }
+
+                                is SetupDestination.AddKids -> {
+                                    GrownUpGuard(inKidPages = false, modifier = Modifier.fillMaxSize()) {
+                                        SetupFlow(
+                                            step = TvSetupStep.KIDS,
+                                            addTo = key.server,
+                                            addFromKid = key.fromKid,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                }
+
+                                is SetupDestination.ResetTv -> {
+                                    GrownUpGuard(inKidPages = false, modifier = Modifier.fillMaxSize()) {
+                                        ResetTvPage(fromKid = key.fromKid, modifier = Modifier.fillMaxSize())
+                                    }
+                                }
+
+                                SetupDestination.License -> {
+                                    GrownUpGuard(inKidPages = false, modifier = Modifier.fillMaxSize()) {
+                                        SetupLicensePage(Modifier.fillMaxSize())
+                                    }
                                 }
 
                                 is SetupDestination.AppContent -> {

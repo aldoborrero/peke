@@ -241,6 +241,19 @@ class KidsAllowanceService
             }
 
         /**
+         * Forget the cached status of the kids of users rows [rowIds], removed from this TV
+         */
+        suspend fun forget(rowIds: Collection<Int>) {
+            try {
+                keyValueService.remove(rowIds.map { key(it) })
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Could not forget the cached kids status")
+            }
+        }
+
+        /**
          * Add [minutes] to the current kid's allowance for today. Needs the parent grant.
          */
         suspend fun addBonus(minutes: Int): BonusResult {

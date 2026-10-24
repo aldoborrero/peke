@@ -37,7 +37,6 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import timber.log.Timber
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -86,8 +85,8 @@ internal fun kidsModeState(
  * Tracks whether the current user is a kid profile, and the device's kids lock
  *
  * Who is a kid comes from the Jellyfin Kids plugin, through the [KidProfileRepository] cache. The kids lock is set
- * when a kid becomes the current profile (also at app start) and is only cleared by [unlock], which callers must only
- * invoke after the parent passcode was verified. Profile refreshes don't set it again. While locked, only kid
+ * when a kid becomes the current profile (also at app start), and nothing clears it: a set-up TV has no unlocked state
+ * (spec 004 FR-016), and only resetting the TV leaves kids mode. While locked, only kid
  * profiles may be selected.
  *
  * Each time a user becomes current their profile is read from the server once ([lookUp]); a sign-in and the user list
@@ -174,8 +173,7 @@ class KidsModeService
         private val lookups = ConcurrentHashMap<Int, Lookup>()
 
         init {
-            // Lock when a kid becomes the current profile, including at app start, but not when their profile is
-            // refreshed, so an explicit unlock stays until the next switch to a kid. A user still being read in between
+            // Lock when a kid becomes the current profile, including at app start. A user still being read in between
             // (Loading) counts as a switch away, so switching back to the kid locks again.
             state
                 .map { (it as? KidsModeState.Active)?.user?.rowId }
@@ -314,21 +312,6 @@ class KidsModeService
         suspend fun refreshServer(server: JellyfinServer) {
             pluginService.check(server)
             kidProfileRepository.refreshServer(server)
-        }
-
-        /**
-         * Turn kids mode off for [serverId] on this device, for a server whose plugin went away. Only call after the
-         * parent passcode was verified.
-         */
-        suspend fun turnOffForServer(serverId: UUID) {
-            pluginService.forget(serverId)
-        }
-
-        /**
-         * Clears the kids lock. Only call after the parent passcode was verified.
-         */
-        suspend fun unlock() {
-            keyValueService.save(LOCK_KEY, false)
         }
 
         companion object {

@@ -137,7 +137,7 @@ class KidsModeServiceTest {
         }
 
     @Test
-    fun `kids lock fails closed and only unlock clears it`() =
+    fun `kids lock fails closed and nothing clears it`() =
         runTest(UnconfinedTestDispatcher()) {
             val dao = FakeKidProfileDao { server.id }
             val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
@@ -146,10 +146,6 @@ class KidsModeServiceTest {
             dao.upsert(KidProfile(userId = kid.rowId))
             advanceUntilIdle()
             assertEquals(true, service.locked.value)
-
-            service.unlock()
-            advanceUntilIdle()
-            assertEquals(false, service.locked.value)
 
             current.value = CurrentUser(server, kid)
             advanceUntilIdle()
@@ -244,41 +240,6 @@ class KidsModeServiceTest {
         }
 
     @Test
-    fun `leaving kids mode stays unlocked when the kid's profile is refreshed`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val dao = FakeKidProfileDao { server.id }
-            dao.upsert(KidProfile(userId = kid.rowId, revision = 1))
-            val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, kid))
-            val service = createService(current, dao)
-            advanceUntilIdle()
-            assertEquals(true, service.locked.value)
-
-            service.unlock()
-            // The user list refreshes who is a kid, which stores the kid's newer profile
-            dao.upsert(KidProfile(userId = kid.rowId, revision = 2, searchAllowed = true))
-            advanceUntilIdle()
-            assertTrue(service.isActive)
-            assertEquals(false, service.locked.value)
-
-            // Picking the same kid again from the user list locks
-            service.lockIfKid(kid)
-            advanceUntilIdle()
-            assertEquals(true, service.locked.value)
-
-            // So does switching to a kid from another profile
-            service.unlock()
-            current.value = CurrentUser(server, adult)
-            advanceUntilIdle()
-            assertEquals(false, service.locked.value)
-            service.lockIfKid(adult)
-            advanceUntilIdle()
-            assertEquals(false, service.locked.value)
-            current.value = CurrentUser(server, kid)
-            advanceUntilIdle()
-            assertEquals(true, service.locked.value)
-        }
-
-    @Test
     fun `a kid new on this TV locks it at sign-in, once their profile is read`() =
         runTest(UnconfinedTestDispatcher()) {
             val dao = FakeKidProfileDao { server.id }
@@ -328,20 +289,5 @@ class KidsModeServiceTest {
                 )
             assertEquals(KidsModeState.Loading, service.state.value)
             assertNull(service.locked.value)
-        }
-
-    @Test
-    fun `turning kids mode off for a server removes its kids`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val dao = FakeKidProfileDao { server.id }
-            val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, kid))
-            val service = createService(current, dao)
-            dao.upsert(KidProfile(userId = kid.rowId))
-            advanceUntilIdle()
-            assertTrue(service.isActive)
-            service.turnOffForServer(server.id)
-            advanceUntilIdle()
-            assertFalse(service.isActive)
-            assertEquals(false, service.locked.value)
         }
 }

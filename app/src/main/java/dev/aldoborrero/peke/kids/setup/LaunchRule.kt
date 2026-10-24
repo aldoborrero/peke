@@ -114,6 +114,20 @@ class TvLauncher
             setupNavigationManager.navigateTo(screen(destination))
         }
 
+        /**
+         * Back to the current kid's pages, for a grown-up leaving a page the parent menu opened from them; without a
+         * current kid of this TV, the first screen [launch] picks
+         */
+        suspend fun resume() {
+            val current = serverRepository.current.value
+            val kids = (tvSetupRepository.state.value as? TvState.SetUp)?.kids.orEmpty()
+            if (current != null && kids.any { it.rowId == current.user.rowId && it.accessToken == current.user.accessToken }) {
+                setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+            } else {
+                launch()
+            }
+        }
+
         private suspend fun screen(destination: LaunchDestination): SetupDestination =
             when (destination) {
                 LaunchDestination.Starting -> {

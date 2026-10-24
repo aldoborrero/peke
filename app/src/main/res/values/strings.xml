@@ -914,7 +914,6 @@
         <item quantity="other">%1$d minutes</item>
     </plurals>
     <string name="kids_settings">Kids settings</string>
-    <string name="kids_leave">Leave kids mode</string>
     <string name="kids_times_up">Time\'s up!</string>
     <string name="kids_times_up_subtitle">See you next time, %1$s</string>
     <plurals name="kids_minutes_left">
@@ -980,7 +979,7 @@
         <item quantity="other">Too many tries. Wait %1$d seconds</item>
     </plurals>
     <string name="kids_gate_cannot_check">Can\'t check the code without the server right now</string>
-    <string name="kids_gate_no_code">No parent code is set yet. Set one in the Jellyfin dashboard\'s Kids page, or in Kids settings from an administrator profile.</string>
+    <string name="kids_gate_no_code">No parent code is set yet. Set one in the Jellyfin dashboard\'s Kids page, or here as a server administrator.</string>
     <string name="kids_gate_no_code_offline">Can\'t reach the server to check the parent code. Try again in a moment.</string>
     <plurals name="kids_minutes_left_today">
         <item quantity="one">%1$d minute left today</item>
@@ -1002,8 +1001,7 @@
     <string name="kids_sitting_over_subtitle">Have a rest, %1$s</string>
     <string name="kids_bedtime">Bedtime</string>
     <string name="kids_bedtime_subtitle">Sleep well, %1$s</string>
-    <string name="kids_turn_off_here">Turn off kids mode for this server on this TV</string>
-    <string name="kids_gate_plugin_missing">This TV never saved the parent code, so a server administrator has to sign in to turn kids mode off here</string>
+    <string name="kids_gate_plugin_missing">This TV never saved the parent code, so a server administrator has to sign in to reset this TV</string>
     <string name="kids_admin_sign_in">Sign in as a server administrator</string>
     <string name="kids_admin_sign_in_title">Enter the user name and password of a server administrator. They are only used to check, and not saved.</string>
     <string name="kids_admin_wrong">Wrong user name or password</string>
@@ -1014,7 +1012,7 @@
     <string name="kids_sign_in_locked">This TV is in kids mode. Pick a kid from the list, or enter the parent code to add someone else.</string>
     <string name="kids_save_failed">Couldn\'t save the change</string>
     <string name="kids_changed_elsewhere">These settings changed on another device. Showing the current ones.</string>
-    <string name="kids_admin_needed">Kids mode is set up by an administrator. Open Kids settings from an administrator profile, or use the Kids page in the Jellyfin dashboard.</string>
+    <string name="kids_admin_needed">No parent code is set yet. A server administrator sets it from Grown-ups, or in the Kids page of the Jellyfin dashboard.</string>
     <string name="kids_set_code_first">Set the household parent code first</string>
     <string name="kids_gate_current_passcode">Enter the current parent code</string>
     <string name="kids_daily_allowance">Daily time</string>
@@ -1069,4 +1067,20 @@
     <string name="peke_picker_needs_grown_up">Needs a grown-up</string>
     <string name="peke_no_kids_title">This TV has no kids</string>
     <string name="peke_no_kids_hint">A grown-up can add a kid to this TV.</string>
+    <string name="peke_menu_kids_on_tv">Kids on this TV</string>
+    <string name="peke_menu_this_tv">This TV</string>
+    <string name="peke_menu_reset">Reset this TV</string>
+    <string name="peke_kids_on_tv_hint">Pick a kid to remove them from this TV. They stay in the household and on other TVs.</string>
+    <string name="peke_kids_on_tv_add">Add a kid</string>
+    <string name="peke_kids_on_tv_remove">Remove %1$s from this TV?</string>
+    <string name="peke_kids_on_tv_remove_hint">%1$s is signed out here and forgotten on this TV. They stay in the household and on other TVs.</string>
+    <string name="peke_setup_kids_all_on_tv">Every kid of this server is already on this TV</string>
+    <string name="kids_gate_recovery_only">This TV can\'t check the parent code right now: no kid here can reach the server, and the code was never saved on this TV.</string>
+    <string name="peke_reset_title">Reset this TV?</string>
+    <string name="peke_reset_hint">Every kid is signed out, and the server, the kids and their data are erased from this TV. Then setup starts again. The kids stay in the household and on other TVs.</string>
+    <string name="peke_reset_done">This TV was reset</string>
+    <string name="peke_reset_offline">The server couldn\'t be reached, so the kids\' sessions on this TV may still be listed. Remove them in the Jellyfin dashboard, under Devices.</string>
+    <string name="kids_gate_forgot">Forgot the code?</string>
+    <string name="kids_gate_set_code_admin">Set the code as a server administrator</string>
+    <string name="kids_gate_code_changed">Parent code changed. Type the new code.</string>
 </resources>

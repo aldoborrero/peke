@@ -220,12 +220,16 @@ sealed interface SetupScreen {
         val error: SetupError? = null,
     ) : SetupScreen
 
+    /**
+     * @param adding adding kids to a set-up TV: only kids not on it yet are listed
+     */
     data class Kids(
         val server: JellyfinServer,
         val kids: List<SetupKid> = emptyList(),
         val selected: Set<UUID> = emptySet(),
         val loading: Boolean = false,
         val error: SetupError? = null,
+        val adding: Boolean = false,
     ) : SetupScreen
 
     data class SignIn(
@@ -244,7 +248,8 @@ sealed interface SetupScreen {
  * The steps reached are stored in [TvSetupRepository]; the administrator session only lives here, in memory, and is
  * closed when setup finishes or is left (research R4).
  *
- * [again] signs one kid whose session stopped working in again, with the same administrator and sign-in steps.
+ * [again] signs one kid whose session stopped working in again, with the same administrator and sign-in steps, and
+ * [addKids] adds kids to a set-up TV with the administrator, kids and sign-in steps (spec FR-014).
  */
 @HiltViewModel
 class SetupFlowViewModel
@@ -268,6 +273,8 @@ class SetupFlowViewModel
         private var admin: AdminSession? = null
         private var closing: Job? = null
         private var againKid: JellyfinUser? = null
+        private var adding = false
+        private var addingFromKid = false
         private var started = false
         private var discovery: Job? = null
         private var quickConnect: Job? = null
@@ -294,6 +301,24 @@ class SetupFlowViewModel
                 if (started) return@launch
                 started = true
                 againKid = kid
+                _screen.value = SetupScreen.Admin(server)
+            }
+
+        /**
+         * Add kids to this set-up TV with [server]'s administrator, after the parent gate: the administrator signs in,
+         * then the household's kids not on this TV yet are listed and the picked ones signed in
+         *
+         * @param fromKid opened from a kid's parent menu, so the steps return to that kid
+         */
+        fun addKids(
+            server: JellyfinServer,
+            fromKid: Boolean = false,
+        ): Job =
+            viewModelScope.launch {
+                if (started) return@launch
+                started = true
+                adding = true
+                addingFromKid = fromKid
                 _screen.value = SetupScreen.Admin(server)
             }
 
@@ -416,6 +441,10 @@ class SetupFlowViewModel
                 signInRows(server, listOf(SetupKid(kid.id, kid.name, imageUrl(server, kid.id))))
                 return
             }
+            if (adding) {
+                loadKids(server)
+                return
+            }
             when (val lock = kidsApi.lock(server.url, session.caller)) {
                 is KidsResult.Ok -> {
                     if (ParentLockService.parseType(lock.value.lockType) == null) {
@@ -487,7 +516,7 @@ class SetupFlowViewModel
         ) {
             val session = admin ?: return
             val previous = (_screen.value as? SetupScreen.Kids)?.kids.orEmpty()
-            _screen.value = SetupScreen.Kids(server, previous, selected, loading = true)
+            _screen.value = SetupScreen.Kids(server, previous, selected, loading = true, adding = adding)
             when (val result = kidsApi.householdKids(server.url, session.caller)) {
                 is KidsResult.Ok -> {
                     val onTv =
@@ -497,14 +526,18 @@ class SetupFlowViewModel
                             .filter { it.accessToken != null }
                             .map { it.id }
                             .toSet()
-                    val kids = result.value.map { SetupKid(it.userId, it.name, imageUrl(server, it.userId), it.userId in onTv) }
+                    val kids =
+                        result.value
+                            .map { SetupKid(it.userId, it.name, imageUrl(server, it.userId), it.userId in onTv) }
+                            // Adding to a set-up TV lists only the kids not on it yet
+                            .filter { !adding || !it.onTv }
                     val ids = kids.map { it.id }.toSet()
-                    _screen.value = SetupScreen.Kids(server, kids, (selected + onTv).intersect(ids))
+                    _screen.value = SetupScreen.Kids(server, kids, (selected + onTv).intersect(ids), adding = adding)
                 }
 
                 else -> {
                     val error = if (result == KidsResult.Unreachable) SetupError.UNREACHABLE else SetupError.FAILED
-                    _screen.value = SetupScreen.Kids(server, previous, selected, error = error)
+                    _screen.value = SetupScreen.Kids(server, previous, selected, error = error, adding = adding)
                 }
             }
         }
@@ -524,7 +557,8 @@ class SetupFlowViewModel
                 val current = _screen.value as? SetupScreen.Kids ?: return@launch
                 val picked = current.kids.filter { it.id in current.selected }
                 if (picked.isEmpty() || current.loading) return@launch
-                tvSetupRepository.markStep(current.server, TvSetupStep.SIGN_IN)
+                // Adding to a set-up TV leaves its setup done
+                if (!adding) tvSetupRepository.markStep(current.server, TvSetupStep.SIGN_IN)
                 signInRows(current.server, picked)
             }
 
@@ -583,10 +617,10 @@ class SetupFlowViewModel
                 val current = _screen.value as? SetupScreen.SignIn ?: return@launch
                 if (!current.canFinish) return@launch
                 _screen.value = current.copy(finishing = true)
-                val setUp = againKid == null
+                val setUp = againKid == null && !adding
                 if (setUp) tvSetupRepository.markDone(current.server)
                 closeAdmin()
-                if (setUp) launcher.launch { it is TvState.SetUp && it.kids.isNotEmpty() } else launcher.launch()
+                if (setUp) launcher.launch { it is TvState.SetUp && it.kids.isNotEmpty() } else leave()
             }
 
         /**
@@ -602,8 +636,8 @@ class SetupFlowViewModel
 
                 is SetupScreen.Admin -> {
                     cancelQuickConnect()
-                    if (againKid != null) {
-                        appScope.launch { launcher.launch() }
+                    if (againKid != null || adding) {
+                        appScope.launch { leave() }
                     } else {
                         _screen.value = SetupScreen.Server()
                     }
@@ -625,12 +659,20 @@ class SetupFlowViewModel
                         true
                     } else {
                         val selected = s.rows.map { it.kid.id }.toSet()
-                        _screen.value = SetupScreen.Kids(s.server, s.rows.map { it.kid }, selected, loading = true)
+                        _screen.value = SetupScreen.Kids(s.server, s.rows.map { it.kid }, selected, loading = true, adding = adding)
                         viewModelScope.launch { loadKids(s.server, selected) }
                         true
                     }
                 }
             }
+
+        /**
+         * Out of the steps that sign kids in on a set-up TV: back to the kid whose menu opened them, or else the first
+         * screen the launch rule picks
+         */
+        private suspend fun leave() {
+            if (adding && addingFromKid) launcher.resume() else launcher.launch()
+        }
 
         private fun serverOf(screen: SetupScreen): JellyfinServer =
             when (screen) {
@@ -684,7 +726,8 @@ class SetupFlowViewModel
     }
 
 /**
- * The setup flow, from [step]; with [againKid] only that kid is signed in again on [againServer]
+ * The setup flow, from [step]; with [againKid] only that kid is signed in again on [againServer], and with [addTo] kids
+ * are added to that set-up server
  */
 @Composable
 fun SetupFlow(
@@ -692,10 +735,16 @@ fun SetupFlow(
     modifier: Modifier = Modifier,
     againServer: JellyfinServer? = null,
     againKid: JellyfinUser? = null,
+    addTo: JellyfinServer? = null,
+    addFromKid: Boolean = false,
     viewModel: SetupFlowViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(Unit) {
-        if (againServer != null && againKid != null) viewModel.again(againServer, againKid) else viewModel.start(step)
+        when {
+            againServer != null && againKid != null -> viewModel.again(againServer, againKid)
+            addTo != null -> viewModel.addKids(addTo, addFromKid)
+            else -> viewModel.start(step)
+        }
     }
     val screen by viewModel.screen.collectAsState()
     BackHandler(enabled = screen !is SetupScreen.Starting && screen !is SetupScreen.Server) {
@@ -1005,7 +1054,7 @@ private fun KidsStep(
     if (screen.kids.isEmpty()) {
         if (!screen.loading) {
             Text(
-                text = stringResource(R.string.peke_setup_kids_none),
+                text = stringResource(if (screen.adding) R.string.peke_setup_kids_all_on_tv else R.string.peke_setup_kids_none),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )

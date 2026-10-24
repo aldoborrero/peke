@@ -149,7 +149,9 @@ private fun KidsSettingsContent(
     }
 
     // Without a code or a server to check one, grown-ups only see why
-    val unavailable = state.pluginOutdated || state.lock == LockState.Unknown || state.lock == LockState.PluginMissing
+    val unavailable =
+        state.pluginOutdated || state.lock == LockState.Unknown || state.lock == LockState.PluginMissing ||
+            state.lock == LockState.RecoveryOnly
     val showContent = !state.loading && (state.verified || state.needsAdmin || unavailable)
     AnimatedVisibility(
         visible = showContent,
@@ -210,7 +212,7 @@ private fun KidsSettingsContent(
                         selectedIndex = lockType?.ordinal ?: -1,
                         onValueChange = { index ->
                             val type = ParentLockType.entries[index]
-                            dialog = if (state.isAdmin) LockDialog.NewCode(type, null) else LockDialog.Current(type)
+                            dialog = LockDialog.Current(type)
                         },
                         valueDisplay = { _, type -> Text(stringResource(lockTypeName(type))) },
                         subtitleDisplay = { _, type -> { Text(stringResource(lockTypeSummary(type))) } },
@@ -223,7 +225,7 @@ private fun KidsSettingsContent(
                         title = stringResource(R.string.kids_change_passcode),
                         summary = stringResource(R.string.kids_household_code_summary),
                         onClick = {
-                            dialog = if (state.isAdmin) LockDialog.NewCode(lockType, null) else LockDialog.Current(lockType)
+                            dialog = LockDialog.Current(lockType)
                         },
                     )
                 }
