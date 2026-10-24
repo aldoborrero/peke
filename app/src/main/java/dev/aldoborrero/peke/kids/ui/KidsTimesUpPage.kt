@@ -2,10 +2,14 @@ package dev.aldoborrero.peke.kids.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
@@ -18,7 +22,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -92,7 +99,9 @@ fun KidsTimesUpPage(
 }
 
 /**
- * A full screen message for children whose only action is the grown-ups button, which opens the parent gate
+ * A full screen message for children whose only action is the grown-ups button, which opens the parent gate. Focus
+ * starts on the message, never on Grown-ups (constitution V, spec 005 FR-013): OK there does nothing, and Down reaches
+ * Grown-ups.
  */
 @Composable
 fun KidsGrownUpsMessage(
@@ -101,8 +110,10 @@ fun KidsGrownUpsMessage(
     onClickGrownUps: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.tryRequestFocus() }
+    val messageFocus = remember { FocusRequester() }
+    val grownUpsFocus = remember { FocusRequester() }
+    var messageFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { messageFocus.tryRequestFocus() }
     Box(
         modifier =
             modifier
@@ -115,24 +126,41 @@ fun KidsGrownUpsMessage(
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
             modifier = Modifier.fillMaxSize(),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            subtitle?.let {
+            // Focusable so the remote has a place to start, but with no action
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier =
+                    Modifier
+                        .focusRequester(messageFocus)
+                        .focusProperties { down = grownUpsFocus }
+                        .onFocusChanged { messageFocused = it.isFocused }
+                        .focusable()
+                        .border(
+                            width = 2.dp,
+                            color = if (messageFocused) MaterialTheme.colorScheme.border else Color.Transparent,
+                            shape = RoundedCornerShape(16.dp),
+                        ).padding(horizontal = 24.dp, vertical = 12.dp),
+            ) {
                 Text(
-                    text = it,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = title,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             ExpandablePlayButton(
                 title = R.string.kids_grown_ups,
                 resume = Duration.ZERO,
                 icon = Icons.Default.Lock,
                 onClick = { onClickGrownUps() },
-                modifier = Modifier.focusRequester(focus),
+                modifier = Modifier.focusRequester(grownUpsFocus),
             )
         }
     }
