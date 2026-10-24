@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kept on purpose (spec 005, owner decision of 2026-10-24): plain HTTP stays usable, because many households run
+  Jellyfin on HTTP at home, and Peke warns the grown-up before using an http:// server and prefers https:// whenever
+  it answers. Certificate authorities a grown-up installed on the TV stay trusted, for households with their own CA;
+  installing one needs the TV's system settings.
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

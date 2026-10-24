@@ -186,6 +186,8 @@ class VoiceInputManager
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_RESULTS)
+                // On the device when the speech service can (spec 005 FR-010)
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
         }
 

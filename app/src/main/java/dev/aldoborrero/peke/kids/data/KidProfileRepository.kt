@@ -136,9 +136,9 @@ class KidProfileRepository
 
         /**
          * Update the cache for every signed-in user of [server]: who is a kid, and the profiles that changed. The plugin
-         * is asked with a kid's own token, [preferred] first; a user the plugin no longer lists as a kid, such as one
-         * unmarked in the dashboard or an administrator left by an older version, is signed out and forgotten on this
-         * TV (spec 004, edge cases).
+         * is asked with a kid's own token, [preferred] first. A user the list leaves out is asked about on their own, and
+         * only when the plugin answers that they are no kid, such as one unmarked in the dashboard or an administrator left
+         * by an older version, are they signed out and forgotten on this TV (spec 004 edge cases, spec 005 FR-016).
          */
         suspend fun refreshServer(
             server: JellyfinServer,
@@ -160,9 +160,9 @@ class KidProfileRepository
             users.forEach { user ->
                 val revision = refs[user.id]
                 if (revision == null) {
-                    kidProfileDao.delete(user.rowId)
-                    answeredNotAKid(user.rowId)
-                    forgetUser(server, user)
+                    // Left out of the list: removed only on the plugin's own answer for this user, so an empty or partial
+                    // list can't erase the TV's kids by itself (spec 005 FR-016)
+                    refresh(server, user)
                 } else if (kidProfileDao.get(user.rowId)?.revision != revision) {
                     refresh(server, user)
                 }

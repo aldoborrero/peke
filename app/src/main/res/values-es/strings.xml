@@ -518,7 +518,6 @@
     <string name="show_visualizer">Mostrar visualizador</string>
     <string name="show_backdrop">Mostrar imagen de fondo</string>
     <string name="play_as_type">Modo de reproducción</string>
-    <string name="visualizer_rationale">Para visualizar el audio en reproducción, se requiere permiso para grabar audio.</string>
     <string name="continue_string">Continuar</string>
     <string name="albums">Álbumes</string>
     <string name="artists">Artistas</string>
@@ -872,4 +871,21 @@
     <string name="peke_setup_try_again">Volver a intentarlo</string>
     <string name="peke_setup_type_password">Escribir la contraseña de %1$s</string>
     <string name="peke_setup_use_password">Usar el usuario y la contraseña</string>
+    <string name="peke_voice_search">Búsqueda por voz para niños</string>
+    <string name="peke_voice_search_on">Activada: los niños que pueden buscar usan el micrófono</string>
+    <string name="peke_voice_search_off">Desactivada: los niños no ven el micrófono</string>
+    <string name="peke_voice_search_explain_title">¿Activar la búsqueda por voz?</string>
+    <string name="peke_voice_search_explain">La búsqueda por voz permite a los niños decir lo que buscan. Su voz se envía al servicio de voz de esta tele, no a tu servidor de Jellyfin. Android te pedirá permiso para usar el micrófono.</string>
+    <string name="peke_voice_search_turn_on">Activar la búsqueda por voz</string>
+    <string name="peke_voice_search_not_now">Ahora no</string>
+    <string name="peke_voice_search_denied">No se permitió el micrófono, así que la búsqueda por voz sigue desactivada.</string>
+    <string name="peke_voice_search_denied_for_good">Peke no tiene permiso para usar el micrófono. Para usar la búsqueda por voz, permítelo en los Ajustes de esta tele → Aplicaciones → Peke → Permisos → Micrófono y luego actívala aquí.</string>
+    <string name="peke_voice_search_setup_hint">Algunos niños de esta tele pueden buscar. Con la búsqueda por voz pueden decir lo que buscan en vez de escribirlo. Puedes cambiarlo más tarde en Esta tele.</string>
+    <string name="peke_http_warning_title">Esta conexión no está cifrada</string>
+    <string name="peke_http_warning">Alguien en la red de tu casa podría ver o cambiar lo que esta tele y tu servidor se dicen, incluida la comprobación del código de padres. Usa una dirección https:// si tu servidor la tiene.</string>
+    <string name="peke_http_warning_use">Usarla de todos modos</string>
+    <string name="peke_http_warning_back">Atrás</string>
+    <string name="peke_server_address">Servidor</string>
+    <string name="peke_server_not_encrypted">%1$s · Sin cifrar</string>
+    <string name="peke_something_went_wrong">Vaya, algo salió mal</string>
 </resources>

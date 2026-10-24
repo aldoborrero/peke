@@ -692,6 +692,22 @@ sealed interface AppPreference<Pref, T> {
                 summary = R.string.send_crash_reports_summary,
             )
 
+        /**
+         * The server this TV belongs to, read only: "Not encrypted" for plain HTTP (spec 005 FR-014)
+         */
+        val ServerAddress =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.peke_server_address,
+            )
+
+        /**
+         * Voice search for kids on this TV (spec 005 FR-007): turning it on asks the grown-up for the microphone
+         */
+        val KidsVoiceSearch =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.peke_voice_search,
+            )
+
         val SendAppLogs =
             AppClickablePreference<AppPreferences>(
                 title = R.string.send_app_logs,
@@ -1219,6 +1235,8 @@ val pekePreferences =
                     AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
                     AppPreference.ShowClock,
+                    AppPreference.KidsVoiceSearch,
+                    AppPreference.ServerAddress,
                 ),
         ),
         PreferenceGroup(

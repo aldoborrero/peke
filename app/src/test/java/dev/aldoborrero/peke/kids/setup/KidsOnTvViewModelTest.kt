@@ -154,6 +154,7 @@ class KidsOnTvViewModelTest {
             http.jellyfin,
             parentLockService,
             GrownUpSessions(parentLockService, adminSessions, CoroutineScope(dispatcher)),
+            mockk<VoiceSearchSetting>(relaxed = true),
             CoroutineScope(dispatcher),
         )
     }

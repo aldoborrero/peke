@@ -78,6 +78,7 @@ import dev.aldoborrero.peke.ui.components.EditTextBox
 import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
 import dev.aldoborrero.peke.ui.preferences.SetPinFlow
+import dev.aldoborrero.peke.ui.preferences.VoiceSearchConsent
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -91,6 +92,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.extensions.imageApi
+import org.jellyfin.sdk.discovery.RecommendedServerInfo
 import org.jellyfin.sdk.discovery.RecommendedServerInfoScore
 import org.jellyfin.sdk.model.serializer.toUUID
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -102,8 +104,13 @@ import javax.inject.Inject
  * What an address typed or found on the network led to
  */
 sealed interface ServerLookup {
+    /**
+     * @param insecure the server answers only on plain HTTP: the grown-up confirms a warning before it is used (spec 005
+     *   FR-014)
+     */
     data class Found(
         val server: JellyfinServer,
+        val insecure: Boolean = false,
     ) : ServerLookup
 
     data object NotFound : ServerLookup
@@ -123,18 +130,8 @@ class SetupServerLookup
          */
         suspend fun find(address: String): ServerLookup =
             try {
-                val best =
-                    jellyfin.discovery
-                        .getRecommendedServers(address)
-                        .sortedBy { it.score }
-                        .firstOrNull { it.score != RecommendedServerInfoScore.BAD }
-                val info = best?.systemInfo?.getOrNull()
-                val id = info?.id?.toUUIDOrNull()
-                if (best != null && id != null && info.startupWizardCompleted == true) {
-                    ServerLookup.Found(JellyfinServer(id = id, name = info.serverName, url = best.address, version = info.version))
-                } else {
-                    Timber.w("No usable server at the address typed")
-                    ServerLookup.NotFound
+                pick(jellyfin.discovery.getRecommendedServers(address)).also {
+                    if (it == ServerLookup.NotFound) Timber.w("No usable server at the address typed")
                 }
             } catch (ex: CancellationException) {
                 throw ex
@@ -148,6 +145,32 @@ class SetupServerLookup
          */
         fun discover(): Flow<JellyfinServer> =
             jellyfin.discovery.discoverLocalServers().map { JellyfinServer(it.id.toUUID(), it.name, it.address, null) }
+
+        companion object {
+            /**
+             * The address to use among the answers for one typed address (spec 005 FR-014): any HTTPS answer before every
+             * plain HTTP one, the SDK's best score inside a scheme, and only set-up Jellyfin servers. The SDK tries the
+             * HTTPS variant of a bare host or an http:// address too, so a server that has HTTPS gets it.
+             */
+            fun pick(results: Collection<RecommendedServerInfo>): ServerLookup {
+                val usable =
+                    results
+                        .filter { it.score != RecommendedServerInfoScore.BAD }
+                        .mapNotNull { result ->
+                            val info = result.systemInfo.getOrNull()
+                            val id = info?.id?.toUUIDOrNull()
+                            if (id != null && info.startupWizardCompleted == true) {
+                                result to JellyfinServer(id = id, name = info.serverName, url = result.address, version = info.version)
+                            } else {
+                                null
+                            }
+                        }.sortedBy { it.first.score }
+                val best = usable.firstOrNull { isHttps(it.second.url) } ?: usable.firstOrNull() ?: return ServerLookup.NotFound
+                return ServerLookup.Found(best.second, insecure = !isHttps(best.second.url))
+            }
+
+            private fun isHttps(url: String) = url.startsWith("https://", ignoreCase = true)
+        }
     }
 
 enum class SetupError {
@@ -210,6 +233,8 @@ sealed interface SetupScreen {
         val discovered: List<JellyfinServer> = emptyList(),
         val checking: Boolean = false,
         val error: SetupError? = null,
+        // A server that answers only on plain HTTP, waiting for the grown-up to confirm the warning (spec 005 FR-014)
+        val httpWarning: JellyfinServer? = null,
     ) : SetupScreen
 
     /**
@@ -249,6 +274,14 @@ sealed interface SetupScreen {
             !finishing && rows.any { it.state is KidRowState.Done } &&
                 rows.none { it.state == KidRowState.Working }
     }
+
+    /**
+     * After a first setup, when one of the kids may search: offer voice search to the grown-up (spec 005 FR-009). The
+     * TV is already set up and the administrator signed out.
+     */
+    data class Voice(
+        val server: JellyfinServer,
+    ) : SetupScreen
 }
 
 /**
@@ -274,6 +307,7 @@ class SetupFlowViewModel
         private val jellyfin: Jellyfin,
         private val parentLockService: ParentLockService,
         private val grownUpSessions: GrownUpSessions,
+        private val voiceSearch: VoiceSearchSetting,
         @param:DefaultCoroutineScope private val appScope: CoroutineScope,
     ) : ViewModel() {
         private val _screen = MutableStateFlow<SetupScreen>(SetupScreen.Starting)
@@ -307,7 +341,7 @@ class SetupFlowViewModel
                 when (s) {
                     is SetupScreen.Admin -> SetupScreen.Admin(s.server)
                     is SetupScreen.Code, is SetupScreen.Kids, is SetupScreen.SignIn -> SetupScreen.Admin(serverOf(s))
-                    SetupScreen.Starting, is SetupScreen.Server -> s
+                    SetupScreen.Starting, is SetupScreen.Server, is SetupScreen.Voice -> s
                 }
             }
         }
@@ -388,37 +422,68 @@ class SetupFlowViewModel
                 val current = _screen.value as? SetupScreen.Server ?: return@launch
                 if (current.checking) return@launch
                 _screen.value = current.copy(checking = true, error = null)
-                val server =
-                    when (val found = serverLookup.find(address)) {
-                        is ServerLookup.Found -> {
-                            found.server
-                        }
-
-                        ServerLookup.NotFound -> {
-                            _screen.value = current.copy(error = SetupError.SERVER_NOT_FOUND)
-                            return@launch
+                when (val found = serverLookup.find(address)) {
+                    is ServerLookup.Found -> {
+                        if (found.insecure) {
+                            // Plain HTTP: the grown-up reads the warning first (spec 005 FR-014)
+                            _screen.value = current.copy(httpWarning = found.server)
+                        } else {
+                            useServer(current, found.server)
                         }
                     }
-                when (kidsApi.pluginSupport(server.url)) {
-                    PluginSupport.SUPPORTED -> {}
 
-                    PluginSupport.NEEDED -> {
-                        _screen.value = current.copy(error = SetupError.PLUGIN_NEEDED)
-                        return@launch
-                    }
-
-                    PluginSupport.UNREACHABLE -> {
-                        _screen.value = current.copy(error = SetupError.UNREACHABLE)
-                        return@launch
+                    ServerLookup.NotFound -> {
+                        _screen.value = current.copy(error = SetupError.SERVER_NOT_FOUND)
                     }
                 }
-                // The setup row first: a stored server without it would count as a set-up TV (FR-018)
-                tvSetupRepository.markStep(server, TvSetupStep.ADMIN)
-                serverRepository.addAndChangeServer(server)
-                pluginService.check(server)
-                discovery?.cancel()
-                _screen.value = SetupScreen.Admin(server)
             }
+
+        /**
+         * The grown-up read the HTTP warning and uses the plain HTTP server anyway
+         */
+        fun confirmHttp(): Job =
+            viewModelScope.launch {
+                val current = _screen.value as? SetupScreen.Server ?: return@launch
+                val server = current.httpWarning ?: return@launch
+                if (current.checking) return@launch
+                useServer(current.copy(httpWarning = null), server)
+            }
+
+        /**
+         * Back from the HTTP warning: to the address, nothing stored
+         */
+        fun dismissHttp() {
+            _screen.update { s -> if (s is SetupScreen.Server) s.copy(httpWarning = null, checking = false) else s }
+        }
+
+        /**
+         * Check that [server] has the Kids plugin 0.0.7.0 or later, then store it and go on to the administrator
+         */
+        private suspend fun useServer(
+            current: SetupScreen.Server,
+            server: JellyfinServer,
+        ) {
+            _screen.value = current.copy(checking = true, error = null)
+            when (kidsApi.pluginSupport(server.url)) {
+                PluginSupport.SUPPORTED -> {}
+
+                PluginSupport.NEEDED -> {
+                    _screen.value = current.copy(error = SetupError.PLUGIN_NEEDED)
+                    return
+                }
+
+                PluginSupport.UNREACHABLE -> {
+                    _screen.value = current.copy(error = SetupError.UNREACHABLE)
+                    return
+                }
+            }
+            // The setup row first: a stored server without it would count as a set-up TV (FR-018)
+            tvSetupRepository.markStep(server, TvSetupStep.ADMIN)
+            serverRepository.addAndChangeServer(server)
+            pluginService.check(server)
+            discovery?.cancel()
+            _screen.value = SetupScreen.Admin(server)
+        }
 
         /**
          * The administrator step, with a user name and password. They are only passed on.
@@ -678,7 +743,30 @@ class SetupFlowViewModel
                 val setUp = againKid == null && !adding
                 if (setUp) tvSetupRepository.markDone(current.server)
                 closeAdmin()
+                if (setUp && voiceSearch.offerAfterSetup()) {
+                    _screen.value = SetupScreen.Voice(current.server)
+                    return@launch
+                }
                 if (setUp) launcher.launch { it is TvState.SetUp && it.kids.isNotEmpty() } else leave()
+            }
+
+        /**
+         * The grown-up allowed the microphone on the voice search step: turn voice search on, then open the kids' side
+         */
+        fun turnOnVoice(): Job =
+            viewModelScope.launch {
+                if (_screen.value !is SetupScreen.Voice) return@launch
+                voiceSearch.set(true)
+                voiceDone().join()
+            }
+
+        /**
+         * The voice search offer is done, turned on or not: the kids' side opens
+         */
+        fun voiceDone(): Job =
+            viewModelScope.launch {
+                if (_screen.value !is SetupScreen.Voice) return@launch
+                launcher.launch { it is TvState.SetUp && it.kids.isNotEmpty() }
             }
 
         /**
@@ -688,8 +776,14 @@ class SetupFlowViewModel
          */
         fun back(): Boolean =
             when (val s = _screen.value) {
-                SetupScreen.Starting, is SetupScreen.Server -> {
+                SetupScreen.Starting -> {
                     false
+                }
+
+                is SetupScreen.Server -> {
+                    // Back on the HTTP warning returns to the address; on the step itself it quits
+                    if (s.httpWarning != null) dismissHttp()
+                    s.httpWarning != null
                 }
 
                 is SetupScreen.Admin -> {
@@ -708,6 +802,11 @@ class SetupFlowViewModel
                 is SetupScreen.Code, is SetupScreen.Kids -> {
                     closeAdminLater()
                     _screen.value = SetupScreen.Admin(serverOf(s))
+                    true
+                }
+
+                is SetupScreen.Voice -> {
+                    voiceDone()
                     true
                 }
 
@@ -743,6 +842,7 @@ class SetupFlowViewModel
                 is SetupScreen.Code -> screen.server
                 is SetupScreen.Kids -> screen.server
                 is SetupScreen.SignIn -> screen.server
+                is SetupScreen.Voice -> screen.server
                 SetupScreen.Starting, is SetupScreen.Server -> error("No server yet")
             }
 
@@ -810,7 +910,7 @@ fun SetupFlow(
         }
     }
     val screen by viewModel.screen.collectAsState()
-    BackHandler(enabled = screen !is SetupScreen.Starting && screen !is SetupScreen.Server) {
+    BackHandler(enabled = screen.let { it !is SetupScreen.Starting && (it !is SetupScreen.Server || it.httpWarning != null) }) {
         viewModel.back()
     }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -829,6 +929,7 @@ fun SetupFlow(
                 is SetupScreen.Code -> CodeStep(s, viewModel)
                 is SetupScreen.Kids -> KidsStep(s, viewModel)
                 is SetupScreen.SignIn -> SignInStep(s, viewModel)
+                is SetupScreen.Voice -> VoiceStep(viewModel)
             }
         }
     }
@@ -968,6 +1069,65 @@ private fun ColumnScope.ServerStep(
             onClick = { viewModel.addServer(url) },
             enabled = url.isNotNullOrBlank() && !screen.checking,
         )
+    }
+    screen.httpWarning?.let { server ->
+        HttpWarningDialog(
+            server = server,
+            onConfirm = { viewModel.confirmHttp() },
+            onDismissRequest = viewModel::dismissHttp,
+        )
+    }
+}
+
+/**
+ * Before a plain HTTP server is used (spec 005 FR-014): what that means, in plain words. Focus starts on Back.
+ */
+@Composable
+private fun HttpWarningDialog(
+    server: JellyfinServer,
+    onConfirm: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    val backFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { backFocus.tryRequestFocus() }
+    BasicDialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier =
+                Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(.5f),
+        ) {
+            Text(
+                text = stringResource(R.string.peke_http_warning_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = server.url,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(R.string.peke_http_warning),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextButton(stringRes = R.string.peke_http_warning_use, onClick = onConfirm)
+                TextButton(
+                    stringRes = R.string.peke_http_warning_back,
+                    onClick = onDismissRequest,
+                    modifier = Modifier.focusRequester(backFocus),
+                )
+            }
+        }
     }
 }
 
@@ -1253,6 +1413,35 @@ private fun SignInStep(
                 viewModel.signInWithPassword(kid.id, password)
             },
             onDismissRequest = { passwordFor = null },
+        )
+    }
+}
+
+/**
+ * The last step of a first setup when a kid may search: voice search, turned on by the grown-up or left off (spec 005
+ * FR-009). Focus starts on Not now, so OK without reading changes nothing.
+ */
+@Composable
+private fun VoiceStep(viewModel: SetupFlowViewModel) {
+    var asking by remember { mutableStateOf(false) }
+    val notNowFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { notNowFocus.tryRequestFocus() }
+    StepTitle(R.string.peke_voice_search_explain_title, R.string.peke_voice_search_setup_hint)
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        TextButton(stringRes = R.string.peke_voice_search_turn_on, onClick = { asking = true })
+        TextButton(
+            stringRes = R.string.peke_voice_search_not_now,
+            onClick = { viewModel.voiceDone() },
+            modifier = Modifier.focusRequester(notNowFocus),
+        )
+    }
+    if (asking) {
+        VoiceSearchConsent(
+            onEnabled = {
+                asking = false
+                viewModel.turnOnVoice()
+            },
+            onDismissRequest = { asking = false },
         )
     }
 }

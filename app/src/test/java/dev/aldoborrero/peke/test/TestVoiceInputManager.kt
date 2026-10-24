@@ -11,6 +11,7 @@ import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.os.Looper
 import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.ui.components.VoiceInputManager
@@ -157,6 +158,16 @@ class TestVoiceInputManager {
         idleMainLooper()
 
         verify { speechRecognizer.startListening(any<Intent>()) }
+    }
+
+    @Test
+    fun `recognition prefers the device over the network`() {
+        val intent = slot<Intent>()
+        every { speechRecognizer.startListening(capture(intent)) } just Runs
+        manager.startListening()
+        idleMainLooper()
+
+        assertTrue(intent.captured.getBooleanExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false))
     }
 
     @Test

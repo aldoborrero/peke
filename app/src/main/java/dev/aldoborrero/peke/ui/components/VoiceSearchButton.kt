@@ -1,8 +1,5 @@
 package dev.aldoborrero.peke.ui.components
 
-import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -28,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
@@ -80,13 +80,37 @@ private fun VoiceInputState.shouldShowOverlay() =
         this is VoiceInputState.Processing ||
         this is VoiceInputState.Error
 
+/**
+ * Whether the microphone shows (spec 005 FR-006): a grown-up turned voice search on, the microphone is allowed and the
+ * TV has a speech service. Kids never see the permission prompt, so without all three there is no microphone at all.
+ */
+fun voiceSearchShown(
+    enabled: Boolean,
+    granted: Boolean,
+    available: Boolean,
+): Boolean = enabled && granted && available
+
+/**
+ * The microphone button, shown only per [voiceSearchShown]. It never asks for the microphone: a grown-up allows it
+ * behind the parent gate, see [dev.aldoborrero.peke.ui.preferences.VoiceSearchConsent].
+ *
+ * @param enabled voice search was turned on for this TV
+ */
 @Composable
 fun VoiceSearchButton(
     onSpeechResult: (String) -> Unit,
     voiceInputManager: VoiceInputManager?,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (voiceInputManager == null || !voiceInputManager.isAvailable) return
+    if (voiceInputManager == null) return
+    // Read again on resume: the permission can be withdrawn in the system settings meanwhile
+    var granted by remember(voiceInputManager) { mutableStateOf(voiceInputManager.hasPermission) }
+    LifecycleResumeEffect(voiceInputManager) {
+        granted = voiceInputManager.hasPermission
+        onPauseOrDispose { }
+    }
+    if (!voiceSearchShown(enabled, granted, voiceInputManager.isAvailable)) return
 
     val state by voiceInputManager.state.collectAsState()
     val soundLevel by voiceInputManager.soundLevel.collectAsState()
@@ -113,17 +137,6 @@ fun VoiceSearchButton(
         }
     }
 
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-        ) { isGranted ->
-            if (isGranted) {
-                voiceInputManager.onPermissionGranted()
-            } else {
-                voiceInputManager.onPermissionDenied()
-            }
-        }
-
     if (state.shouldShowOverlay()) {
         val errorState = state as? VoiceInputState.Error
         val errorMessage = errorState?.messageResId?.let { stringResource(it) }
@@ -149,11 +162,7 @@ fun VoiceSearchButton(
                 }
 
                 else -> {
-                    if (voiceInputManager.hasPermission) {
-                        voiceInputManager.startListening()
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    }
+                    if (voiceInputManager.hasPermission) voiceInputManager.startListening()
                 }
             }
         },

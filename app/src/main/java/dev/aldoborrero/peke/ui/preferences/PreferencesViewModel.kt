@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
@@ -38,6 +39,7 @@ class PreferencesViewModel
         private val updateChecker: UpdateChecker,
         private val serverReportService: ServerReportService,
         profilePolicy: ProfilePolicy,
+        val voiceSearchSetting: VoiceSearchSetting,
     ) : ViewModel() {
         /**
          * Whether the current server offers kids mode, which needs the Jellyfin Kids plugin
@@ -51,6 +53,12 @@ class PreferencesViewModel
                 SharingStarted.Eagerly,
                 null,
             )
+        val currentServer =
+            serverRepository.currentServerFlow.stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                serverRepository.currentServer,
+            )
         val currentUserDto =
             serverRepository.currentUserDtoFlow.stateIn(
                 viewModelScope,
@@ -59,6 +67,13 @@ class PreferencesViewModel
             )
 
         val releaseNotes = MutableStateFlow<DataLoadingState<Release>>(DataLoadingState.Pending)
+
+        /**
+         * Voice search for kids, set only once the grown-up allowed the microphone (spec 005 FR-007)
+         */
+        fun setKidsVoiceSearch(on: Boolean) {
+            viewModelScope.launchIO { voiceSearchSetting.set(on) }
+        }
 
         fun sendAppLogs() {
             viewModelScope.launchIO { serverReportService.sendAppLogs() }

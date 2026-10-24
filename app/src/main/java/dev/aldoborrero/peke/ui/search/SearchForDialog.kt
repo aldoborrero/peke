@@ -70,6 +70,7 @@ fun SearchForContent(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val state by viewModel.state.collectAsState()
+    val voiceSearchOn by viewModel.voiceSearchSetting.on.collectAsState(false)
 
     var query by rememberSaveable { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
@@ -156,6 +157,7 @@ fun SearchForContent(
                         triggerImmediateSearch(spokenText)
                     },
                     voiceInputManager = viewModel.voiceInputManager,
+                    enabled = voiceSearchOn,
                 )
 
                 SearchEditTextBox(

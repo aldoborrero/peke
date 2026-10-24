@@ -61,6 +61,20 @@ the kid's mic button to the grown-up's consent dialog.
 size recorded at the end (as in 004, `assembleRelease` may need the owner's extension credentials; then a debug build
 comparison is recorded instead).
 
+**Measured (2026-10-24, T049)**: `assembleRelease` needs the owner's extension credentials, so these are debug
+builds (no R8, the code counts in full) of this branch with T001–T048 and of its base `4467015f`, built clean in a
+separate clone. The sizes are the sum of the compressed APK entries, because the worktree's incrementally packaged
+APK carries about 1.1 MB of unused zip space that a clean build doesn't have.
+
+| ABI | `4467015f` (bytes) | 005 (bytes) | Change |
+|---|---|---|---|
+| arm64-v8a | 38,715,081 | 38,752,939 | +37,858 (+37 KB) |
+| armeabi-v7a | 37,381,309 | 37,419,165 | +37,856 (+37 KB) |
+| x86_64 | 38,755,265 | 38,793,123 | +37,858 (+37 KB) |
+
+All of it is dex and `resources.arsc` (no native library or asset change). That's above the ±20 KB estimate for an
+unminified build; R8 in release shrinks it further.
+
 **Post-design re-check (Phase 1)**: unchanged; the contract keeps every rule above. Pass.
 
 ## Project Structure

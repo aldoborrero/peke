@@ -50,6 +50,7 @@ class SetupFlowViewModelTest {
     private val pluginService = mockk<KidsPluginService>(relaxed = true)
     private val kidSignIn = mockk<KidSignIn>()
     private val launcher = mockk<TvLauncher>(relaxed = true)
+    private val voiceSearch = mockk<VoiceSearchSetting>(relaxed = true)
 
     private val manuel = JellyfinUser(rowId = 1, id = kidId, name = "Manuel", serverId = server.id, accessToken = "kid-token")
 
@@ -95,6 +96,7 @@ class SetupFlowViewModelTest {
             http.jellyfin,
             parentLockService,
             grownUpSessions,
+            voiceSearch,
             CoroutineScope(dispatcher),
         )
 
@@ -439,5 +441,131 @@ class SetupFlowViewModelTest {
             vm.finish().join()
 
             verify { parentLockService.forgetGrants() }
+        }
+
+    @Test
+    fun `a first setup offers voice search when a kid may search`() =
+        runTest(dispatcher) {
+            coEvery { voiceSearch.offerAfterSetup() } returns true
+            val vm = viewModel()
+            vm.toKids()
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+            vm.finish().join()
+
+            assertEquals(SetupScreen.Voice(server), vm.screenAs())
+            coVerify { tvSetupRepository.markDone(server) }
+            // The administrator is gone before the offer
+            assertEquals(1, logouts().size)
+            coVerify(exactly = 0) { launcher.launch(any()) }
+
+            vm.voiceDone().join()
+            coVerify { launcher.launch(any()) }
+            coVerify(exactly = 0) { voiceSearch.set(any()) }
+        }
+
+    @Test
+    fun `turning voice search on at the end of setup saves it, then opens the kids`() =
+        runTest(dispatcher) {
+            coEvery { voiceSearch.offerAfterSetup() } returns true
+            val vm = viewModel()
+            vm.toKids()
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+            vm.finish().join()
+
+            vm.turnOnVoice().join()
+            coVerifyOrder {
+                voiceSearch.set(true)
+                launcher.launch(any())
+            }
+        }
+
+    @Test
+    fun `back on the voice step is not now`() =
+        runTest(dispatcher) {
+            coEvery { voiceSearch.offerAfterSetup() } returns true
+            val vm = viewModel()
+            vm.toKids()
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+            vm.finish().join()
+
+            assertTrue(vm.back())
+            coVerify { launcher.launch(any()) }
+            coVerify(exactly = 0) { voiceSearch.set(any()) }
+        }
+
+    @Test
+    fun `no voice search offer without a kid who may search`() =
+        runTest(dispatcher) {
+            coEvery { voiceSearch.offerAfterSetup() } returns false
+            val vm = viewModel()
+            vm.toKids()
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+            vm.finish().join()
+
+            assertFalse(vm.screenAs() is SetupScreen.Voice)
+            coVerify { launcher.launch(any()) }
+        }
+
+    @Test
+    fun `signing a kid in again or adding kids never offers voice search`() =
+        runTest(dispatcher) {
+            coEvery { voiceSearch.offerAfterSetup() } returns true
+            val vm = viewModel()
+            vm.again(server, manuel).join()
+            vm.signIn("admin", "pw").join()
+            vm.finish().join()
+
+            assertFalse(vm.screenAs() is SetupScreen.Voice)
+            coVerify(exactly = 0) { voiceSearch.offerAfterSetup() }
+            coVerify { launcher.launch(any()) }
+        }
+
+    private val plainServer = server.copy(url = "http://jf.local:8096")
+
+    @Test
+    fun `a plain HTTP server waits for the grown-up to read the warning`() =
+        runTest(dispatcher) {
+            coEvery { serverLookup.find(any()) } returns ServerLookup.Found(plainServer, insecure = true)
+            val vm = viewModel()
+            vm.start(TvSetupStep.SERVER).join()
+            vm.addServer("jf.local").join()
+
+            assertEquals(plainServer, (vm.screenAs() as SetupScreen.Server).httpWarning)
+            assertTrue(http.requests.none { it.path == "/Kids/Info" })
+            coVerify(exactly = 0) { tvSetupRepository.markStep(any(), any()) }
+
+            vm.confirmHttp().join()
+            assertEquals(SetupScreen.Admin(plainServer), vm.screenAs())
+            coVerify { tvSetupRepository.markStep(plainServer, TvSetupStep.ADMIN) }
+        }
+
+    @Test
+    fun `back on the HTTP warning returns to the address`() =
+        runTest(dispatcher) {
+            coEvery { serverLookup.find(any()) } returns ServerLookup.Found(plainServer, insecure = true)
+            val vm = viewModel()
+            vm.start(TvSetupStep.SERVER).join()
+            vm.addServer("jf.local").join()
+
+            assertTrue(vm.back())
+            val screen = vm.screenAs() as SetupScreen.Server
+            assertEquals(null, screen.httpWarning)
+            assertFalse(screen.checking)
+            coVerify(exactly = 0) { tvSetupRepository.markStep(any(), any()) }
+            // Back again on the step itself quits
+            assertFalse(vm.back())
+        }
+
+    @Test
+    fun `an HTTPS server never shows the warning`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.start(TvSetupStep.SERVER).join()
+            vm.addServer("jf.local").join()
+            assertEquals(SetupScreen.Admin(server), vm.screenAs())
         }
 }

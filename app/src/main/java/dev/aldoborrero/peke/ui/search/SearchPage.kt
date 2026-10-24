@@ -51,6 +51,9 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.cards.GridCard
 import dev.aldoborrero.peke.ui.cards.ItemRow
@@ -87,6 +90,7 @@ fun SearchPage(
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
+    val kidsMode = LocalKidsMode.current.isActive
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val state by viewModel.state.collectAsState()
@@ -161,7 +165,7 @@ fun SearchPage(
         contextMenu.showContextMenu(index, item)
     }
     val onPlayItem = { _: Int, item: BaseItem ->
-        viewModel.navigationManager.navigateTo(Destination.Playback(item))
+        viewModel.navigationManager.navigateTo(if (kidsMode) kidsPlayKeyDestination(item) else Destination.Playback(item))
     }
 
     val positionCallback = { _: Int, _: Int -> }
@@ -246,6 +250,7 @@ fun SearchPage(
                             triggerImmediateSearch(spokenText)
                         },
                         voiceInputManager = viewModel.voiceInputManager,
+                        enabled = prefs.kidsVoiceSearch,
                         modifier = Modifier.padding(end = 12.dp),
                     )
                 }
