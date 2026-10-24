@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
+import dev.aldoborrero.peke.services.hilt.forKid
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +26,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.userApi
+import org.jellyfin.sdk.model.DeviceInfo
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.UserDto
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -45,6 +47,7 @@ class ServerRepository
         val jellyfin: Jellyfin,
         val serverDao: JellyfinServerDao,
         val apiClient: ApiClient,
+        private val deviceInfo: DeviceInfo,
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val mostRecentServerProvider: MostRecentServerProvider,
         private val kidsDataCleaner: KidsDataCleaner,
@@ -83,7 +86,7 @@ class ServerRepository
             withContext(ioDispatcher) {
                 serverDao.addOrUpdateServer(server)
             }
-            apiClient.update(baseUrl = server.url, accessToken = null)
+            apiClient.update(baseUrl = server.url, accessToken = null, deviceInfo = deviceInfo)
             _current.value = null
             mostRecentServerProvider.clearUser()
         }
@@ -100,7 +103,7 @@ class ServerRepository
                     throw IllegalStateException("User is not part of the server")
                 }
                 Timber.v("Changing user to ${user.name} on ${server.url}")
-                apiClient.update(baseUrl = server.url, accessToken = user.accessToken)
+                apiClient.update(baseUrl = server.url, accessToken = user.accessToken, deviceInfo = deviceInfo.forKid(user.id))
                 val userDto by apiClient.userApi.getCurrentUser()
                 val updatedServer =
                     try {
@@ -122,6 +125,27 @@ class ServerRepository
                 mostRecentServerProvider.save(currentUser)
                 _current.value = currentUser
                 _currentUserDto.value = ServerUserConfig(userDto)
+                return@withContext currentUser
+            }
+
+        /**
+         * Makes a saved user current from their stored rows, without asking the server, so a kid opens while it can't
+         * be reached (research R4). [currentUserDto] stays unknown until [updateUserDto] refreshes it.
+         */
+        suspend fun restoreUser(
+            server: JellyfinServer,
+            user: JellyfinUser,
+        ): CurrentUser =
+            withContext(ioDispatcher) {
+                if (server.id != user.serverId) {
+                    throw IllegalStateException("User is not part of the server")
+                }
+                Timber.v("Restoring user ${user.name} on ${server.url}")
+                apiClient.update(baseUrl = server.url, accessToken = user.accessToken, deviceInfo = deviceInfo.forKid(user.id))
+                val currentUser = CurrentUser(server, user)
+                mostRecentServerProvider.save(currentUser)
+                _currentUserDto.value = null
+                _current.value = currentUser
                 return@withContext currentUser
             }
 
@@ -269,7 +293,7 @@ class ServerRepository
                     _current.value = null
                 }
                 mostRecentServerProvider.clearUser()
-                apiClient.update(accessToken = null)
+                apiClient.update(accessToken = null, deviceInfo = deviceInfo)
             } else {
                 // The saved session may be a user who isn't current, such as on the user list after a launch
                 val recent = mostRecentServerProvider.get()
@@ -289,7 +313,7 @@ class ServerRepository
                     _current.value = null
                 }
                 mostRecentServerProvider.clear()
-                apiClient.update(baseUrl = null, accessToken = null)
+                apiClient.update(baseUrl = null, accessToken = null, deviceInfo = deviceInfo)
             } else if (mostRecentServerProvider.get().serverId == server.id) {
                 mostRecentServerProvider.clear()
             }

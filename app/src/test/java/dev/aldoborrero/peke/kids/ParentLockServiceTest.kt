@@ -352,50 +352,6 @@ class ParentLockServiceTest {
             assertEquals(LockState.Unknown, service.lockState())
         }
 
-    /**
-     * Jellyfin's answer to `POST /Users/AuthenticateByName`, with the fields the SDK requires
-     */
-    private fun signInAnswer(
-        isAdministrator: Boolean,
-        token: String,
-    ): String {
-        val flags =
-            listOf(
-                "IsHidden",
-                "EnableCollectionManagement",
-                "EnableSubtitleManagement",
-                "EnableLyricManagement",
-                "IsDisabled",
-                "EnableUserPreferenceAccess",
-                "EnableRemoteControlOfOtherUsers",
-                "EnableSharedDeviceControl",
-                "EnableRemoteAccess",
-                "EnableLiveTvManagement",
-                "EnableLiveTvAccess",
-                "EnableMediaPlayback",
-                "EnableAudioPlaybackTranscoding",
-                "EnableVideoPlaybackTranscoding",
-                "EnablePlaybackRemuxing",
-                "ForceRemoteSourceTranscoding",
-                "EnableContentDeletion",
-                "EnableContentDownloading",
-                "EnableSyncTranscoding",
-                "EnableMediaConversion",
-                "EnableAllDevices",
-                "EnableAllChannels",
-                "EnableAllFolders",
-                "EnablePublicSharing",
-            ).joinToString(",") { "\"$it\":false" }
-        val counts =
-            listOf("InvalidLoginAttemptCount", "LoginAttemptsBeforeLockout", "MaxActiveSessions", "RemoteClientBitrateLimit")
-                .joinToString(",") { "\"$it\":0" }
-        val policy =
-            """{"IsAdministrator":$isAdministrator,$flags,$counts,"AuthenticationProviderId":"a","PasswordResetProviderId":"p","SyncPlayAccess":"None"}"""
-        val user =
-            """{"Id":"${UUID.randomUUID()}","HasPassword":true,"HasConfiguredPassword":true,"HasConfiguredEasyPassword":false,"Policy":$policy}"""
-        return """{"User":$user,"AccessToken":"$token"}"""
-    }
-
     @Test
     fun `an administrator sign-in is checked once and signed out`() =
         runTest(UnconfinedTestDispatcher()) {

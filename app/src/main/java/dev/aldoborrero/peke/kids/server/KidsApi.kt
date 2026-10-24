@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.kids.server
 
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import dev.aldoborrero.peke.services.hilt.StandardOkHttpClient
+import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -90,11 +91,22 @@ sealed interface KidsResult<out T> {
 }
 
 /**
+ * The token a kids call runs as and the user it belongs to, whose own device id goes with it
+ * ([dev.aldoborrero.peke.services.hilt.pekeKidDeviceId])
+ */
+class KidsCaller(
+    val token: String,
+    val userId: UUID,
+) {
+    override fun toString(): String = "KidsCaller(userId=$userId)"
+}
+
+/**
  * Calls the Jellyfin Kids plugin's client API (`/Kids`, version 1)
  *
  * The Jellyfin SDK can't send the grant header or read error bodies, so this uses OkHttp directly, except for the
  * administrator check in [isAdministrator], which is Jellyfin's own sign-in. Every call names the server and the
- * user token it runs as, because kids calls are not always made as the current user.
+ * [KidsCaller] it runs as, because kids calls are not always made as the current user.
  */
 @Singleton
 class KidsApi
@@ -111,97 +123,97 @@ class KidsApi
 
         suspend fun profiles(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
         ): KidsResult<List<KidProfileRef>> =
             call(
                 baseUrl,
                 "Kids/Profiles",
-                token,
+                caller,
                 timeoutSeconds = LOOKUP_TIMEOUT_SECONDS,
             ) { decode(ListSerializer(KidProfileRef.serializer()), it) }
 
         suspend fun profile(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             userId: UUID,
         ): KidsResult<JsonObject> =
-            call(baseUrl, "Kids/Users/$userId/Profile", token, timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) {
+            call(baseUrl, "Kids/Users/$userId/Profile", caller, timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) {
                 KidsJson.parseToJsonElement(it).jsonObject
             }
 
         suspend fun putProfile(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             grant: String?,
             userId: UUID,
             body: JsonObject,
         ): KidsResult<JsonObject> =
-            call(baseUrl, "Kids/Users/$userId/Profile", token, grant, "PUT", body.toString().toJsonBody()) {
+            call(baseUrl, "Kids/Users/$userId/Profile", caller, grant, "PUT", body.toString().toJsonBody()) {
                 KidsJson.parseToJsonElement(it).jsonObject
             }
 
         suspend fun deleteProfile(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             grant: String?,
             userId: UUID,
-        ): KidsResult<Unit> = call(baseUrl, "Kids/Users/$userId/Profile", token, grant, "DELETE") { }
+        ): KidsResult<Unit> = call(baseUrl, "Kids/Users/$userId/Profile", caller, grant, "DELETE") { }
 
         suspend fun lock(
             baseUrl: String,
-            token: String,
-        ): KidsResult<LockStatus> = call(baseUrl, "Kids/Parent/Lock", token) { decode(LockStatus.serializer(), it) }
+            caller: KidsCaller,
+        ): KidsResult<LockStatus> = call(baseUrl, "Kids/Parent/Lock", caller) { decode(LockStatus.serializer(), it) }
 
         suspend fun verify(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             code: String,
         ): KidsResult<VerifyResponse> {
             val body = buildJsonObject { put("Code", code) }.toString().toJsonBody()
-            return call(baseUrl, "Kids/Parent/Verify", token, null, "POST", body) { decode(VerifyResponse.serializer(), it) }
+            return call(baseUrl, "Kids/Parent/Verify", caller, null, "POST", body) { decode(VerifyResponse.serializer(), it) }
         }
 
         suspend fun verifier(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             grant: String?,
-        ): KidsResult<VerifierResponse> = call(baseUrl, "Kids/Parent/Verifier", token, grant) { decode(VerifierResponse.serializer(), it) }
+        ): KidsResult<VerifierResponse> = call(baseUrl, "Kids/Parent/Verifier", caller, grant) { decode(VerifierResponse.serializer(), it) }
 
         suspend fun setLock(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             grant: String?,
             request: SetLockRequest,
         ): KidsResult<LockStatus> {
             val body = KidsJson.encodeToString(SetLockRequest.serializer(), request).toJsonBody()
-            return call(baseUrl, "Kids/Parent/Lock", token, grant, "PUT", body) { decode(LockStatus.serializer(), it) }
+            return call(baseUrl, "Kids/Parent/Lock", caller, grant, "PUT", body) { decode(LockStatus.serializer(), it) }
         }
 
         suspend fun status(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             userId: UUID,
-        ): KidsResult<KidsStatus> = call(baseUrl, "Kids/Users/$userId/Status", token) { decode(KidsStatus.serializer(), it) }
+        ): KidsResult<KidsStatus> = call(baseUrl, "Kids/Users/$userId/Status", caller) { decode(KidsStatus.serializer(), it) }
 
         /**
          * The kid's effective live TV channels, with what is on now (`GET /Kids/Users/{id}/LiveTv/Channels`)
          */
         suspend fun liveTvChannels(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             userId: UUID,
         ): KidsResult<KidsItemsResult> =
-            call(baseUrl, "Kids/Users/$userId/LiveTv/Channels", token) { decode(KidsItemsResult.serializer(), it) }
+            call(baseUrl, "Kids/Users/$userId/LiveTv/Channels", caller) { decode(KidsItemsResult.serializer(), it) }
 
         suspend fun bonus(
             baseUrl: String,
-            token: String,
+            caller: KidsCaller,
             grant: String?,
             userId: UUID,
             minutes: Int,
         ): KidsResult<KidsStatus> {
             val body = buildJsonObject { put("Minutes", minutes) }.toString().toJsonBody()
-            return call(baseUrl, "Kids/Users/$userId/WatchTime/Bonus", token, grant, "POST", body) {
+            return call(baseUrl, "Kids/Users/$userId/WatchTime/Bonus", caller, grant, "POST", body) {
                 decode(KidsStatus.serializer(), it)
             }
         }
@@ -255,7 +267,7 @@ class KidsApi
         private suspend fun <T> call(
             baseUrl: String,
             path: String,
-            token: String?,
+            caller: KidsCaller?,
             grant: String? = null,
             method: String = "GET",
             body: RequestBody? = null,
@@ -276,7 +288,7 @@ class KidsApi
                     .method(method, body)
                     .header("Accept", "application/json")
                     .apply {
-                        if (token != null) header("Authorization", authorization(token))
+                        if (caller != null) header("Authorization", authorization(caller))
                         if (grant != null) header(GRANT_HEADER, grant)
                     }.build()
             return withContext(dispatcher) {
@@ -329,13 +341,16 @@ class KidsApi
             }
         }
 
-        private fun authorization(token: String) =
+        /**
+         * The caller's token, sent with that user's own device id like all of their calls
+         */
+        private fun authorization(caller: KidsCaller) =
             AuthorizationHeaderBuilder.buildHeader(
                 clientName = clientInfo.name,
                 clientVersion = clientInfo.version,
-                deviceId = deviceInfo.id,
+                deviceId = pekeKidDeviceId(deviceInfo.id, caller.userId),
                 deviceName = deviceInfo.name,
-                accessToken = token,
+                accessToken = caller.token,
             )
 
         companion object {

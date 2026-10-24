@@ -5,6 +5,7 @@ import com.google.auto.service.AutoService
 import dev.aldoborrero.peke.data.MostRecentServer
 import dev.aldoborrero.peke.services.hilt.AppModule
 import dev.aldoborrero.peke.services.hilt.DeviceModule
+import dev.aldoborrero.peke.services.hilt.forKid
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.acra.config.CoreConfiguration
@@ -82,7 +83,8 @@ private fun MostRecentServer.createApi(context: Context): ApiClient? =
             createJellyfin {
                 this.context = context
                 clientInfo = AppModule.clientInfo(context)
-                deviceInfo = DeviceModule.deviceInfo(context)
+                // The id the saved user's other calls go out with
+                deviceInfo = DeviceModule.deviceInfo(context).forKid(userId)
                 apiClientFactory = okHttpFactory
                 socketConnectionFactory = okHttpFactory
                 minimumServerVersion = Jellyfin.minimumVersion

@@ -108,8 +108,9 @@ object AppModule {
         .newBuilder()
         .addInterceptor {
             val request = it.request()
+            val user = serverRepository.current.value?.user
             val newRequest =
-                serverRepository.current.value?.user?.accessToken?.let { token ->
+                user?.accessToken?.let { token ->
                     request
                         .newBuilder()
                         .addHeader(
@@ -117,7 +118,8 @@ object AppModule {
                             AuthorizationHeaderBuilder.buildHeader(
                                 clientName = clientInfo.name,
                                 clientVersion = clientInfo.version,
-                                deviceId = deviceInfo.id,
+                                // The id the user's other calls go out with
+                                deviceId = pekeKidDeviceId(deviceInfo.id, user.id),
                                 deviceName = deviceInfo.name,
                                 accessToken = token,
                             ),

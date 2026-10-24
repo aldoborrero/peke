@@ -6,6 +6,7 @@ import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.server.KidsApi
+import dev.aldoborrero.peke.kids.server.KidsCaller
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsItemsResult
 import dev.aldoborrero.peke.kids.server.KidsLiveTvItem
@@ -152,7 +153,7 @@ class KidsLiveTvService
             val current = serverRepository.current.value ?: return null
             if (current.user.rowId != user.rowId) return null
             val token = current.user.accessToken ?: return null
-            val result = kidsApi.liveTvChannels(current.server.url, token, current.user.id)
+            val result = kidsApi.liveTvChannels(current.server.url, KidsCaller(token, current.user.id), current.user.id)
             return KidsLiveTv.channelsAfter(result).also {
                 if (it == null) Timber.d("Keeping the kid's live TV channels: %s", result)
             }

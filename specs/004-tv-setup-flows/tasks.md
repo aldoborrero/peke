@@ -34,9 +34,9 @@ Every task description below uses these prefixes literally.
 
 **Purpose**: the database change and package that everything else builds on.
 
-- [ ] T001 Create the package `main/kids/setup/` and add `TvSetupEntity` (table `tv_setup`; fields from data-model.md: `id` Int "Always 1", `serverId` UUID, `serverUrl` String, `step` enum `SERVER`, `ADMIN`, `CODE`, `KIDS`, `SIGN_IN`, `DONE`, `lastKidRowId` Int?, `completedAt` Instant?) and `TvSetupDao` in `main/kids/setup/TvSetup.kt`
-- [ ] T002 Bump `peke_kids` to version 2 in `main/kids/data/KidsDatabase.kt`, with `MIGRATION_1_2`: create `tv_setup`, and insert a row with `step = DONE` when a server and kids are stored. Export `app/schemas/dev.aldoborrero.peke.kids.data.KidsDatabase/2.json`
-- [ ] T003 [P] Add the 1 → 2 case to `app/src/androidTest/java/dev/aldoborrero/peke/test/TestKidsDbMigrations.kt` (with and without a stored server)
+- [x] T001 Create the package `main/kids/setup/` and add `TvSetupEntity` (table `tv_setup`; fields from data-model.md: `id` Int "Always 1", `serverId` UUID, `serverUrl` String, `step` enum `SERVER`, `ADMIN`, `CODE`, `KIDS`, `SIGN_IN`, `DONE`, `lastKidRowId` Int?, `completedAt` Instant?) and `TvSetupDao` in `main/kids/setup/TvSetup.kt`
+- [x] T002 Bump `peke_kids` to version 2 in `main/kids/data/KidsDatabase.kt`, with `MIGRATION_1_2`: create `tv_setup`, and insert a row with `step = DONE` when a server and kids are stored. Export `app/schemas/dev.aldoborrero.peke.kids.data.KidsDatabase/2.json`
+- [x] T003 [P] Add the 1 → 2 case to `app/src/androidTest/java/dev/aldoborrero/peke/test/TestKidsDbMigrations.kt` (with and without a stored server)
 
 ---
 
@@ -46,7 +46,7 @@ Every task description below uses these prefixes literally.
 
 **⚠️ No story work starts before this phase is done.**
 
-- [ ] T004 Write `TvSetupRepositoryTest` in `test/kids/setup/TvSetupRepositoryTest.kt`. It must cover:
+- [x] T004 Write `TvSetupRepositoryTest` in `test/kids/setup/TvSetupRepositoryTest.kt`. It must cover:
   - `NotSetUp` only with no server stored;
   - `InSetup(step)`;
   - `SetUp` with 0, 1 and several kids;
@@ -55,18 +55,18 @@ Every task description below uses these prefixes literally.
   - `lastKidRowId` updates.
 
   Write it first, so it fails until T005.
-- [ ] T005 Implement `TvState` (`Loading`, `NotSetUp`, `InSetup(step)`, `SetUp(server, kids)`) and `TvSetupRepository` (a `state` flow from `tv_setup` plus the `users` and `servers` rows, `markStep`, `markDone`, `setLastKid`, `erase`) in `main/kids/setup/TvSetup.kt`. Provide it from `main/kids/KidsModule.kt`.
-- [ ] T006 [P] Write `LaunchRuleTest` in `test/kids/setup/LaunchRuleTest.kt` with one case for each row of the first-screen table in `contracts/tv-flows.md`.
-- [ ] T007 Implement `LaunchRule` in `main/kids/setup/LaunchRule.kt`. It maps `TvState` to the first destination. Call it from `main/MainActivity.kt` `handleAppStart` for cold and warm starts and on resume, replacing the warm-start branch at `:596-601` and the `KidsLockedLaunch` call. A `SetUp` kid opens from the stored row without waiting for `getCurrentUser`; the user is refreshed in the background.
-- [ ] T008 [P] Write `PekeDeviceTest` in `test/services/hilt/PekeDeviceTest.kt`. The per-kid id must be stable for the same install and user, differ between users, and differ from the install id.
-- [ ] T009 Add `pekeKidDeviceId(baseId, userId)` (`pekeDeviceId("$baseId:$userId")`) in `main/services/hilt/PekeDevice.kt`. Correct the comment about shared ids, which only matters for the same user.
-- [ ] T010 Use the kid's device id in `main/data/ServerRepository.kt`, in `changeUser` (SDK `ApiClient` `deviceInfo`), and in every `KidsApi` call made with that kid's token, in `main/kids/server/KidsApi.kt`. Extend `test/services/ServerRepositoryTest.kt` and `test/kids/KidsApiTest.kt` to check that the header sends the kid's device id.
-- [ ] T011 [P] Write `AdminSessionTest` in `test/kids/setup/AdminSessionTest.kt`. It must check:
+- [x] T005 Implement `TvState` (`Loading`, `NotSetUp`, `InSetup(step)`, `SetUp(server, kids)`) and `TvSetupRepository` (a `state` flow from `tv_setup` plus the `users` and `servers` rows, `markStep`, `markDone`, `setLastKid`, `erase`) in `main/kids/setup/TvSetup.kt`. Provide it from `main/kids/KidsModule.kt`.
+- [x] T006 [P] Write `LaunchRuleTest` in `test/kids/setup/LaunchRuleTest.kt` with one case for each row of the first-screen table in `contracts/tv-flows.md`.
+- [x] T007 Implement `LaunchRule` in `main/kids/setup/LaunchRule.kt`. It maps `TvState` to the first destination. Call it from `main/MainActivity.kt` `handleAppStart` for cold and warm starts and on resume, replacing the warm-start branch at `:596-601` and the `KidsLockedLaunch` call. A `SetUp` kid opens from the stored row without waiting for `getCurrentUser`; the user is refreshed in the background.
+- [x] T008 [P] Write `PekeDeviceTest` in `test/services/hilt/PekeDeviceTest.kt`. The per-kid id must be stable for the same install and user, differ between users, and differ from the install id.
+- [x] T009 Add `pekeKidDeviceId(baseId, userId)` (`pekeDeviceId("$baseId:$userId")`) in `main/services/hilt/PekeDevice.kt`. Correct the comment about shared ids, which only matters for the same user.
+- [x] T010 Use the kid's device id in `main/data/ServerRepository.kt`, in `changeUser` (SDK `ApiClient` `deviceInfo`), and in every `KidsApi` call made with that kid's token, in `main/kids/server/KidsApi.kt`. Extend `test/services/ServerRepositoryTest.kt` and `test/kids/KidsApiTest.kt` to check that the header sends the kid's device id.
+- [x] T011 [P] Write `AdminSessionTest` in `test/kids/setup/AdminSessionTest.kt`. It must check:
   - the token is never passed to `ServerRepository`, the DAOs, DataStore or prefs (verify with MockK `confirmVerified`);
   - `close()` calls `Sessions/Logout` once;
   - `close()` runs on cancel;
   - the device id is random for each session.
-- [ ] T012 Implement `AdminSession` in `main/kids/setup/AdminSession.kt`. It holds its own `ApiClient` with a random device id, an `open(server, username, password)`, an `openWithQuickConnect`, the `IsAdministrator` check and `close()`. It is scoped to the screen that opened it, and nothing is persisted (research R4).
+- [x] T012 Implement `AdminSession` in `main/kids/setup/AdminSession.kt`. It holds its own `ApiClient` with a random device id, an `open(server, username, password)`, an `openWithQuickConnect`, the `IsAdministrator` check and `close()`. It is scoped to the screen that opened it, and nothing is persisted (research R4).
 
 **Checkpoint**: `TvState` drives the first screen; the existing screens still work behind it.
 

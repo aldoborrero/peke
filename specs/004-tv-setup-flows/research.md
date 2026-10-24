@@ -55,6 +55,15 @@ as `KidsApi.isAdministrator` already does. All of a kid's calls (SDK and `KidsAp
 - The plugin binds a parent grant to the user and the token's device; a per-kid id stays stable for that kid, so
   grants keep working.
 
+**Existing kid tokens** (test TVs, and the old user list until US1 replaces it, sign kids in under the install id):
+- They keep working with the kid's id in the header. Jellyfin authenticates by token alone: `AuthorizationContext`
+  finds the device row by token, and a different `DeviceId` header doesn't rewrite it (`AuthorizationContext.cs:132-183`).
+- The live session follows the header (`GetSessionKey(app, deviceId, userId)`), while the token's device row keeps the
+  install id. Signing such a token out deletes that row and ends the live sessions of the install id, not the kid's
+  own, which then idles out. The dashboard lists the token under the install id until the kid signs in again.
+- The plugin's grants keep working: `CallerResolver.DeviceKeyFor` takes the device the token was registered with, not
+  the header, and a kid's grant request and its later use send the same kid id anyway.
+
 **Alternatives considered**: keep one id and reconnect the others after every logout (fragile, and the dashboard
 shows one device for all kids); a random id per sign-in (every re-sign-in leaves a stale device in the dashboard).
 

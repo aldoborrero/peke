@@ -77,6 +77,10 @@ interface JellyfinServerDao {
     fun getServers(): List<JellyfinServerUsers>
 
     @Transaction
+    @Query("SELECT * FROM servers")
+    fun observeServers(): Flow<List<JellyfinServerUsers>>
+
+    @Transaction
     @Query("SELECT * FROM servers WHERE id = :serverId")
     fun getServer(serverId: UUID): JellyfinServerUsers?
 }

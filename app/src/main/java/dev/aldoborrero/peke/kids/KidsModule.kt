@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.data.KidsDatabase
 import dev.aldoborrero.peke.kids.server.KidsServerDao
+import dev.aldoborrero.peke.kids.setup.TvSetupDao
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
 import dev.aldoborrero.peke.kids.timer.SystemMonotonicClock
 import dev.aldoborrero.peke.services.ProfilePolicy
@@ -40,7 +41,11 @@ object KidsDatabaseModule {
     @Singleton
     fun kidsDatabase(
         @ApplicationContext context: Context,
-    ): KidsDatabase = Room.databaseBuilder(context, KidsDatabase::class.java, KidsDatabase.NAME).build()
+    ): KidsDatabase =
+        Room
+            .databaseBuilder(context, KidsDatabase::class.java, KidsDatabase.NAME)
+            .addMigrations(KidsDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     @Singleton
@@ -49,4 +54,8 @@ object KidsDatabaseModule {
     @Provides
     @Singleton
     fun kidsServerDao(db: KidsDatabase): KidsServerDao = db.kidsServerDao()
+
+    @Provides
+    @Singleton
+    fun tvSetupDao(db: KidsDatabase): TvSetupDao = db.tvSetupDao()
 }

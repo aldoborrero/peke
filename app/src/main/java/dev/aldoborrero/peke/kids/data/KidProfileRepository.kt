@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.kids.gate.KidsAuth
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.server.KidProfileMapper
 import dev.aldoborrero.peke.kids.server.KidsApi
+import dev.aldoborrero.peke.kids.server.KidsCaller
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsResult
@@ -87,7 +88,7 @@ class KidProfileRepository
                 answeredNotAKid(user.rowId)
                 return true
             }
-            return when (val result = kidsApi.profile(server.url, token, user.id)) {
+            return when (val result = kidsApi.profile(server.url, KidsCaller(token, user.id), user.id)) {
                 is KidsResult.Ok -> {
                     store(user, result.value)
                     true
@@ -138,9 +139,10 @@ class KidProfileRepository
         ) {
             if (!available(server)) return
             val users = withContext(PekeDispatchers.IO) { serverDao.getServer(server.id)?.users }.orEmpty()
-            val token = (preferred?.accessToken ?: users.firstNotNullOfOrNull { it.accessToken }) ?: return
+            val caller =
+                (listOfNotNull(preferred) + users).firstNotNullOfOrNull { u -> u.accessToken?.let { KidsCaller(it, u.id) } } ?: return
             val refs =
-                when (val result = kidsApi.profiles(server.url, token)) {
+                when (val result = kidsApi.profiles(server.url, caller)) {
                     is KidsResult.Ok -> result.value.mapNotNull { ref -> ref.userId.toUUIDOrNull()?.let { it to ref.revision } }.toMap()
                     else -> return
                 }
@@ -158,12 +160,12 @@ class KidProfileRepository
         suspend fun mark(user: JellyfinUser): SaveResult {
             val auth = parentLockService.auth() ?: return SaveResult.NEEDS_GRANT
             val body = KidProfileMapper.toUpdate(KidProfile(userId = user.rowId), 0, sendSessionLimit(auth))
-            return handle(user, auth, kidsApi.putProfile(auth.server.url, auth.token, auth.grant, user.id, body))
+            return handle(user, auth, kidsApi.putProfile(auth.server.url, auth.caller, auth.grant, user.id, body))
         }
 
         suspend fun unmark(user: JellyfinUser): SaveResult {
             val auth = parentLockService.auth() ?: return SaveResult.NEEDS_GRANT
-            return when (val result = kidsApi.deleteProfile(auth.server.url, auth.token, auth.grant, user.id)) {
+            return when (val result = kidsApi.deleteProfile(auth.server.url, auth.caller, auth.grant, user.id)) {
                 is KidsResult.Ok -> {
                     kidProfileDao.delete(user.rowId)
                     answeredNotAKid(user.rowId)
@@ -189,7 +191,7 @@ class KidProfileRepository
         ): SaveResult {
             val auth = parentLockService.auth() ?: return SaveResult.NEEDS_GRANT
             val body = KidProfileMapper.toUpdate(profile, profile.revision, sendSessionLimit(auth))
-            return handle(user, auth, kidsApi.putProfile(auth.server.url, auth.token, auth.grant, user.id, body))
+            return handle(user, auth, kidsApi.putProfile(auth.server.url, auth.caller, auth.grant, user.id, body))
         }
 
         private suspend fun sendSessionLimit(auth: KidsAuth) = pluginService.state(auth.server.id).has(KidsFeatures.SESSION_LIMIT)

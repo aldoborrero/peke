@@ -15,6 +15,7 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppPreferencesSerializer
+import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
 import dev.aldoborrero.peke.test.nonBlankString
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
 import dev.aldoborrero.peke.ui.successResponse
@@ -86,6 +87,7 @@ class ServerRepositoryTest {
     private val mockUserApi = mockk<UserApi>()
     private val mockSystemApi = mockk<SystemApi>()
     private val mockMostRecentServerProvider = mockk<MostRecentServerProvider>()
+    private val installDevice = DeviceInfo("install-id", "Living room TV")
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
@@ -130,6 +132,7 @@ class ServerRepositoryTest {
             mockJellyfin,
             mockJellyfinServerDao,
             mockApiClient,
+            installDevice,
             testDispatcher,
             mockMostRecentServerProvider,
             mockk(relaxed = true),
@@ -551,6 +554,102 @@ class ServerRepositoryTest {
             every { mockMostRecentServerProvider.get() } returns MostRecentServer.Server(serverId, server.url)
             create().removeServer(server)
             coVerify(exactly = 1) { mockMostRecentServerProvider.clear() }
+        }
+
+    private fun kidDevice(id: UUID = userId) = DeviceInfo(pekeKidDeviceId(installDevice.id, id), installDevice.name)
+
+    @Test
+    fun `changeUser sends the user's own device id`() =
+        runTest {
+            every { mockJellyfinServerDao.addOrUpdateServer(any()) } just Runs
+            every { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
+
+            create().changeUser(server, user)
+
+            verify(exactly = 1) {
+                mockApiClient.update(
+                    baseUrl = server.url,
+                    accessToken = user.accessToken,
+                    clientInfo = any(),
+                    deviceInfo = kidDevice(),
+                )
+            }
+        }
+
+    @Test
+    fun `restoreUser opens a saved user without the network`() =
+        runTest {
+            val serverRepository = create()
+
+            val current = serverRepository.restoreUser(server, user)
+
+            assertEquals(CurrentUser(server, user), current)
+            assertEquals(current, serverRepository.current.value)
+            verify(exactly = 1) {
+                mockApiClient.update(
+                    baseUrl = server.url,
+                    accessToken = user.accessToken,
+                    clientInfo = any(),
+                    deviceInfo = kidDevice(),
+                )
+            }
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
+            coVerify(exactly = 0) { mockSystemApi.getPublicSystemInfo() }
+            verify(exactly = 0) { mockJellyfinServerDao.addOrUpdateUser(any()) }
+            coVerify(exactly = 1) { mockMostRecentServerProvider.save(current) }
+            // Not known until the background refresh
+            Assert.assertNull(serverRepository.currentUserDto)
+        }
+
+    @Test
+    fun `restoreUser refuses a user of another server`() =
+        runTest {
+            val serverRepository = create()
+            val other = JellyfinServer(UUID.randomUUID(), null, "http://other.local", null)
+            val refused =
+                try {
+                    serverRepository.restoreUser(other, user)
+                    false
+                } catch (_: IllegalStateException) {
+                    true
+                }
+            assertTrue(refused)
+            Assert.assertNull(serverRepository.current.value)
+        }
+
+    @Test
+    fun `removing the current user goes back to the install device id`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.deleteUser(any(), any()) } just Runs
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository, currentUser = user)
+
+            serverRepository.removeUser(user)
+
+            verify {
+                mockApiClient.update(
+                    baseUrl = any(),
+                    accessToken = null,
+                    clientInfo = any(),
+                    deviceInfo = installDevice,
+                )
+            }
+        }
+
+    @Test
+    fun `adding a server talks to it with the install device id`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.addOrUpdateServer(any()) } just Runs
+            create().addAndChangeServer(server)
+
+            verify {
+                mockApiClient.update(
+                    baseUrl = server.url,
+                    accessToken = null,
+                    clientInfo = any(),
+                    deviceInfo = installDevice,
+                )
+            }
         }
 }
 

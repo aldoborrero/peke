@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.server.KidsApi
+import dev.aldoborrero.peke.kids.server.KidsCaller
 import dev.aldoborrero.peke.kids.server.KidsDenial
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsPluginService
@@ -190,7 +191,7 @@ class KidsAllowanceService
             if (current.user.rowId != rowId) return
             val token = current.user.accessToken ?: return
             val ticket = tickets.incrementAndGet()
-            when (val result = kidsApi.status(current.server.url, token, current.user.id)) {
+            when (val result = kidsApi.status(current.server.url, KidsCaller(token, current.user.id), current.user.id)) {
                 is KidsResult.Ok -> update(rowId, result.value, ticket)
 
                 // Not a kid any more, or the plugin went away: the profile refresh decides
@@ -230,7 +231,7 @@ class KidsAllowanceService
         suspend fun addBonus(minutes: Int): BonusResult {
             val auth = parentLockService.auth() ?: return BonusResult.NEEDS_GRANT
             val ticket = tickets.incrementAndGet()
-            return when (val result = kidsApi.bonus(auth.server.url, auth.token, auth.grant, auth.user.id, minutes)) {
+            return when (val result = kidsApi.bonus(auth.server.url, auth.caller, auth.grant, auth.user.id, minutes)) {
                 is KidsResult.Ok -> {
                     update(auth.user.rowId, result.value, ticket)
                     BonusResult.ADDED

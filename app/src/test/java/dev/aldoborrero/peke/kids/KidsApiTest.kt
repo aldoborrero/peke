@@ -5,9 +5,11 @@ import dev.aldoborrero.peke.kids.data.KidsHomeSection
 import dev.aldoborrero.peke.kids.data.KidsHomeSectionEntry
 import dev.aldoborrero.peke.kids.server.KidProfileMapper
 import dev.aldoborrero.peke.kids.server.KidsApi
+import dev.aldoborrero.peke.kids.server.KidsCaller
 import dev.aldoborrero.peke.kids.server.KidsJson
 import dev.aldoborrero.peke.kids.server.KidsResult
 import dev.aldoborrero.peke.kids.server.SetLockRequest
+import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -85,6 +87,7 @@ class KidsApiTest {
         runTest {
             val server = FakeKidsServer()
             val api = server.api(StandardTestDispatcher(testScheduler))
+            val caller = KidsCaller("tok", userId)
             server.on(
                 "GET",
                 "/Kids/Info",
@@ -103,25 +106,25 @@ class KidsApiTest {
             assertEquals(listOf("profiles", "parentLock"), info.value.features)
             assertNull(server.requests.last().headers["Authorization"])
 
-            val conflict = api.putProfile("http://jf.local", "tok", "grant-1", userId, KidsJson.parseToJsonElement("{}").jsonObject)
+            val conflict = api.putProfile("http://jf.local", caller, "grant-1", userId, KidsJson.parseToJsonElement("{}").jsonObject)
             assertEquals(JsonPrimitive(3), (conflict as KidsResult.Conflict).current!!["Revision"])
             val put = server.requests.last()
             assertEquals("grant-1", put.headers[KidsApi.GRANT_HEADER])
             assertTrue(put.headers["Authorization"]!!.contains("Token=\"tok\""))
 
-            assertEquals(KidsResult.Forbidden, api.deleteProfile("http://jf.local", "tok", null, userId))
-            assertEquals(KidsResult.Throttled(12), api.setLock("http://jf.local", "tok", "g", SetLockRequest("NUMERIC", "1234", "0000")))
-            assertEquals(KidsResult.Invalid(setOf("Code")), api.verify("http://jf.local", "tok", "1"))
-            assertEquals(KidsResult.Failed(500), api.status("http://jf.local", "tok", userId))
-            assertEquals(KidsResult.NotFound, api.profiles("http://jf.local", "tok"))
+            assertEquals(KidsResult.Forbidden, api.deleteProfile("http://jf.local", caller, null, userId))
+            assertEquals(KidsResult.Throttled(12), api.setLock("http://jf.local", caller, "g", SetLockRequest("NUMERIC", "1234", "0000")))
+            assertEquals(KidsResult.Invalid(setOf("Code")), api.verify("http://jf.local", caller, "1"))
+            assertEquals(KidsResult.Failed(500), api.status("http://jf.local", caller, userId))
+            assertEquals(KidsResult.NotFound, api.profiles("http://jf.local", caller))
 
             // The plugin's own 404 is told apart from a route that doesn't exist
             server.on("GET", "/Kids/Users/$userId/Profile", 404, """{"title":"This user is not a kid.","status":404}""")
-            assertEquals(KidsResult.NotAKid, api.profile("http://jf.local", "tok", userId))
+            assertEquals(KidsResult.NotAKid, api.profile("http://jf.local", caller, userId))
             server.on("GET", "/Kids/Users/$userId/Profile", 404, """{"title":"Not Found","status":404}""")
-            assertEquals(KidsResult.NotFound, api.profile("http://jf.local", "tok", userId))
+            assertEquals(KidsResult.NotFound, api.profile("http://jf.local", caller, userId))
             server.on("GET", "/Kids/Users/$userId/Profile", 404, "<html>Not found</html>")
-            assertEquals(KidsResult.NotFound, api.profile("http://jf.local", "tok", userId))
+            assertEquals(KidsResult.NotFound, api.profile("http://jf.local", caller, userId))
 
             server.offline = true
             assertEquals(KidsResult.Unreachable, api.info("http://jf.local"))
@@ -134,5 +137,32 @@ class KidsApiTest {
             val api = server.api(StandardTestDispatcher(testScheduler))
             server.on("GET", "/jellyfin/Kids/Info", 200, """{"ApiVersion":1}""")
             assertTrue(api.info("http://jf.local/jellyfin") is KidsResult.Ok)
+        }
+
+    @Test
+    fun `calls with a kid's token send that kid's own device id`() =
+        runTest {
+            val server = FakeKidsServer()
+            val api = server.api(StandardTestDispatcher(testScheduler))
+            val sibling = UUID.fromString("5f1c0000-0000-0000-0000-000000000009")
+            server.on("POST", "/Kids/Parent/Verify", 200, """{"Valid":true,"Grant":"g-1"}""")
+            server.on("GET", "/Kids/Parent/Verifier", 200, """{"LockType":"NUMERIC","Verifier":"v"}""")
+            server.on("GET", "/Kids/Users/$userId/Status", 200, "{}")
+
+            // The plugin binds a grant to the device of the token it was issued to, so the grant request and its use
+            // go out with the same kid's device id
+            api.verify("http://jf.local", KidsCaller("tok", userId), "1234")
+            api.verifier("http://jf.local", KidsCaller("tok", userId), "g-1")
+            api.status("http://jf.local", KidsCaller("tok", userId), userId)
+            api.status("http://jf.local", KidsCaller("sib", sibling), userId)
+
+            val kidDevice = "DeviceId=\"${pekeKidDeviceId(FakeKidsServer.DEVICE_ID, userId)}\""
+            val siblingDevice = "DeviceId=\"${pekeKidDeviceId(FakeKidsServer.DEVICE_ID, sibling)}\""
+            val headers = server.requests.map { it.headers["Authorization"]!! }
+            assertTrue(headers[0], headers[0].contains(kidDevice))
+            assertTrue(headers[1], headers[1].contains(kidDevice))
+            assertTrue(headers[2], headers[2].contains(kidDevice))
+            assertTrue(headers[3], headers[3].contains(siblingDevice))
+            assertFalse(headers.any { it.contains("DeviceId=\"${FakeKidsServer.DEVICE_ID}\"") })
         }
 }

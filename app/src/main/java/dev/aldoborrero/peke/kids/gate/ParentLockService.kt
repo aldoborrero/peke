@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.server.KidsApi
+import dev.aldoborrero.peke.kids.server.KidsCaller
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsResult
 import dev.aldoborrero.peke.kids.server.KidsServerDao
@@ -113,7 +114,9 @@ data class KidsAuth(
     val user: JellyfinUser,
     val token: String,
     val grant: String?,
-)
+) {
+    val caller: KidsCaller get() = KidsCaller(token, user.id)
+}
 
 /**
  * The household parent lock of the Jellyfin Kids plugin
@@ -171,7 +174,7 @@ class ParentLockService
         suspend fun lockState(): LockState {
             val (server, user) = target() ?: return LockState.Unknown
             if (pluginService.state(server.id).status == KidsServerStatus.AVAILABLE) {
-                when (val result = kidsApi.lock(server.url, user.accessToken!!)) {
+                when (val result = kidsApi.lock(server.url, KidsCaller(user.accessToken!!, user.id))) {
                     is KidsResult.Ok -> {
                         val type = parseType(result.value.lockType)
                         if (type == null) {
@@ -237,8 +240,8 @@ class ParentLockService
             if (pluginService.state(server.id).status == KidsServerStatus.AVAILABLE) {
                 // The server asked to wait: don't send codes it would refuse unchecked (FR-014)
                 serverWaitSeconds(server.id)?.let { return VerifyOutcome.Throttled(it) }
-                val token = user.accessToken!!
-                when (val result = kidsApi.verify(server.url, token, code)) {
+                val caller = KidsCaller(user.accessToken!!, user.id)
+                when (val result = kidsApi.verify(server.url, caller, code)) {
                     is KidsResult.Ok -> {
                         val answer = result.value
                         return when {
@@ -246,7 +249,7 @@ class ParentLockService
                                 val receivedAt = clock.elapsedMillis()
                                 grants[server.id to user.rowId] = Grant(answer.grant, receivedAt + grantMillis(answer.expiresAt))
                                 resetOfflineThrottle(server.id)
-                                cacheVerifier(server, token, answer.grant)
+                                cacheVerifier(server, caller, answer.grant)
                                 VerifyOutcome.Valid
                             }
 
@@ -334,14 +337,14 @@ class ParentLockService
 
         private suspend fun cacheVerifier(
             server: JellyfinServer,
-            token: String,
+            caller: KidsCaller,
             grant: String,
         ) {
             // The lock's ChangedAt is read first: if the code changes in between, the verifier is newer than it and is
             // dropped at the next check, rather than an old verifier being kept with a new ChangedAt
-            val status = kidsApi.lock(server.url, token)
+            val status = kidsApi.lock(server.url, caller)
             val changedAt = (status as? KidsResult.Ok)?.value?.changedAt
-            val result = kidsApi.verifier(server.url, token, grant)
+            val result = kidsApi.verifier(server.url, caller, grant)
             if (result is KidsResult.Ok && changedAt != null) {
                 pluginService.cacheLock(server.id, result.value.lockType, result.value.verifier, changedAt)
             } else {
@@ -405,7 +408,7 @@ class ParentLockService
             val auth = auth() ?: return LockChange.NeedsGrant
             serverWaitSeconds(auth.server.id)?.let { return LockChange.Throttled(it) }
             val request = SetLockRequest(type.name, code, current.takeIf { !isAdmin() })
-            return when (val result = kidsApi.setLock(auth.server.url, auth.token, auth.grant, request)) {
+            return when (val result = kidsApi.setLock(auth.server.url, auth.caller, auth.grant, request)) {
                 is KidsResult.Ok -> {
                     dropGrant()
                     verify(code)

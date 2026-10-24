@@ -7,6 +7,8 @@ import dev.aldoborrero.peke.kids.server.KidsApi
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsServer
 import dev.aldoborrero.peke.kids.server.KidsServerDao
+import dev.aldoborrero.peke.kids.setup.TvSetupDao
+import dev.aldoborrero.peke.kids.setup.TvSetupEntity
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineDispatcher
@@ -21,6 +23,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
+import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
@@ -190,21 +193,104 @@ class FakeKidsServer {
                 .build()
         }
 
-    fun api(dispatcher: CoroutineDispatcher): KidsApi {
-        val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
-        val clientInfo = ClientInfo("Peke", "test")
-        val deviceInfo = DeviceInfo("device-1", "TV")
+    private val client by lazy { OkHttpClient.Builder().addInterceptor(interceptor).build() }
+    val clientInfo = ClientInfo("Peke", "test")
+    val deviceInfo = DeviceInfo(DEVICE_ID, "TV")
+
+    /**
+     * A Jellyfin SDK instance whose calls this fake answers
+     */
+    val jellyfin: Jellyfin by lazy {
         val factory = OkHttpFactory(client)
-        val jellyfin =
-            createJellyfin {
-                context = mockk<Context>(relaxed = true)
-                this.clientInfo = clientInfo
-                this.deviceInfo = deviceInfo
-                apiClientFactory = factory
-                socketConnectionFactory = factory
-            }
-        return KidsApi(client, jellyfin, clientInfo, deviceInfo, dispatcher)
+        createJellyfin {
+            context = mockk<Context>(relaxed = true)
+            this.clientInfo = this@FakeKidsServer.clientInfo
+            this.deviceInfo = this@FakeKidsServer.deviceInfo
+            apiClientFactory = factory
+            socketConnectionFactory = factory
+        }
     }
 
+    fun api(dispatcher: CoroutineDispatcher): KidsApi = KidsApi(client, jellyfin, clientInfo, deviceInfo, dispatcher)
+
     private fun Request.bodyText(): String? = body?.let { b -> Buffer().also { b.writeTo(it) }.readUtf8() }
+
+    companion object {
+        const val DEVICE_ID = "device-1"
+    }
+}
+
+/**
+ * A [TvSetupDao] in memory. With [unreadable] set, reading the row fails as a corrupt row would.
+ */
+class FakeTvSetupDao(
+    initial: TvSetupEntity? = null,
+) : TvSetupDao {
+    val row = MutableStateFlow(initial)
+    var unreadable = false
+
+    override fun observe(): Flow<TvSetupEntity?> =
+        row.map {
+            if (unreadable) throw IllegalArgumentException("unreadable row")
+            it
+        }
+
+    override suspend fun get(): TvSetupEntity? {
+        if (unreadable) throw IllegalArgumentException("unreadable row")
+        return row.value
+    }
+
+    override suspend fun upsert(setup: TvSetupEntity) {
+        row.value = setup
+    }
+
+    override suspend fun delete() {
+        row.value = null
+    }
+}
+
+/**
+ * Jellyfin's answer to a sign-in (`Users/AuthenticateByName` or `Users/AuthenticateWithQuickConnect`), with the
+ * fields the SDK requires
+ */
+fun signInAnswer(
+    isAdministrator: Boolean,
+    token: String,
+    userId: UUID = UUID.randomUUID(),
+): String {
+    val flags =
+        listOf(
+            "IsHidden",
+            "EnableCollectionManagement",
+            "EnableSubtitleManagement",
+            "EnableLyricManagement",
+            "IsDisabled",
+            "EnableUserPreferenceAccess",
+            "EnableRemoteControlOfOtherUsers",
+            "EnableSharedDeviceControl",
+            "EnableRemoteAccess",
+            "EnableLiveTvManagement",
+            "EnableLiveTvAccess",
+            "EnableMediaPlayback",
+            "EnableAudioPlaybackTranscoding",
+            "EnableVideoPlaybackTranscoding",
+            "EnablePlaybackRemuxing",
+            "ForceRemoteSourceTranscoding",
+            "EnableContentDeletion",
+            "EnableContentDownloading",
+            "EnableSyncTranscoding",
+            "EnableMediaConversion",
+            "EnableAllDevices",
+            "EnableAllChannels",
+            "EnableAllFolders",
+            "EnablePublicSharing",
+        ).joinToString(",") { "\"$it\":false" }
+    val counts =
+        listOf("InvalidLoginAttemptCount", "LoginAttemptsBeforeLockout", "MaxActiveSessions", "RemoteClientBitrateLimit")
+            .joinToString(",") { "\"$it\":0" }
+    val policy =
+        """{"IsAdministrator":$isAdministrator,$flags,$counts,"AuthenticationProviderId":"a","PasswordResetProviderId":"p","SyncPlayAccess":"None"}"""
+    val user =
+        """{"Id":"$userId","HasPassword":true,"HasConfiguredPassword":true,"HasConfiguredEasyPassword":false,"Policy":$policy}"""
+    return """{"User":$user,"AccessToken":"$token"}"""
 }
