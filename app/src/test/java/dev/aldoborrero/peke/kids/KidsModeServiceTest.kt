@@ -1,6 +1,5 @@
 package dev.aldoborrero.peke.kids
 
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
@@ -10,7 +9,6 @@ import dev.aldoborrero.peke.kids.data.KidProfileRepository
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsServerState
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
-import dev.aldoborrero.peke.services.KeyValueService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -18,9 +16,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -28,18 +24,12 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class KidsModeServiceTest {
-    @get:Rule
-    val temporaryFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
-
     private val server = JellyfinServer(id = UUID.randomUUID(), name = "server", url = "http://localhost", version = null)
     private val adult = JellyfinUser(rowId = 1, id = UUID.randomUUID(), name = "adult", serverId = server.id, accessToken = "a")
     private val kid = JellyfinUser(rowId = 2, id = UUID.randomUUID(), name = "kid", serverId = server.id, accessToken = "k")
@@ -61,12 +51,7 @@ class KidsModeServiceTest {
         }
     }
 
-    private fun TestScope.store() =
-        PreferenceDataStoreFactory.create(scope = backgroundScope) {
-            temporaryFolder.newFile("kids_${UUID.randomUUID()}.preferences_pb")
-        }
-
-    private suspend fun TestScope.createService(
+    private fun TestScope.createService(
         current: MutableStateFlow<CurrentUser?>,
         dao: FakeKidProfileDao,
         plugin: MutableStateFlow<KidsServerState> = MutableStateFlow(KidsServerState.ABSENT),
@@ -78,7 +63,6 @@ class KidsModeServiceTest {
         return KidsModeService(
             serverRepository,
             dao,
-            KeyValueService(store()),
             repository,
             pluginService,
             FakeClock(),
@@ -115,11 +99,10 @@ class KidsModeServiceTest {
             val service = createService(current, FakeKidProfileDao())
             advanceUntilIdle()
             assertEquals(KidsModeState.Inactive, service.state.value)
-            assertEquals(false, service.locked.value)
         }
 
     @Test
-    fun `active and locked once a kid profile is current`() =
+    fun `active once a kid profile is current`() =
         runTest(UnconfinedTestDispatcher()) {
             val dao = FakeKidProfileDao { server.id }
             val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
@@ -133,23 +116,6 @@ class KidsModeServiceTest {
                 service.state.value.profile
                     ?.userId,
             )
-            assertEquals(true, service.locked.value)
-        }
-
-    @Test
-    fun `kids lock fails closed and nothing clears it`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val dao = FakeKidProfileDao { server.id }
-            val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
-            val service = createService(current, dao)
-            // A kid profile exists but was never active: no stored flag, still locked
-            dao.upsert(KidProfile(userId = kid.rowId))
-            advanceUntilIdle()
-            assertEquals(true, service.locked.value)
-
-            current.value = CurrentUser(server, kid)
-            advanceUntilIdle()
-            assertEquals(true, service.locked.value)
         }
 
     @Test
@@ -164,7 +130,6 @@ class KidsModeServiceTest {
             dao.delete(kid.rowId)
             advanceUntilIdle()
             assertFalse(service.isActive)
-            assertEquals(emptySet<Int>(), service.kidUserRowIds())
         }
 
     @Test
@@ -193,7 +158,7 @@ class KidsModeServiceTest {
             assertTrue(service.unanswered.value)
 
             answersNotAKid(adult)
-            service.retry()
+            service.onResume(mockk())
             advanceUntilIdle()
             assertEquals(KidsModeState.Inactive, service.state.value)
             assertFalse(service.unanswered.value)
@@ -212,7 +177,7 @@ class KidsModeServiceTest {
         }
 
     @Test
-    fun `a sign-in waits for the read that started when the user became current`() =
+    fun `coming back to the app shares the read that started when the user became current`() =
         runTest(UnconfinedTestDispatcher()) {
             val dao = FakeKidProfileDao { server.id }
             val answer = CompletableDeferred<Unit>()
@@ -223,14 +188,12 @@ class KidsModeServiceTest {
             }
             val current = MutableStateFlow<CurrentUser?>(null)
             val service = createService(current, dao)
-            // The sign-in made the kid current, then waits for their profile
             current.value = CurrentUser(server, kid)
-            val signIn = async { service.lockIfKidAfterSignIn(CurrentUser(server, kid)) }
             assertEquals(KidsModeState.Loading, service.state.value)
+            // Still reading: no second read
+            service.onResume(mockk())
             answer.complete(Unit)
-            signIn.await()
             advanceUntilIdle()
-            assertEquals(true, service.lockEngaged.value)
             assertTrue(service.isActive)
             coVerify(exactly = 1) { repository.refresh(any(), any()) }
             // Coming back soon after reads nothing again
@@ -240,35 +203,7 @@ class KidsModeServiceTest {
         }
 
     @Test
-    fun `a kid new on this TV locks it at sign-in, once their profile is read`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val dao = FakeKidProfileDao { server.id }
-            val current = MutableStateFlow<CurrentUser?>(null)
-            val service = createService(current, dao)
-            // The profile isn't cached yet when the sign-in finishes; the server has it
-            coEvery { repository.refresh(server, kid) } coAnswers {
-                dao.upsert(KidProfile(userId = kid.rowId))
-                true
-            }
-            advanceUntilIdle()
-            assertEquals(false, service.lockEngaged.value)
-            service.lockIfKidAfterSignIn(CurrentUser(server, kid))
-            advanceUntilIdle()
-            assertEquals(true, service.lockEngaged.value)
-            assertEquals(setOf(kid.rowId), service.kidRowIds.first())
-        }
-
-    @Test
-    fun `a grown-up's sign-in doesn't lock`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val service = createService(MutableStateFlow(null), FakeKidProfileDao { server.id })
-            service.lockIfKidAfterSignIn(CurrentUser(server, adult))
-            advanceUntilIdle()
-            assertEquals(false, service.lockEngaged.value)
-        }
-
-    @Test
-    fun `the state and the lock start unknown`() =
+    fun `the state starts unknown`() =
         runTest(UnconfinedTestDispatcher()) {
             val serverRepository = mockk<ServerRepository>()
             every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(CurrentUser(server, kid))
@@ -280,7 +215,6 @@ class KidsModeServiceTest {
                 KidsModeService(
                     serverRepository,
                     dao,
-                    KeyValueService(store()),
                     repository,
                     pluginService,
                     FakeClock(),
@@ -288,6 +222,5 @@ class KidsModeServiceTest {
                     notStarted.backgroundScope,
                 )
             assertEquals(KidsModeState.Loading, service.state.value)
-            assertNull(service.locked.value)
         }
 }

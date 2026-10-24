@@ -22,7 +22,6 @@ class PekePreferencesTest {
                 AppPreference.RefreshRateSwitching,
                 AppPreference.ResolutionSwitching,
                 AppPreference.PlaybackDebugInfo,
-                AppPreference.QuickConnect,
                 ExperimentalPreference.Enable,
                 ExperimentalPreference.ExperimentalSettings,
                 AppPreference.InstalledVersion,

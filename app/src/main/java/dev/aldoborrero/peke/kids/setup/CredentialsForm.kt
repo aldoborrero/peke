@@ -1,4 +1,4 @@
-package dev.aldoborrero.peke.ui.setup
+package dev.aldoborrero.peke.kids.setup
 
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row

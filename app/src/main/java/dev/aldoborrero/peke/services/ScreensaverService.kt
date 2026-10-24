@@ -7,6 +7,9 @@ import androidx.compose.animation.fadeOut
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.isCurrentKid
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
 import dev.aldoborrero.peke.ui.components.ScreensaverItem
 import dev.aldoborrero.peke.ui.formatDate
@@ -43,6 +46,9 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Handles the queue of items to show on the screensaver, both in-app or OS
+ *
+ * Items come only from the current kid's library, while their pages are showing; otherwise, such as on the picker,
+ * during setup or in a screensaver started with no kid open, it shows Peke's own art (C10)
  */
 @Singleton
 class ScreensaverService
@@ -53,6 +59,9 @@ class ScreensaverService
         private val api: ApiClient,
         private val userPreferencesService: UserPreferencesService,
         private val imageUrlService: ImageUrlService,
+        private val serverRepository: ServerRepository,
+        private val tvSetupRepository: TvSetupRepository,
+        private val setupNavigationManager: SetupNavigationManager,
     ) {
         private val _state = MutableStateFlow(ScreensaverState(false, false, false, false))
         val state: StateFlow<ScreensaverState> = _state
@@ -205,6 +214,10 @@ class ScreensaverService
          */
         fun createItemFlow(scope: CoroutineScope): Flow<ScreensaverItem?> =
             flow {
+                if (!kidIsCurrent()) {
+                    emit(ScreensaverItem.Neutral)
+                    return@flow
+                }
                 val pager =
                     try {
                         createPager()
@@ -274,6 +287,15 @@ class ScreensaverService
                     }
                 }
             }.flowOn(PekeDispatchers.Default).cancellable()
+
+        /**
+         * Whether one of this TV's kids is current and their pages are showing
+         */
+        private fun kidIsCurrent(): Boolean {
+            val current = serverRepository.current.value ?: return false
+            val shown = setupNavigationManager.backStack.firstOrNull() as? SetupDestination.AppContent
+            return shown?.current?.user?.rowId == current.user.rowId && tvSetupRepository.state.value.isCurrentKid(current)
+        }
 
         private suspend fun createPager(): ApiRequestPager<GetItemsRequest> {
             val prefs =

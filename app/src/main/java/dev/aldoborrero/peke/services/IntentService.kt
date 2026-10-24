@@ -3,12 +3,13 @@ package dev.aldoborrero.peke.services
 import android.app.SearchManager
 import android.content.Intent
 import androidx.annotation.VisibleForTesting
-import dev.aldoborrero.peke.data.RestoredSession
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.KidsModeService
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.isCurrentKid
 import dev.aldoborrero.peke.ui.detail.series.SeasonEpisodeIds
 import dev.aldoborrero.peke.ui.nav.Destination
-import kotlinx.coroutines.flow.first
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -17,13 +18,18 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Turns an intent (a deep link, a search or a home screen channel) into the pages it opens, only as the current kid and
+ * with their rules: an intent never switches user, so user ids in it are ignored (C6)
+ */
 @Singleton
 class IntentService
     @Inject
     constructor(
         private val api: ApiClient,
         private val serverRepository: ServerRepository,
-        private val userPreferencesService: UserPreferencesService,
+        private val tvSetupRepository: TvSetupRepository,
+        private val kidsModeService: KidsModeService,
     ) {
         suspend fun parseIntent(intent: Intent): IntentResult {
             Timber.v("Parsing intent %s", intent)
@@ -38,7 +44,7 @@ class IntentService
                 return IntentResult.NoOp
             }
 
-            val result = prepare(intent)
+            val result = prepare()
             if (result != null) {
                 return result
             }
@@ -54,6 +60,9 @@ class IntentService
             }
 
             if (action == Intent.ACTION_SEARCH || action == "search") {
+                if (kidsModeService.profileFor(serverRepository.current.value?.user)?.searchAllowed != true) {
+                    return IntentResult.Error("Search is off for this kid")
+                }
                 val query = intent.getStringParam(SearchManager.QUERY)
                 return IntentResult.Target(listOf(Destination.Search(query ?: "")))
             }
@@ -116,43 +125,17 @@ class IntentService
             return IntentResult.Target(destinations, true)
         }
 
+        /**
+         * Null when the intent may run: one of this TV's kids is current. Otherwise it is dropped; it never signs anyone
+         * in or switches user.
+         */
         @VisibleForTesting
-        internal suspend fun prepare(intent: Intent): IntentResult? {
-            val appPrefs = userPreferencesService.flow.first().appPreferences
-
-            val userId = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
-            val serverId = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
-            return if (userId != null && serverId != null) {
-                Timber.v("Intent switches user")
-                val user = serverRepository.tryChangeUser(serverId, userId)
-                if (user != null) {
-                    null
-                } else {
-                    IntentResult.Error("Error restoring user")
-                }
-            } else if (appPrefs.signInAutomatically) {
-                Timber.v("No current user, so restoring last")
-                val result = serverRepository.restoreLastSession()
-                Timber.v("Restored result=%s", result)
-                when (result) {
-                    RestoredSession.None,
-                    is RestoredSession.ServerOnly,
-                    -> {
-                        IntentResult.Error("Could not auto sign-in, specify a server & user")
-                    }
-
-                    is RestoredSession.Success -> {
-                        if (result.currentUser.user.isProtected) {
-                            IntentResult.Error("Could not auto sign-in, user is protected")
-                        } else {
-                            null
-                        }
-                    }
-                }
+        internal fun prepare(): IntentResult? =
+            if (tvSetupRepository.state.value.isCurrentKid(serverRepository.current.value)) {
+                null
             } else {
-                IntentResult.Error("Auto sign-in not enabled")
+                IntentResult.Error("No kid is current")
             }
-        }
 
         private fun Intent.getStringParam(key: String) = getStringExtra(key) ?: data?.getQueryParameter(key)
 
@@ -197,8 +180,6 @@ class IntentService
             const val INTENT_EPISODE_NUMBER = "epNum"
             const val INTENT_SEASON_NUMBER = "seaNum"
             const val INTENT_SEASON_ID = "seaId"
-            const val INTENT_SERVER_ID = "serverId"
-            const val INTENT_USER_ID = "userId"
 
             const val ACTION_PLAYBACK = "dev.aldoborrero.peke.PLAYBACK"
         }

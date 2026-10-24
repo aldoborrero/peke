@@ -244,9 +244,19 @@ class KidsParentGateViewModel
             if (timesUp) timeLimits.interrupted.timeAdded = true
             viewModelScope.launch {
                 val result = timeLimits.allowanceService.addBonus(minutes)
+                // Choosing the minutes left the menu: the grant ends once the server has them
+                parentLockService.forgetGrants()
                 if (result != BonusResult.ADDED && timesUp) timeLimits.interrupted.timeAdded = false
                 onBonusResult(result)
             }
+        }
+
+        /**
+         * The grown-up closed the menu without choosing anything: the grant ends here, so the kid behind it can't open
+         * grown-up pages with it while it would still be live
+         */
+        fun leaveMenu() {
+            parentLockService.forgetGrants()
         }
 
         fun openSettings() {

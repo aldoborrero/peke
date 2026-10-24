@@ -3,6 +3,7 @@ package dev.aldoborrero.peke.kids.setup
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.FakeKidsServer
+import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.server.KidsStatus
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.services.SetupDestination
@@ -12,9 +13,11 @@ import dev.aldoborrero.peke.util.configure
 import dev.aldoborrero.peke.util.reset
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -43,6 +46,7 @@ class KidsPickerTest {
     private val allowanceService = mockk<KidsAllowanceService> { coEvery { cachedStatus(any()) } returns null }
     private val launcher = mockk<TvLauncher>(relaxed = true)
     private val setupNavigationManager = mockk<SetupNavigationManager>(relaxed = true)
+    private val parentLockService = mockk<ParentLockService>(relaxed = true)
 
     @Before
     fun setUp() = PekeDispatchers.configure(dispatcher)
@@ -51,7 +55,14 @@ class KidsPickerTest {
     fun tearDown() = PekeDispatchers.reset()
 
     private fun viewModel() =
-        KidsPickerViewModel(tvSetupRepository, allowanceService, launcher, setupNavigationManager, FakeKidsServer().jellyfin) { now }
+        KidsPickerViewModel(
+            tvSetupRepository,
+            allowanceService,
+            launcher,
+            setupNavigationManager,
+            parentLockService,
+            FakeKidsServer().jellyfin,
+        ) { now }
 
     private fun timeUpUntil(end: String?) = KidsStatus(timeUp = true, remainingSeconds = 0, allowanceSeconds = 3600, nextDayStartsAt = end)
 
@@ -170,6 +181,68 @@ class KidsPickerTest {
                 vm.state.value.gate
                     ?.action,
             )
+        }
+
+    @Test
+    fun `a gate passed to switch kids ends once the kid is chosen`() =
+        runTest(dispatcher) {
+            coEvery { allowanceService.cachedStatus(manuel.rowId) } returns timeUpUntil("2026-10-24T05:00:00Z")
+            val vm = viewModel()
+
+            vm.pick(lucia).join()
+            // Waiting for the code: nothing to forget yet
+            verify(exactly = 0) { parentLockService.forgetGrants() }
+
+            vm.gatePassed().join()
+            // The new kid can't use the grown-up's grant to open grown-up pages
+            coVerifyOrder {
+                parentLockService.forgetGrants()
+                launcher.openKid(server, lucia)
+            }
+            verify(exactly = 1) { parentLockService.forgetGrants() }
+        }
+
+    @Test
+    fun `a kid picked after the sidebar's gate doesn't keep the grown-up's grant`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+
+            vm.pick(lucia).join()
+
+            coVerifyOrder {
+                parentLockService.forgetGrants()
+                launcher.openKid(server, lucia)
+            }
+        }
+
+    @Test
+    fun `a kid signed in again after the gate starts without the grant`() =
+        runTest(dispatcher) {
+            val revoked = lucia.copy(accessToken = null)
+            tvState.value = TvState.SetUp(server, listOf(manuel, revoked), lastKidRowId = manuel.rowId)
+            val vm = viewModel()
+            vm.pick(revoked).join()
+            verify(exactly = 0) { parentLockService.forgetGrants() }
+
+            vm.gatePassed().join()
+
+            // The administrator signs them in; the gate's grant isn't needed for that
+            verifyOrder {
+                parentLockService.forgetGrants()
+                setupNavigationManager.navigateTo(SetupDestination.SignInAgain(server, revoked))
+            }
+        }
+
+    @Test
+    fun `closing the gate keeps nothing to forget`() =
+        runTest(dispatcher) {
+            coEvery { allowanceService.cachedStatus(manuel.rowId) } returns timeUpUntil("2026-10-24T05:00:00Z")
+            val vm = viewModel()
+            vm.pick(lucia).join()
+
+            vm.gateDismissed()
+
+            verify(exactly = 0) { parentLockService.forgetGrants() }
         }
 
     @Test

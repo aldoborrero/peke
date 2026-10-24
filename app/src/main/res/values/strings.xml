@@ -5,8 +5,6 @@
     <string name="about">About</string>
     <string name="active_recordings">Active Recordings</string>
     <string name="add_favorite">Favorite</string>
-    <string name="add_server">Add Server</string>
-    <string name="add_user">Add User</string>
     <string name="audio">Audio</string>
     <string name="birthplace">Birthplace</string>
     <string name="bitrate">Bitrate</string>
@@ -130,8 +128,6 @@
     <string name="voice_error_start_failed">Failed to start voice recognition</string>
     <string name="voice_error_timeout">Voice recognition timed out</string>
     <string name="retry">Retry</string>
-    <string name="select_server">Select Server</string>
-    <string name="select_user">Select User</string>
     <string name="show_debug_info">Show debug info</string>
     <string name="show_next_up_when">Show next up</string>
     <string name="show">Show</string>
@@ -149,8 +145,6 @@
     <string name="subtitle">Subtitle</string>
     <string name="subtitles">Subtitles</string>
     <string name="suggestions">Suggestions</string>
-    <string name="switch_servers">Switch servers</string>
-    <string name="switch_user">Switch</string>
     <string name="time_left">%1$s left</string>
     <string name="top_unwatched">Top Rated Unwatched</string>
     <string name="trailers_title">Trailers</string>
@@ -381,15 +375,12 @@
     <string name="subtitle_margin">Margin</string>
     <string name="verbose_logging">Verbose logging</string>
     <string name="enter_pin">Enter PIN</string>
-    <string name="sign_in_auto">Sign in automatically</string>
-    <string name="use_server_credentials">Login via server</string>
     <string name="press_enter_to_confirm">Press center to confirm</string>
     <string name="require_pin_code">Require PIN for profile</string>
     <string name="require_login">Require login for profile</string>
     <string name="confirm_pin">Confirm PIN</string>
     <string name="incorrect">Incorrect</string>
     <string name="pin_too_short">PIN must be 4 keys or longer</string>
-    <string name="will_remove_pin">Will remove PIN</string>
     <string name="pin_digits_hint">[0–9]</string>
     <string name="image_cache_size">Image disk cache size (MB)</string>
     <string name="disable_audio_offload">Disable audio hardware offload</string>
@@ -418,7 +409,6 @@
     <string name="edge_size">Edge size</string>
     <string name="refresh_rate_switching">Refresh rate switching</string>
     <string name="automatic">Automatic</string>
-    <string name="username_or_password">Use username/password</string>
     <string name="login">Login</string>
     <string name="general">General</string>
     <string name="container">Container</string>
@@ -479,11 +469,6 @@
     <string name="prefer_dovi_over_hdr10_plus">Prefer Dolby Vision over HDR10+</string>
     <string name="prefer_dovi_over_hdr10_plus_summary">Removes HDR10+ metadata from Dolby Vision videos, for TVs that otherwise play them as HDR10+</string>
 
-    <string name="quick_connect">Quick Connect</string>
-    <string name="quick_connect_summary">Authorize another device to log in to your account</string>
-    <string name="quick_connect_code">Enter Quick Connect code</string>
-    <string name="quick_connect_code_error">Code must be 6 digits</string>
-    <string name="quick_connect_success">Device authorized successfully</string>
     <string name="password">Password</string>
     <string name="username">Username</string>
     <string name="software_decoding_av1">AV1 software decoding</string>
@@ -864,7 +849,6 @@
     <string name="user_views">User views</string>
     <string name="books">Books</string>
     <string name="audio_books">Audio books</string>
-    <string name="server_version_not_supported">Server version not supported</string>
     <string name="appears_on">Appears on</string>
     <string name="dim_after_delay">Dim screen after delay</string>
     <string name="dim_percentage">Dim percentage</string>
@@ -872,9 +856,6 @@
     <string name="photo_albums">Photo albums</string>
     <string name="no_favorites_found">No favorites found!</string>
     <string name="remove_from_playlist">Remove from playlist</string>
-    <string name="login_credentials_expired">Credentials expired, please login in again</string>
-    <string name="login_not_authorized">You are not authorized to access the server at this time</string>
-    <string name="login_sign_in_refused">Jellyfin didn\'t allow this sign-in. The account may be signed in on too many devices, disabled, or not allowed from here. A server administrator can check it in the dashboard.</string>
     <string name="max_resolution">Max resolution before transcoding</string>
 
     <string name="resolution_8k">8K</string>
@@ -973,7 +954,6 @@
     </plurals>
     <string name="kids_restriction_schedule">Allowed hours are set</string>
     <string name="kids_restriction_no_schedule">No allowed hours set</string>
-    <string name="kids_ask_grown_up">Ask a grown-up for help</string>
     <plurals name="kids_gate_wait">
         <item quantity="one">Too many tries. Wait %1$d second</item>
         <item quantity="other">Too many tries. Wait %1$d seconds</item>
@@ -1008,8 +988,6 @@
     <string name="kids_admin_not_admin">This user isn\'t an administrator of the server</string>
     <string name="kids_admin_failed">Couldn\'t sign in</string>
     <string name="kids_cant_reach_server">Can\'t reach the server. Try again in a moment.</string>
-    <string name="kids_sign_in_same_user">While the TV is locked to kids mode, only %1$s can sign in here. Nothing was changed.</string>
-    <string name="kids_sign_in_locked">This TV is in kids mode. Pick a kid from the list, or enter the parent code to add someone else.</string>
     <string name="kids_save_failed">Couldn\'t save the change</string>
     <string name="kids_changed_elsewhere">These settings changed on another device. Showing the current ones.</string>
     <string name="kids_admin_needed">No parent code is set yet. A server administrator sets it from Grown-ups, or in the Kids page of the Jellyfin dashboard.</string>
@@ -1022,9 +1000,6 @@
     <string name="kids_session_limit_summary">Counted on the server across every device, then a break</string>
     <string name="kids_household_code">Household parent code</string>
     <string name="kids_household_code_summary">The same code on every TV of this server</string>
-    <string name="peke_shell_subtitle">Set up this TV for the kids. Grown-ups watch with another Jellyfin app.</string>
-    <string name="peke_shell_switch_user">Switch user</string>
-    <string name="peke_plugin_needed">Peke needs the Jellyfin Kids plugin (0.0.7.0 or later) on this server. Ask the server\'s administrator to install or update it.</string>
     <string name="peke_license_credit">Peke for Jellyfin is a fork of Wholphin by damontecres, licensed under the GNU GPL version 2. Source: github.com/aldoborrero/peke. Wholphin: github.com/damontecres/Wholphin. Peke is not an official Jellyfin app.</string>
     <string name="peke_setup_server_title">Add your Jellyfin server</string>
     <string name="peke_setup_server_hint">This TV belongs to one Jellyfin server with the Jellyfin Kids plugin.</string>

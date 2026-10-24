@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Upsert
+import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinServerUsers
@@ -138,6 +139,16 @@ sealed interface TvState {
         val lastKidRowId: Int? = null,
     ) : TvState
 }
+
+/**
+ * Whether [current] is one of this set-up TV's kids, with the session stored for them: the only user an intent, the
+ * screensaver or a return from a grown-up page may act as
+ */
+fun TvState.isCurrentKid(current: CurrentUser?): Boolean =
+    current != null &&
+        this is TvState.SetUp &&
+        current.server.id == server.id &&
+        kids.any { it.rowId == current.user.rowId && it.accessToken == current.user.accessToken }
 
 /**
  * The single source of truth for "this TV is set up" (spec FR-016, research R3)

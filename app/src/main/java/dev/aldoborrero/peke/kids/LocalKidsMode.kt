@@ -8,12 +8,6 @@ import androidx.compose.runtime.compositionLocalOf
 val LocalKidsMode = compositionLocalOf<KidsModeState> { KidsModeState.Loading }
 
 /**
- * Whether the device is locked to kid profiles ([KidsModeService.locked]), null until known; provided at the root of
- * the UI
- */
-val LocalKidsLocked = compositionLocalOf<Boolean?> { null }
-
-/**
  * Whether the current kid has live TV ([dev.aldoborrero.peke.kids.livetv.KidsLiveTvService.available]);
  * provided at the root of the UI
  */

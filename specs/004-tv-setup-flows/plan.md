@@ -70,6 +70,23 @@ Wholphin's setup screens (`ui/setup/`) and Peke's lock and shell code are delete
 **APK size**: no new dependency or asset; deleting `ui/setup/` makes the release about the same size, within ±50 KB
 per ABI. The measured size is recorded at the end.
 
+**Measured (2026-10-23, T046)**: the release build couldn't be measured here. `assembleRelease` stops before compiling
+because the FFmpeg, AV1 and MPV extensions need the owner's `WholphinExtensions*` credentials, which agents don't
+handle. These are clean `assembleDebug` builds instead (no R8, so the code counts in full) of this branch with
+T001–T044 and of `main` at `b256c829`, built in a separate clone:
+
+| ABI | `main` (bytes) | 004 (bytes) | Change |
+|---|---|---|---|
+| armeabi-v7a | 37,450,251 | 37,506,886 | +56,635 (+55 KB) |
+| arm64-v8a | 38,795,649 | 38,852,278 | +56,629 (+55 KB) |
+| x86_64 | 38,843,854 | 38,900,491 | +56,637 (+55 KB) |
+| universal | 50,659,144 | 50,715,768 | +56,624 (+55 KB) |
+
+The change is code: the native libraries and assets are the same, and the resources differ only by strings and the two
+backup rule files. The new setup, picker, reset and parent menu code outweighs the deleted Wholphin setup screens by
+about 55 KB of unshrunk dex. R8 shrinks that further in a release, so it should fall within the ±50 KB estimate; the
+release size per ABI still needs measuring with the extensions credentials.
+
 **Permissions**: unchanged. Manifest change: `allowBackup="false"`, `dataExtractionRules` and `fullBackupContent`.
 
 **Re-check after Phase 1**: the design keeps every gate above; no violations, so no complexity tracking.

@@ -71,13 +71,10 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.playOnClickSound
 import dev.aldoborrero.peke.ui.playSoundOnFocus
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings
-import dev.aldoborrero.peke.ui.setup.ReleaseNotes
-import dev.aldoborrero.peke.ui.setup.UpdateViewModel
 import dev.aldoborrero.peke.ui.showToast
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.DataLoadingState
 import dev.aldoborrero.peke.util.ExceptionHandler
-import dev.aldoborrero.peke.util.LoadingState
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.Locale
@@ -106,7 +103,6 @@ fun PreferencesContent(
     val kidsAvailable by viewModel.kidsAvailable.collectAsState()
 
     var cacheUsage by remember { mutableStateOf(CacheUsage(0, 0, 0)) }
-    var showQuickConnectDialog by remember { mutableStateOf(false) }
     var showLocaleChoiceDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -456,22 +452,6 @@ fun PreferencesContent(
                                     )
                                 }
 
-                                AppPreference.QuickConnect -> {
-                                    ClickPreference(
-                                        title = stringResource(pref.title),
-                                        onClick = {
-                                            if (currentUser != null) {
-                                                viewModel.resetQuickConnectStatus()
-                                                showQuickConnectDialog = true
-                                            }
-                                        },
-                                        modifier = focusModifier,
-                                        summary = pref.summary(context, null),
-                                        onLongClick = {},
-                                        interactionSource = interactionSource,
-                                    )
-                                }
-
                                 ScreensaverPreference.Start -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -600,36 +580,6 @@ fun PreferencesContent(
         }
     }
 
-    if (showQuickConnectDialog) {
-        val quickConnectStatus by viewModel.quickConnectStatus.collectAsState(LoadingState.Pending)
-        val successMessage = stringResource(R.string.quick_connect_success)
-
-        LaunchedEffect(quickConnectStatus) {
-            when (val status = quickConnectStatus) {
-                LoadingState.Success -> {
-                    Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
-                    showQuickConnectDialog = false
-                }
-
-                is LoadingState.Error -> {
-                    val errorMessage = status.message ?: "Authorization failed"
-                    Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
-                }
-
-                else -> {}
-            }
-        }
-
-        QuickConnectDialog(
-            onSubmit = { code ->
-                viewModel.authorizeQuickConnect(code)
-            },
-            onDismissRequest = {
-                viewModel.resetQuickConnectStatus()
-                showQuickConnectDialog = false
-            },
-        )
-    }
     if (showVersionDialog) {
         LaunchedEffect(Unit) {
             viewModel.fetchReleaseNotes()

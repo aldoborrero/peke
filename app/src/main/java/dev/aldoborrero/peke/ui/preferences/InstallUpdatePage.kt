@@ -1,4 +1,4 @@
-package dev.aldoborrero.peke.ui.setup
+package dev.aldoborrero.peke.ui.preferences
 
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult

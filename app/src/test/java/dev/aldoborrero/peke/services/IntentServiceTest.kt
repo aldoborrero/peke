@@ -3,13 +3,12 @@ package dev.aldoborrero.peke.services
 import android.app.SearchManager
 import android.content.Intent
 import dev.aldoborrero.peke.data.CurrentUser
-import dev.aldoborrero.peke.data.RestoredSession
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.preferences.AppPreferences
-import dev.aldoborrero.peke.preferences.UserPreferences
-import dev.aldoborrero.peke.preferences.update
+import dev.aldoborrero.peke.kids.KidsModeService
+import dev.aldoborrero.peke.kids.data.KidProfile
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.test.assertIs
-import dev.aldoborrero.peke.test.currentUser
 import dev.aldoborrero.peke.test.movie
 import dev.aldoborrero.peke.test.server
 import dev.aldoborrero.peke.test.user
@@ -21,7 +20,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
@@ -41,203 +39,98 @@ import org.robolectric.annotation.Config
 class IntentServiceTest {
     private val api: ApiClient = mockk()
     private val serverRepository: ServerRepository = mockk()
-    private val userPreferencesService: UserPreferencesService = mockk()
     private val userLibraryApi: UserLibraryApi = mockk()
 
     lateinit var intentService: IntentService
 
     private val serverId = UUID.randomUUID()
-    private val userId = UUID.randomUUID()
-    private val currentUser = currentUser(serverId, userId)
+    private val server = server(serverId)
+    private val kid = user(serverId).copy(rowId = 1, name = "kid")
+    private val sibling = user(serverId).copy(rowId = 2, name = "sibling")
+    private val currentUser = CurrentUser(server, kid)
     private val itemId = UUID.randomUUID()
 
-    private val protectedCurrentUser =
-        CurrentUser(
-            server(serverId),
-            user(serverId, userId).copy(pin = "1234"),
-        )
+    private val current = MutableStateFlow<CurrentUser?>(currentUser)
+    private val tvState = MutableStateFlow<TvState>(TvState.SetUp(server, listOf(kid, sibling), lastKidRowId = kid.rowId))
+    private val tvSetupRepository = mockk<TvSetupRepository> { every { state } returns tvState }
+    private var profile = KidProfile(userId = kid.rowId, serverId = serverId, searchAllowed = true)
+    private val kidsModeService = mockk<KidsModeService> { coEvery { profileFor(any()) } answers { profile } }
 
     @Before
     fun setup() {
-        intentService = IntentService(api, serverRepository, userPreferencesService)
+        intentService = IntentService(api, serverRepository, tvSetupRepository, kidsModeService)
         every { api.userLibraryApi } returns userLibraryApi
+        every { serverRepository.current } returns current
         coEvery { userLibraryApi.getItem(itemId) } returns successResponse(movie(itemId))
     }
 
-    private fun setupPreferences(block: AppPreferences.Builder.() -> Unit) {
-        every { userPreferencesService.flow } returns
-            flow {
-                emit(
-                    UserPreferences(
-                        AppPreferences.getDefaultInstance().update(block),
-                        null,
-                    ),
-                )
-            }
-    }
-
-    private fun setupAutoSignInUnprotected() {
-        setupPreferences {
-            signInAutomatically = true
-        }
-        every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
-        coEvery { serverRepository.restoreLastSession() } returns
-            RestoredSession.Success(currentUser)
-        coEvery { serverRepository.tryChangeUser(serverId, userId) } returns currentUser
-    }
-
     @Test
-    fun `Test auto sign in with unprotected profile`() =
+    fun `an intent runs as the current kid`() =
         runTest {
-            setupAutoSignInUnprotected()
-
-            val intent = Intent()
-            val result = intentService.prepare(intent)
-            assertNull(result)
-
-            coVerify { serverRepository.restoreLastSession() }
+            assertNull(intentService.prepare())
+            coVerify(exactly = 0) { serverRepository.tryChangeUser(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
         }
 
     @Test
-    fun `Test auto sign disabled in with unprotected profile`() =
+    fun `with no current user an intent is dropped`() =
         runTest {
-            setupPreferences {
-                signInAutomatically = false
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.Success(currentUser)
-            coEvery { serverRepository.tryChangeUser(serverId, userId) } returns currentUser
+            current.value = null
 
-            val intent = Intent()
-            val result = intentService.prepare(intent)
-            assertTrue(result is IntentResult.Error)
-
-            coVerify(exactly = 0) { serverRepository.tryChangeUser(serverId, userId) }
+            assertIs<IntentResult.Error>(intentService.prepare())
+            coVerify(exactly = 0) { serverRepository.tryChangeUser(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
         }
 
     @Test
-    fun `Test auto sign in, hot load, with protected profile`() =
+    fun `a current user who isn't one of this TV's kids drops the intent`() =
         runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(protectedCurrentUser)
-            coEvery { serverRepository.tryChangeUser(serverId, userId) } returns null
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.ServerOnly(protectedCurrentUser.server)
+            current.value = CurrentUser(server, user(serverId).copy(rowId = 9, name = "grown-up"))
+            assertIs<IntentResult.Error>(intentService.prepare())
 
-            val intent = Intent()
-            val result = intentService.prepare(intent)
-            assertTrue(result is IntentResult.Error)
-
-            coVerify(exactly = 0) { serverRepository.tryChangeUser(serverId, userId) }
+            // Nor a kid whose stored session changed, or a TV that isn't set up
+            current.value = CurrentUser(server, kid.copy(accessToken = "old"))
+            assertIs<IntentResult.Error>(intentService.prepare())
+            current.value = currentUser
+            tvState.value = TvState.Loading
+            assertIs<IntentResult.Error>(intentService.prepare())
         }
 
     @Test
-    fun `Test auto sign in, cold load, with protected profile`() =
+    fun `user ids in an intent are ignored`() =
         runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.tryChangeUser(serverId, userId) } returns null
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.ServerOnly(protectedCurrentUser.server)
-
-            val intent = Intent()
-            val result = intentService.prepare(intent)
-            assertTrue(result is IntentResult.Error)
-
-            coVerify(exactly = 1) { serverRepository.restoreLastSession() }
-        }
-
-    @Test
-    fun `Test auto sign in, no current user`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.restoreLastSession() } returns RestoredSession.None
-//            coEvery { serverRepository.restoreSession(serverId, userId) } returns protectedCurrentUser
-
-            val intent = Intent()
-            val result = intentService.prepare(intent)
-            assertTrue(result is IntentResult.Error)
-
-            coVerify(exactly = 0) { serverRepository.tryChangeUser(serverId, userId) }
-        }
-
-    @Test
-    fun `Test user specified with unprotected profile`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.tryChangeUser(serverId, userId) } returns currentUser
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.Success(currentUser)
-
             val intent =
                 Intent().apply {
-                    putExtra(IntentService.INTENT_SERVER_ID, serverId.toServerString())
-                    putExtra(IntentService.INTENT_USER_ID, userId.toServerString())
+                    action = Intent.ACTION_VIEW
+                    putExtra("serverId", serverId.toServerString())
+                    putExtra("userId", sibling.id.toServerString())
+                    putExtra("itemId", itemId.toString())
                 }
-            val result = intentService.prepare(intent)
-            assertNull(result)
+            val result = intentService.parseIntent(intent)
+            assertIs<IntentResult.Target>(result)
+            assertEquals(1, result.destinations.size)
+            coVerify(exactly = 0) { serverRepository.tryChangeUser(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.changeUser(any(), any()) }
+            assertEquals(currentUser, current.value)
 
-            coVerify(exactly = 1) { serverRepository.tryChangeUser(serverId, userId) }
+            // Also without a current kid: dropped, never a switch to the user it names
+            current.value = null
+            assertIs<IntentResult.Error>(intentService.parseIntent(intent))
+            coVerify(exactly = 0) { serverRepository.tryChangeUser(any(), any()) }
         }
 
     @Test
-    fun `Test user specified with protected profile`() =
+    fun `search is dropped for a kid without search`() =
         runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.tryChangeUser(serverId, userId) } returns null
-//            coEvery { serverRepository.restoreLastSession() } returns
-//                RestoredSession.ServerOnly(protectedCurrentUser.server)
+            profile = profile.copy(searchAllowed = false)
+            val intent = Intent().apply { action = Intent.ACTION_SEARCH }
 
-            val intent =
-                Intent().apply {
-                    putExtra(IntentService.INTENT_SERVER_ID, serverId.toServerString())
-                    putExtra(IntentService.INTENT_USER_ID, userId.toServerString())
-                }
-            val result = intentService.prepare(intent)
-            assertTrue(result is IntentResult.Error)
-
-            coVerify(exactly = 1) { serverRepository.tryChangeUser(serverId, userId) }
-        }
-
-    @Test
-    fun `Test user specified does not exist`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.tryChangeUser(serverId, userId) } returns null
-
-            val intent =
-                Intent().apply {
-                    putExtra(IntentService.INTENT_SERVER_ID, serverId.toServerString())
-                    putExtra(IntentService.INTENT_USER_ID, userId.toServerString())
-                }
-            val result = intentService.prepare(intent)
-            assertTrue(result is IntentResult.Error)
-
-            coVerify(exactly = 1) { serverRepository.tryChangeUser(serverId, userId) }
+            assertIs<IntentResult.Error>(intentService.parseIntent(intent))
         }
 
     @Test
     fun `Test parseIntent with view item`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val intent =
                 Intent().apply {
                     action = Intent.ACTION_VIEW
@@ -260,8 +153,6 @@ class IntentServiceTest {
     @Test
     fun `Test parseIntent with view and no itemId`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val intent =
                 Intent().apply {
                     action = Intent.ACTION_VIEW
@@ -274,88 +165,11 @@ class IntentServiceTest {
             assertTrue(result.addHomeToBackStack)
 
             coVerify(exactly = 0) { userLibraryApi.getItem(itemId) }
-        }
-
-    @Test
-    fun `Test parseIntent with view and switch user`() =
-        runTest {
-            setupAutoSignInUnprotected()
-
-            val newUserId = UUID.randomUUID()
-            val newServerId = UUID.randomUUID()
-            val newCurrentUser = currentUser(newServerId, newUserId)
-
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
-            coEvery {
-                serverRepository.tryChangeUser(
-                    newServerId,
-                    newUserId,
-                )
-            } returns newCurrentUser
-
-            val intent =
-                Intent().apply {
-                    action = Intent.ACTION_VIEW
-                    putExtra("userId", newUserId.toString())
-                    putExtra("serverId", newServerId.toString())
-                }
-            val result = intentService.parseIntent(intent)
-            assertIs<IntentResult.Target>(result)
-
-            val destinations = result.destinations
-            assertEquals(0, destinations.size)
-            assertTrue(result.addHomeToBackStack)
-
-            coVerify(exactly = 0) { serverRepository.tryChangeUser(serverId, userId) }
-            coVerify { serverRepository.tryChangeUser(newServerId, newUserId) }
-            coVerify(exactly = 0) { userLibraryApi.getItem(itemId) }
-        }
-
-    @Test
-    fun `Test parseIntent with view, itemId, and switch user`() =
-        runTest {
-            setupAutoSignInUnprotected()
-
-            val newUserId = UUID.randomUUID()
-            val newServerId = UUID.randomUUID()
-            val newCurrentUser = currentUser(newServerId, newUserId)
-
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
-            coEvery {
-                serverRepository.tryChangeUser(
-                    newServerId,
-                    newUserId,
-                )
-            } returns newCurrentUser
-
-            val intent =
-                Intent().apply {
-                    action = Intent.ACTION_VIEW
-                    putExtra("userId", newUserId.toString())
-                    putExtra("serverId", newServerId.toString())
-                    putExtra("itemId", itemId.toString())
-                }
-            val result = intentService.parseIntent(intent)
-            assertIs<IntentResult.Target>(result)
-
-            val destinations = result.destinations
-            assertEquals(1, destinations.size)
-            assertTrue(result.addHomeToBackStack)
-            val first = destinations.first()
-            assertIs<Destination.MediaItem>(first)
-
-            assertEquals(itemId, first.itemId)
-
-            coVerify(exactly = 0) { serverRepository.tryChangeUser(serverId, userId) }
-            coVerify { serverRepository.tryChangeUser(newServerId, newUserId) }
-            coVerify { userLibraryApi.getItem(itemId) }
         }
 
     @Test
     fun `Test parseIntent with search`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val intent =
                 Intent().apply {
                     action = Intent.ACTION_SEARCH
@@ -375,8 +189,6 @@ class IntentServiceTest {
     @Test
     fun `Test parseIntent with search query`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val query = "query123"
             val intent =
                 Intent().apply {
@@ -398,8 +210,6 @@ class IntentServiceTest {
     @Test
     fun `Test parseIntent with play but no itemId`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val intent =
                 Intent().apply {
                     action = IntentService.ACTION_PLAYBACK
@@ -411,8 +221,6 @@ class IntentServiceTest {
     @Test
     fun `Test parseIntent with play itemId`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val intent =
                 Intent().apply {
                     action = IntentService.ACTION_PLAYBACK
@@ -438,8 +246,6 @@ class IntentServiceTest {
     @Test
     fun `Test parseIntent with play itemId and params`() =
         runTest {
-            setupAutoSignInUnprotected()
-
             val position = 4_000L
             val shuffle = true
             val intent =

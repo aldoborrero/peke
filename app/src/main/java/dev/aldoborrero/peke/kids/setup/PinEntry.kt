@@ -1,4 +1,4 @@
-package dev.aldoborrero.peke.ui.setup
+package dev.aldoborrero.peke.kids.setup
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -27,68 +27,11 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.ui.FontAwesome
-import dev.aldoborrero.peke.ui.PreviewTvSpec
-import dev.aldoborrero.peke.ui.components.BasicDialog
-import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.playback.isEnterKey
-import dev.aldoborrero.peke.ui.theme.PekeTheme
-
-@Composable
-fun PinEntry(
-    onTextChange: (String) -> Unit,
-    onClickServerAuth: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var input by remember { mutableStateOf("") }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            text = stringResource(R.string.enter_pin),
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-        PinArrowRow(Modifier.align(Alignment.CenterHorizontally))
-        PinEntryDots(input.length, Modifier.align(Alignment.CenterHorizontally))
-
-        TextButton(
-            onClick = onClickServerAuth,
-            modifier =
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .onKeyEvent {
-                        if (it.type == KeyEventType.KeyUp) {
-                            var str = input
-                            str += pinSymbol(it.key) ?: return@onKeyEvent false
-                            onTextChange.invoke(str)
-                            input = str
-                            return@onKeyEvent true
-                        } else {
-                            return@onKeyEvent false
-                        }
-                    },
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.use_server_credentials),
-                )
-                Text(
-                    text = stringResource(R.string.will_remove_pin),
-                    fontSize = 10.sp,
-                )
-            }
-        }
-    }
-}
 
 /**
  * The PIN symbol for a key: a D-pad direction (U, R, D, L) or a digit
@@ -216,34 +159,5 @@ fun PinEntryDots(
                         .size(8.dp),
             )
         }
-    }
-}
-
-@Composable
-fun PinEntryDialog(
-    onDismissRequest: () -> Unit,
-    onTextChange: (String) -> Unit,
-    onClickServerAuth: () -> Unit,
-) {
-    BasicDialog(
-        onDismissRequest = onDismissRequest,
-    ) {
-        PinEntry(
-            onTextChange = onTextChange,
-            onClickServerAuth = onClickServerAuth,
-            modifier = Modifier.padding(16.dp),
-        )
-    }
-}
-
-@PreviewTvSpec
-@Composable
-private fun PinEntryPreview() {
-    PekeTheme {
-        PinEntry(
-            onTextChange = {},
-            onClickServerAuth = {},
-            modifier = Modifier,
-        )
     }
 }

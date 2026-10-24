@@ -9,8 +9,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.aldoborrero.peke.BuildConfig
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.MostRecentServerProvider
-import dev.aldoborrero.peke.data.MostRecentServerSharedPreferences
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.util.CoroutineContextApiClientFactory
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -184,12 +182,6 @@ object AppModule {
     fun workManager(
         @ApplicationContext context: Context,
     ): WorkManager = WorkManager.getInstance(context)
-
-    @Provides
-    @Singleton
-    fun mostRecentServerProvider(
-        @ApplicationContext context: Context,
-    ): MostRecentServerProvider = MostRecentServerSharedPreferences(context)
 }
 
 @Module

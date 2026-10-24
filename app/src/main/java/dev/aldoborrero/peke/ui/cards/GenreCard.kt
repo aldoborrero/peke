@@ -30,7 +30,6 @@ import coil3.request.crossfade
 import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.components.Genre
-import dev.aldoborrero.peke.ui.setup.rememberIdColor
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import java.util.UUID
 

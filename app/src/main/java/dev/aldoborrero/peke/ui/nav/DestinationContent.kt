@@ -49,11 +49,11 @@ import dev.aldoborrero.peke.ui.detail.series.SeriesOverview
 import dev.aldoborrero.peke.ui.main.HomePage
 import dev.aldoborrero.peke.ui.main.settings.HomeSettingsPage
 import dev.aldoborrero.peke.ui.playback.PlaybackPage
+import dev.aldoborrero.peke.ui.preferences.InstallUpdatePage
 import dev.aldoborrero.peke.ui.preferences.PreferencesPage
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleStylePage
 import dev.aldoborrero.peke.ui.preferences.user.UserProfilePreferencesPage
 import dev.aldoborrero.peke.ui.search.SearchPage
-import dev.aldoborrero.peke.ui.setup.InstallUpdatePage
 import dev.aldoborrero.peke.ui.slideshow.SlideshowPage
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature

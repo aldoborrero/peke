@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import dev.aldoborrero.peke.data.JellyfinServerDao
-import dev.aldoborrero.peke.data.MostRecentServerProvider
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.kids.FakeKidsServer
@@ -63,7 +62,6 @@ class AdminSessionTest {
     private val tvSetupDao = mockk<TvSetupDao>()
     private val kidProfileDao = mockk<KidProfileDao>()
     private val kidsServerDao = mockk<KidsServerDao>()
-    private val mostRecentServerProvider = mockk<MostRecentServerProvider>()
     private val preferences = mockk<DataStore<AppPreferences>>()
     private val keyValueService = mockk<KeyValueService>()
     private val sharedPreferences = mockk<SharedPreferences>()
@@ -76,7 +74,6 @@ class AdminSessionTest {
             TvSetupDao::class.java,
             KidProfileDao::class.java,
             KidsServerDao::class.java,
-            MostRecentServerProvider::class.java,
             DataStore::class.java,
             KeyValueService::class.java,
             SharedPreferences::class.java,
@@ -108,7 +105,6 @@ class AdminSessionTest {
                 tvSetupDao,
                 kidProfileDao,
                 kidsServerDao,
-                mostRecentServerProvider,
                 preferences,
                 keyValueService,
                 sharedPreferences,

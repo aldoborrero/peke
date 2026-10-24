@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,12 +35,15 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.aldoborrero.peke.ui.Cards
+import dev.aldoborrero.peke.ui.cards.rememberIdColor
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
-import dev.aldoborrero.peke.ui.setup.rememberIdColor
 import java.util.UUID
 
 /**
  * A kid's picture, or their initial on their own colour when there is none or it can't load
+ *
+ * @param alpha of the colour behind the initial
+ * @param initialStyle of the initial, smaller for a small avatar such as the sidebar's
  */
 @Composable
 fun KidAvatar(
@@ -47,9 +51,11 @@ fun KidAvatar(
     name: String?,
     imageUrl: String?,
     modifier: Modifier = Modifier,
+    alpha: Float = .6f,
+    initialStyle: TextStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
 ) {
     var imageError by remember(imageUrl) { mutableStateOf(false) }
-    val color = rememberIdColor(id, .6f)
+    val color = rememberIdColor(id, alpha)
     Box(
         modifier = modifier.background(color, CircleShape),
         contentAlignment = Alignment.Center,
@@ -68,7 +74,7 @@ fun KidAvatar(
         } else {
             Text(
                 text = remember(id, name) { (name ?: id.toString()).firstOrNull()?.uppercase() ?: "?" },
-                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                style = initialStyle,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )

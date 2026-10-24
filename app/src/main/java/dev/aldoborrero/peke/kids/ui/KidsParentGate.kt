@@ -49,6 +49,16 @@ fun KidsParentGate(
         .collectAsState()
     val plugin by viewModel.pluginService.current.collectAsState()
     val resources = context.resources
+    // The menu's pages need the grant, so choosing one closes the gate without ending it; anything else that closes
+    // the menu ends it
+    val leaveMenu = {
+        viewModel.leaveMenu()
+        onDismissRequest()
+    }
+    val leaveFor = { open: () -> Unit ->
+        onDismissRequest()
+        open()
+    }
 
     when (val s = stage) {
         is GateStage.Passcode -> {
@@ -253,21 +263,22 @@ fun KidsParentGate(
                             add(DialogItem(headlineContent = { Text(line) }, onClick = {}))
                         }
                         add(DialogItem.divider())
-                        add(DialogItem(stringResource(R.string.kids_settings), dismissOnClick = true) { viewModel.openSettings() })
+                        add(DialogItem(stringResource(R.string.kids_settings)) { leaveFor(viewModel::openSettings) })
                     }
-                    add(DialogItem(stringResource(R.string.peke_menu_kids_on_tv), dismissOnClick = true) { viewModel.openKidsOnTv() })
+                    add(DialogItem(stringResource(R.string.peke_menu_kids_on_tv)) { leaveFor(viewModel::openKidsOnTv) })
                     if (withKid) {
-                        add(DialogItem(stringResource(R.string.peke_menu_this_tv), dismissOnClick = true) { viewModel.openThisTv() })
+                        add(DialogItem(stringResource(R.string.peke_menu_this_tv)) { leaveFor(viewModel::openThisTv) })
                     }
-                    add(DialogItem(stringResource(R.string.license_info), dismissOnClick = true) { viewModel.openLicense() })
+                    add(DialogItem(stringResource(R.string.license_info)) { leaveFor(viewModel::openLicense) })
                     add(DialogItem.divider())
-                    add(DialogItem(stringResource(R.string.peke_menu_reset), dismissOnClick = true) { viewModel.openReset() })
+                    add(DialogItem(stringResource(R.string.peke_menu_reset)) { leaveFor(viewModel::openReset) })
                 }
             DialogPopup(
                 showDialog = true,
                 title = stringResource(R.string.kids_grown_ups),
                 dialogItems = items,
-                onDismissRequest = onDismissRequest,
+                // Back leaves the menu without a page to open, and ends the grant
+                onDismissRequest = leaveMenu,
                 dismissOnClick = false,
                 waitToLoad = false,
             )
@@ -281,8 +292,9 @@ fun KidsParentGate(
                     KidsParentGateViewModel.MINUTE_OPTIONS.map { minutes ->
                         DialogItem(
                             headlineContent = { Text(pluralStringResource(R.plurals.kids_minutes_option, minutes, minutes)) },
-                            dismissOnClick = true,
                             onClick = {
+                                // The grant ends once the minutes are added
+                                onDismissRequest()
                                 viewModel.addTime(minutes) { result ->
                                     val message =
                                         when (result) {
@@ -296,7 +308,7 @@ fun KidsParentGate(
                             },
                         )
                     },
-                onDismissRequest = onDismissRequest,
+                onDismissRequest = leaveMenu,
                 dismissOnClick = false,
                 waitToLoad = false,
             )

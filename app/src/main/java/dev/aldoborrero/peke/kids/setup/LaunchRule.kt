@@ -120,8 +120,7 @@ class TvLauncher
          */
         suspend fun resume() {
             val current = serverRepository.current.value
-            val kids = (tvSetupRepository.state.value as? TvState.SetUp)?.kids.orEmpty()
-            if (current != null && kids.any { it.rowId == current.user.rowId && it.accessToken == current.user.accessToken }) {
+            if (current != null && tvSetupRepository.state.value.isCurrentKid(current)) {
                 setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
             } else {
                 launch()

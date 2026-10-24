@@ -39,6 +39,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.isStopped
 import dev.aldoborrero.peke.kids.ui.KidsParentGate
@@ -121,6 +122,9 @@ data class PickerState(
 
 /**
  * "Who's watching?": this TV's kids, from [TvSetupRepository] only, so it opens without the server
+ *
+ * A grown-up's parent grant ends once a kid is chosen ([ParentLockService.forgetGrants]): the picker comes after the
+ * gate when switching kids (spec FR-012, FR-012a), and the kid picked must not open grown-up pages with that grant.
  */
 @HiltViewModel
 class KidsPickerViewModel internal constructor(
@@ -128,6 +132,7 @@ class KidsPickerViewModel internal constructor(
     private val allowanceService: KidsAllowanceService,
     private val launcher: TvLauncher,
     private val setupNavigationManager: SetupNavigationManager,
+    private val parentLockService: ParentLockService,
     private val jellyfin: Jellyfin,
     private val now: () -> Instant,
 ) : ViewModel() {
@@ -137,8 +142,9 @@ class KidsPickerViewModel internal constructor(
         allowanceService: KidsAllowanceService,
         launcher: TvLauncher,
         setupNavigationManager: SetupNavigationManager,
+        parentLockService: ParentLockService,
         jellyfin: Jellyfin,
-    ) : this(tvSetupRepository, allowanceService, launcher, setupNavigationManager, jellyfin, Instant::now)
+    ) : this(tvSetupRepository, allowanceService, launcher, setupNavigationManager, parentLockService, jellyfin, Instant::now)
 
     private val gate = MutableStateFlow<PickerGate?>(null)
 
@@ -165,7 +171,7 @@ class KidsPickerViewModel internal constructor(
             val last = tv.lastKidRowId
             val lastStopped = last != null && last != kid.rowId && isStopped(allowanceService.cachedStatus(last), now())
             when (val action = pickAction(kid, last, lastStopped)) {
-                PickAction.OPEN -> launcher.openKid(tv.server, kid)
+                PickAction.OPEN -> open(tv, kid)
                 else -> gate.value = PickerGate(kid, action)
             }
         }
@@ -180,14 +186,27 @@ class KidsPickerViewModel internal constructor(
             val tv = tvSetupRepository.state.value as? TvState.SetUp ?: return@launch
             when (pending.action) {
                 PickAction.OPEN, PickAction.GATE_THEN_OPEN -> {
-                    launcher.openKid(tv.server, pending.kid)
+                    open(tv, pending.kid)
                 }
 
                 PickAction.GATE_THEN_SIGN_IN -> {
+                    // The administrator signs them in; the grant isn't needed for that
+                    parentLockService.forgetGrants()
                     setupNavigationManager.navigateTo(SetupDestination.SignInAgain(tv.server, pending.kid))
                 }
             }
         }
+
+    /**
+     * [kid] is chosen: the grant of a gate passed to get here ends first, then their home opens
+     */
+    private suspend fun open(
+        tv: TvState.SetUp,
+        kid: JellyfinUser,
+    ) {
+        parentLockService.forgetGrants()
+        launcher.openKid(tv.server, kid)
+    }
 
     fun gateDismissed() {
         gate.value = null

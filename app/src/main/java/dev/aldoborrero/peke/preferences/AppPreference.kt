@@ -872,18 +872,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val SignInAuto =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.sign_in_auto,
-                defaultValue = true,
-                getter = { it.signInAutomatically },
-                setter = { prefs, value ->
-                    prefs.update { signInAutomatically = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-
         val ProtectProfilePreference =
             AppClickablePreference<AppPreferences>(
                 title = R.string.profile_protection,
@@ -958,14 +946,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val QuickConnect =
-            AppClickablePreference<AppPreferences>(
-                title = R.string.quick_connect,
-                summary = R.string.quick_connect_summary,
-                getter = { },
-                setter = { prefs, _ -> prefs },
-            )
-
         val SlideshowDuration =
             AppSliderPreference<AppPreferences>(
                 title = R.string.slideshow_duration,
@@ -1020,7 +1000,6 @@ val basicPreferences =
             title = R.string.ui_interface,
             preferences =
                 listOf(
-                    AppPreference.SignInAuto,
                     AppPreference.RememberSelectedTab,
                     AppPreference.SubtitleStyle,
                     AppPreference.ThemeColors,
@@ -1213,7 +1192,6 @@ val advancedPreferences =
                 title = R.string.more,
                 preferences =
                     listOf(
-                        AppPreference.QuickConnect,
                         AppPreference.SendAppLogs,
                         AppPreference.SendCrashReports,
                         AppPreference.DebugLogging,
@@ -1247,7 +1225,6 @@ val pekePreferences =
                     AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
                     AppPreference.ShowClock,
-                    AppPreference.SignInAuto,
                 ),
         ),
         PreferenceGroup(
@@ -1304,7 +1281,6 @@ val pekePreferences =
             title = R.string.more,
             preferences =
                 listOf(
-                    AppPreference.QuickConnect,
                     AppPreference.SendAppLogs,
                     AppPreference.SendCrashReports,
                     AppPreference.DebugLogging,

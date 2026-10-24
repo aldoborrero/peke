@@ -71,6 +71,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.setup.KidAvatar
 import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
@@ -84,7 +85,6 @@ import dev.aldoborrero.peke.ui.components.TimeDisplay
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
-import dev.aldoborrero.peke.ui.setup.UserIconCardImage
 import dev.aldoborrero.peke.ui.spacedByWithFooter
 import dev.aldoborrero.peke.ui.theme.LocalTheme
 import dev.aldoborrero.peke.ui.toServerString
@@ -548,11 +548,12 @@ fun NavigationDrawerScope.ProfileIcon(
         selected = false,
         onClick = onClick,
         leadingContent = {
-            UserIconCardImage(
+            KidAvatar(
                 id = user.id,
                 name = user.name,
                 imageUrl = imageUrl,
                 alpha = if (drawerOpen) 1f else .5f,
+                initialStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                 modifier = Modifier.size(DrawerIconSize),
             )
         },

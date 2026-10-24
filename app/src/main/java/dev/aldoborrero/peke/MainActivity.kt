@@ -37,7 +37,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsLiveTv
-import dev.aldoborrero.peke.kids.LocalKidsLocked
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
@@ -71,7 +70,6 @@ import dev.aldoborrero.peke.services.UserSwitchListener
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
 import dev.aldoborrero.peke.ui.CoilConfig
 import dev.aldoborrero.peke.ui.LocalImageUrlService
-import dev.aldoborrero.peke.ui.collectLatestIn
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.nav.Destination
@@ -85,7 +83,6 @@ import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.requestSerializersModule
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -175,7 +172,8 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var kidsLiveTvService: KidsLiveTvService
 
-    private var signInAuto = true
+    @Inject
+    lateinit var tvSetupRepository: TvSetupRepository
 
     private val json =
         Json {
@@ -249,10 +247,6 @@ class MainActivity : AppCompatActivity() {
                 Timber.e(ex, "Error with keepScreenOn")
             }.launchIn(lifecycleScope)
 
-        userPreferencesDataStore.data.collectLatestIn(lifecycleScope) { prefs ->
-            signInAuto = prefs.signInAutomatically
-        }
-
         viewModel.appStart(intent)
         setContent {
             MaterialTheme(colorScheme = PurpleThemeColors.darkScheme) {
@@ -289,12 +283,10 @@ class MainActivity : AppCompatActivity() {
                                 DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
                             }
                             val kidsModeState by kidsModeService.state.collectAsState()
-                            val kidsLocked by kidsModeService.locked.collectAsState()
                             val kidsLiveTv by kidsLiveTvService.available.collectAsState()
                             CompositionLocalProvider(
                                 LocalImageUrlService provides imageUrlService,
                                 LocalKidsMode provides kidsModeState,
-                                LocalKidsLocked provides kidsLocked,
                                 LocalKidsLiveTv provides kidsLiveTv,
                             ) {
                                 PekeTheme(
@@ -369,8 +361,10 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launchDefault {
             val appPreferences = userPreferencesDataStore.data.first()
-            // Update notices are for grown-ups only: never while the TV is locked to kids or a kid is using it
-            val grownUp = kidsModeService.lockEngaged.filterNotNull().first() == false && !kidsModeService.isActive
+            // Update notices are for grown-ups only: only while the TV is being set up, never on a set-up TV, which
+            // is always the kids'
+            val tvState = tvSetupRepository.state.first { it != TvState.Loading }
+            val grownUp = (tvState == TvState.NotSetUp || tvState is TvState.InSetup) && !kidsModeService.isActive
             if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates && grownUp) {
                 try {
                     updateChecker.maybeShowUpdateToast()
@@ -456,7 +450,6 @@ class MainActivityViewModel
         private val backdropService: BackdropService,
         private val appUpgradeHandler: AppUpgradeHandler,
         private val intentService: IntentService,
-        private val kidsModeService: KidsModeService,
         private val tvSetupRepository: TvSetupRepository,
         private val tvLauncher: TvLauncher,
     ) : ViewModel() {
@@ -516,54 +509,35 @@ class MainActivityViewModel
         }
 
         /**
-         * Handle an [Intent], navigating if needed
+         * Handle an [Intent], navigating if needed. An intent only acts as the current kid, with their rules, and never
+         * switches user: [IntentService] ignores user ids in it (C6). One that can't do that is dropped, and the app
+         * starts as usual, through the launch rule.
          *
          * @return true if the intent was handled, false if normal app start should proceed
          */
         @VisibleForTesting
         internal suspend fun handleIntent(intent: Intent?): Boolean {
-            val result = intent?.let { intentService.parseIntent(intent) }
-            if (result is IntentResult.Target && kidsModeService.isLockedNow()) {
-                // Deep links could lead outside the kids experience, so start normally instead
-                Timber.i("Ignoring intent while locked to kids mode")
-                return false
-            }
-            when (result) {
+            when (val result = intent?.let { intentService.parseIntent(intent) }) {
                 is IntentResult.Error -> {
-                    val current = serverRepository.current.value
-                    val destination =
-                        if (current != null) {
-                            SetupDestination.UserList(current.server)
-                        } else {
-                            SetupDestination.ServerList
-                        }
-                    setupNavigationManager.navigateTo(destination)
-                    Timber.e("Error parsing intent: %s", result.message)
-                    showToast(context, result.message)
-                    return true
+                    Timber.w("Dropping an intent: %s", result.message)
+                    return false
                 }
 
                 is IntentResult.Target -> {
                     val current = serverRepository.current.value
-                    if (current != null) {
-                        Timber.i("Received valid intent, switching to AppContent")
-
-                        if (result.addHomeToBackStack) {
-                            navigationManager.reloadHome()
-                        } else {
-                            navigationManager.backStack.clear()
-                        }
-                        navigationManager.backStack.addAll(result.destinations)
-
-                        setupNavigationManager.navigateTo(
-                            SetupDestination.AppContent(current),
-                        )
-                    } else {
-                        // This should never happen, but just reset app state if it does
-                        setupNavigationManager.navigateTo(SetupDestination.ServerList)
-                        Timber.e("Error parsing intent, no user is active")
-                        showToast(context, "An error occurred parsing the intent")
+                    if (current == null) {
+                        // IntentService checked for a current kid, so this should never happen
+                        Timber.w("Dropping an intent: no kid is current")
+                        return false
                     }
+                    Timber.i("Received valid intent, switching to AppContent")
+                    if (result.addHomeToBackStack) {
+                        navigationManager.reloadHome()
+                    } else {
+                        navigationManager.backStack.clear()
+                    }
+                    navigationManager.backStack.addAll(result.destinations)
+                    setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                     return true
                 }
 

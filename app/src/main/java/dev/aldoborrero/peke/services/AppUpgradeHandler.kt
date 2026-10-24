@@ -109,6 +109,8 @@ class AppUpgradeHandler
             previous: Version?,
             current: Version,
         ) {
-            Timber.i("No upgrade steps from %s to %s", previous, current)
+            Timber.i("Upgrading from %s to %s", previous, current)
+            // The most recent server and user, with the user's access token, which this TV no longer keeps (spec 004)
+            context.getSharedPreferences("${context.packageName}_server", Context.MODE_PRIVATE).edit(commit = true) { clear() }
         }
     }

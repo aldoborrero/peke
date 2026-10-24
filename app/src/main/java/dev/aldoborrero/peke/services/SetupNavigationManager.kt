@@ -44,14 +44,6 @@ sealed interface SetupDestination : NavKey {
     data object Loading : SetupDestination
 
     @Serializable
-    data object ServerList : SetupDestination
-
-    @Serializable
-    data class UserList(
-        val server: JellyfinServer,
-    ) : SetupDestination
-
-    @Serializable
     data class AppContent(
         val current: CurrentUser,
     ) : SetupDestination

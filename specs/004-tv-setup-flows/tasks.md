@@ -202,24 +202,24 @@ Every task description below uses these prefixes literally.
 
 ## Phase 8: Polish & cross-cutting (plan phases 5–6)
 
-- [ ] T038 Remove the lock flags. In `main/kids/KidsModeService.kt`, delete `locked`, `isLockedNow`, `lockEngaged` and the `kids_lock` key. Move every reader to `TvSetupRepository.state`: `main/kids/LocalKidsMode.kt`, `main/ui/nav/ApplicationContent.kt`, the update toast and the deep-link check (C17).
-- [ ] T039 Delete the old flows:
+- [x] T038 Remove the lock flags. In `main/kids/KidsModeService.kt`, delete `locked`, `isLockedNow`, `lockEngaged` and the `kids_lock` key. Move every reader to `TvSetupRepository.state`: `main/kids/LocalKidsMode.kt`, `main/ui/nav/ApplicationContent.kt`, the update toast and the deep-link check (C17).
+- [x] T039 Delete the old flows:
   - `main/ui/setup/` (`SwitchUserViewModel`, `SwitchUserContent`, `UserList`, `SwitchServerContent`, `ServerList`, `PinEntry`; keep only what T017 reused, moved into `main/kids/setup/`);
   - `main/data/MostRecentServer.kt`;
   - `main/kids/KidsLockedLaunch.kt` and `main/kids/KidsUserFilter.kt`;
   - `main/kids/ui/KidsLockGuard.kt`, `main/kids/ui/GrownUpRoute.kt` and `main/kids/ui/GrownUpShell.kt`.
 
   Delete their tests too: `KidsLockedLaunchTest`, `GrownUpRoutesTest`, `KidsUserFilterTest` and `SwitchUserViewModelTest`.
-- [ ] T040 [P] Make intents act only as the current kid in `main/services/IntentService.kt` (`:120-155`) and `main/MainActivity.kt` (`:527-538`). User ids in intents are ignored, and on error the intent is dropped, never sent to a user list (C6). Update `test/services/IntentServiceTest.kt`.
-- [ ] T041 [P] Make the screensaver show only the current kid in `main/PekeDreamService.kt` (`:75-81`) and `main/services/ScreensaverService.kt`. With no kid current, it shows Peke's neutral art (C10).
-- [ ] T042 [P] Disable backups and device transfer:
+- [x] T040 [P] Make intents act only as the current kid in `main/services/IntentService.kt` (`:120-155`) and `main/MainActivity.kt` (`:527-538`). User ids in intents are ignored, and on error the intent is dropped, never sent to a user list (C6). Update `test/services/IntentServiceTest.kt`.
+- [x] T041 [P] Make the screensaver show only the current kid in `main/PekeDreamService.kt` (`:75-81`) and `main/services/ScreensaverService.kt`. With no kid current, it shows Peke's neutral art (C10).
+- [x] T042 [P] Disable backups and device transfer:
   - set `android:allowBackup="false"` in `app/src/main/AndroidManifest.xml`;
   - point `android:dataExtractionRules` at `res/xml/data_extraction_rules.xml` and `android:fullBackupContent` at `res/xml/backup_rules.xml`;
   - both files exclude every domain (C8).
-- [ ] T043 [P] Remove the Quick Connect "authorize another device" and "Sign in automatically" settings from `main/preferences/AppPreference.kt` and the settings screens (`main/ui/preferences/PreferencesContent.kt`, `main/ui/preferences/PreferencesViewModel.kt`), along with their strings.
-- [ ] T044 Run `nix develop -c ./gradlew --console=plain assembleDebug testDebugUnitTest compileDebugAndroidTestKotlin`, then `nix fmt` (0 changed) and `nix develop -c pre-commit run --all-files`.
+- [x] T043 [P] Remove the Quick Connect "authorize another device" and "Sign in automatically" settings from `main/preferences/AppPreference.kt` and the settings screens (`main/ui/preferences/PreferencesContent.kt`, `main/ui/preferences/PreferencesViewModel.kt`), along with their strings.
+- [x] T044 Run `nix develop -c ./gradlew --console=plain assembleDebug testDebugUnitTest compileDebugAndroidTestKotlin`, then `nix fmt` (0 changed) and `nix develop -c pre-commit run --all-files`.
 - [ ] T045 Run quickstart.md scenarios 1–9 on the Windows emulator against the household server. The owner types the credentials. Record the results in `specs/004-tv-setup-flows/quickstart.md`.
-- [ ] T046 Record the release APK size per ABI in `specs/004-tv-setup-flows/plan.md`, and update `design/DESIGN.md`'s Behaviour section: launch, picker, switch kid and reset.
+- [x] T046 Record the release APK size per ABI in `specs/004-tv-setup-flows/plan.md`, and update `design/DESIGN.md`'s Behaviour section: launch, picker, switch kid and reset.
 
 ---
 

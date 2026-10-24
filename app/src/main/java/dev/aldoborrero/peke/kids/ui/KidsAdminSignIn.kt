@@ -21,9 +21,9 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.gate.AdminCheck
+import dev.aldoborrero.peke.kids.setup.CredentialsForm
 import dev.aldoborrero.peke.ui.components.BasicDialog
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
-import dev.aldoborrero.peke.ui.setup.CredentialsForm
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**

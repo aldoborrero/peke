@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="add_favorite">Añadir a Favoritos</string>
-    <string name="add_server">Añadir servidor</string>
-    <string name="add_user">Añadir usuario</string>
     <string name="audio">Audio</string>
     <string name="birthplace">Lugar de nacimiento</string>
     <string name="bitrate">Tasa de bits</string>
@@ -51,8 +49,6 @@
     <string name="search_and_download"><![CDATA[Buscar y descargar]]></string>
     <string name="search">Buscar</string>
     <string name="searching">Buscando…</string>
-    <string name="select_server">Seleccionar servidor</string>
-    <string name="select_user">Seleccionar Usuario</string>
     <string name="sort_by_name">Nombre</string>
     <string name="sort_by_random">Selección aleatoria</string>
     <string name="studios">Estudios</string>
@@ -60,8 +56,6 @@
     <string name="subtitle">Subtítulo</string>
     <string name="subtitles">Subtítulos</string>
     <string name="suggestions">Sugerencias</string>
-    <string name="switch_servers">Cambiar servidor</string>
-    <string name="switch_user">Cambiar</string>
     <plurals name="trailers">
         <item quantity="one">Tráiler</item>
         <item quantity="many">Tráileres</item>
@@ -297,14 +291,11 @@
     <string name="subtitle_margin">Margen</string>
     <string name="verbose_logging">Registro detallado</string>
     <string name="enter_pin">Introducir PIN</string>
-    <string name="sign_in_auto">Iniciar sesión automáticamente</string>
-    <string name="use_server_credentials">Iniciar sesión a través del servidor</string>
     <string name="press_enter_to_confirm">Pulsa el centro para confirmar</string>
     <string name="require_pin_code">Requerir PIN para el perfil</string>
     <string name="confirm_pin">Confirmar PIN</string>
     <string name="incorrect">Incorrecto</string>
     <string name="pin_too_short">El PIN debe tener 4 teclas o más</string>
-    <string name="will_remove_pin">Se eliminará el PIN</string>
     <string name="image_cache_size">Tamaño de la caché de disco de imágenes (MB)</string>
     <string name="view_options">Opciones de visualización</string>
     <string name="columns">Columnas</string>
@@ -317,7 +308,6 @@
     <string name="edge_size">Tamaño del borde</string>
     <string name="refresh_rate_switching">Cambio de frecuencia de actualización</string>
     <string name="automatic">Automático</string>
-    <string name="username_or_password">Usar nombre de usuario/contraseña</string>
     <string name="login">Iniciar sesión</string>
     <string name="general">General</string>
     <string name="container">Contenedor</string>
@@ -395,11 +385,6 @@
         <item quantity="many">%s días</item>
         <item quantity="other">%s días</item>
     </plurals>
-    <string name="quick_connect">Conexión Rápida</string>
-    <string name="quick_connect_summary">Autoriza a otro dispositivo para acceder a tu cuenta</string>
-    <string name="quick_connect_code">Introduce el código de Conexión Rápida</string>
-    <string name="quick_connect_code_error">El código debe tener 6 dígitos</string>
-    <string name="quick_connect_success">Dispositivo autorizado con éxito</string>
     <string name="hdr_subtitle_style">Estilo de subtítulos HDR</string>
     <string name="image_subtitle_opacity">Opacidad de los subtítulos</string>
     <string name="brightness">Brillo</string>
@@ -666,7 +651,6 @@
     <string name="dpad_seek_mode_trickplay_summary">Barra de progreso con vista previa de fotogramas</string>
     <string name="dpad_seek_mode_none_summary">Sin barra de progreso</string>
     <string name="brown">Marrón</string>
-    <string name="server_version_not_supported">Versión de servidor no soportada</string>
     <string name="appears_on">Aparece en</string>
     <string name="disable_audio_offload">Desactivar el procesamiento de audio por hardware</string>
     <string name="disable_audio_offload_summary">Desactivar el procesamiento de audio por hardware puede solucionar los bloqueos de reproducción en algunos dispositivos</string>
@@ -683,9 +667,6 @@
     <string name="episode_number_short">E%1$d</string>
     <string name="season_number">Temporada %1$d</string>
     <string name="remove_from_playlist">Eliminar de la lista de reproducción</string>
-    <string name="login_credentials_expired">Credenciales caducadas, vuelve a iniciar sesión</string>
-    <string name="login_not_authorized">No tienes autorización para acceder al servidor en este momento</string>
-    <string name="login_sign_in_refused">Jellyfin no ha permitido este inicio de sesión. Puede que la cuenta tenga la sesión iniciada en demasiados dispositivos, esté desactivada o no tenga permiso desde aquí. Un administrador del servidor puede revisarlo en el panel.</string>
 
     <string name="chosen_by">Elegido por %1$s</string>
     <string name="dovi_profile_5">Dolby Vision perfil 5</string>
@@ -722,7 +703,6 @@
     <string name="kids_admin_sign_in">Iniciar sesión como administrador del servidor</string>
     <string name="kids_admin_sign_in_title">Escribe el usuario y la contraseña de un administrador del servidor. Solo se usan para comprobarlo y no se guardan.</string>
     <string name="kids_admin_wrong">Usuario o contraseña incorrectos</string>
-    <string name="kids_ask_grown_up">Pide ayuda a un adulto</string>
     <string name="kids_autoplay">Reproducir el siguiente episodio</string>
     <string name="kids_autoplay_cap">Episodios seguidos</string>
     <string name="kids_bedtime">Hora de dormir</string>
@@ -830,8 +810,6 @@
     <string name="kids_session_limit_summary">Lo cuenta el servidor en todos los dispositivos y luego hay un descanso</string>
     <string name="kids_set_code_first">Pon primero el código de padres de la casa</string>
     <string name="kids_settings">Ajustes infantiles</string>
-    <string name="kids_sign_in_locked">Esta tele está en modo infantil. Elige a un niño de la lista o escribe el código de padres para añadir a otra persona.</string>
-    <string name="kids_sign_in_same_user">Mientras la tele está bloqueada en modo infantil, aquí solo puede iniciar sesión %1$s. No se ha cambiado nada.</string>
     <string name="kids_sitting_over">Hora de descansar</string>
     <string name="kids_sitting_over_subtitle">Descansa un poco, %1$s</string>
     <string name="kids_timer_bar">Barra de tiempo</string>
@@ -853,7 +831,6 @@
     <string name="peke_no_kids_title">Esta tele no tiene niños</string>
     <string name="peke_picker_needs_grown_up">Necesita a un adulto</string>
     <string name="peke_picker_title">¿Quién va a ver la tele?</string>
-    <string name="peke_plugin_needed">Peke necesita el plugin Jellyfin Kids (0.0.7.0 o posterior) en este servidor. Pide al administrador del servidor que lo instale o lo actualice.</string>
     <string name="peke_reset_done">Esta tele se ha restablecido</string>
     <string name="peke_reset_hint">Se cierra la sesión de todos los niños y se borran de esta tele el servidor, los niños y sus datos. Después la configuración empieza de nuevo. Los niños siguen en la casa y en las demás teles.</string>
     <string name="peke_reset_offline">No se pudo conectar con el servidor, así que las sesiones de los niños de esta tele pueden seguir apareciendo. Quítalas en el panel de Jellyfin, en Dispositivos.</string>
@@ -896,6 +873,4 @@
     <string name="peke_setup_try_again">Volver a intentarlo</string>
     <string name="peke_setup_type_password">Escribir la contraseña de %1$s</string>
     <string name="peke_setup_use_password">Usar el usuario y la contraseña</string>
-    <string name="peke_shell_subtitle">Configura esta tele para los niños. Los adultos ven la tele con otra aplicación de Jellyfin.</string>
-    <string name="peke_shell_switch_user">Cambiar de usuario</string>
 </resources>

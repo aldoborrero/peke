@@ -6,6 +6,8 @@ import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import dev.aldoborrero.peke.services.hilt.forKid
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -15,15 +17,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.DeviceInfo
@@ -49,7 +52,7 @@ class ServerRepository
         val apiClient: ApiClient,
         private val deviceInfo: DeviceInfo,
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-        private val mostRecentServerProvider: MostRecentServerProvider,
+        private val tvSetupRepository: TvSetupRepository,
         private val kidsDataCleaner: KidsDataCleaner,
     ) {
         private var _current = MutableStateFlow<CurrentUser?>(null)
@@ -88,7 +91,6 @@ class ServerRepository
             }
             apiClient.update(baseUrl = server.url, accessToken = null, deviceInfo = deviceInfo)
             _current.value = null
-            mostRecentServerProvider.clearUser()
         }
 
         /**
@@ -122,7 +124,6 @@ class ServerRepository
                 updatedUser = serverDao.addOrUpdateUser(updatedUser)
 
                 val currentUser = CurrentUser(updatedServer, updatedUser)
-                mostRecentServerProvider.save(currentUser)
                 _current.value = currentUser
                 _currentUserDto.value = ServerUserConfig(userDto)
                 return@withContext currentUser
@@ -143,65 +144,28 @@ class ServerRepository
                 Timber.v("Restoring user ${user.name} on ${server.url}")
                 apiClient.update(baseUrl = server.url, accessToken = user.accessToken, deviceInfo = deviceInfo.forKid(user.id))
                 val currentUser = CurrentUser(server, user)
-                mostRecentServerProvider.save(currentUser)
                 _currentUserDto.value = null
                 _current.value = currentUser
                 return@withContext currentUser
             }
 
         /**
-         * Try to restore the most recent session
+         * Try to restore the session of this TV's last kid, or of its only kid, for work that runs without the app's
+         * pages such as the home screen channels. Never a user who isn't one of this TV's kids, and nobody when the TV
+         * isn't set up.
          *
-         * Does not check if auto sign-in is enabled, but does check if the user profile is protected
+         * Does not check if the user profile is protected
          */
         suspend fun restoreLastSession(): RestoredSession {
-            val recentServer = mostRecentServerProvider.get()
-            Timber.d("restoreLastSession: recentServer=%s", recentServer)
-            val result =
-                when (recentServer) {
-                    MostRecentServer.None -> {
-                        RestoredSession.None
-                    }
-
-                    is MostRecentServer.Server -> {
-                        val server = serverDao.getServer(recentServer.serverId)
-                        if (server != null) {
-                            RestoredSession.ServerOnly(server.server)
-                        } else {
-                            RestoredSession.None
-                        }
-                    }
-
-                    is MostRecentServer.ServerAndUser -> {
-                        val currentUser = tryChangeUser(recentServer.serverId, recentServer.userId)
-                        if (currentUser != null) {
-                            if (currentUser.user.isProtected) {
-                                RestoredSession.ServerOnly(currentUser.server)
-                            } else {
-                                RestoredSession.Success(currentUser)
-                            }
-                        } else {
-                            getMostRecentServerInternal(recentServer)
-                        }
-                    }
-                }
-            return result
-        }
-
-        /**
-         * Get the most recently used server, if any
-         */
-        suspend fun getMostRecentServer(): RestoredSession = getMostRecentServerInternal(mostRecentServerProvider.get())
-
-        suspend fun getMostRecentServerInternal(recentServer: MostRecentServer): RestoredSession {
-            val recentServer = recentServer ?: mostRecentServerProvider.get()
-            val serverId = recentServer.serverId
-            val server = serverId?.let { serverDao.getServer(serverId)?.server }
-            return if (server != null) {
-                RestoredSession.ServerOnly(server)
-            } else {
-                RestoredSession.None
-            }
+            val tv =
+                withTimeoutOrNull(TV_STATE_TIMEOUT_MILLIS) { tvSetupRepository.state.first { it != TvState.Loading } }
+                    as? TvState.SetUp
+                    ?: return RestoredSession.None
+            val kid = tv.kids.firstOrNull { it.rowId == tv.lastKidRowId } ?: tv.kids.singleOrNull()
+            Timber.d("restoreLastSession: kid=%s", kid?.rowId)
+            if (kid?.accessToken == null) return RestoredSession.ServerOnly(tv.server)
+            val currentUser = tryChangeUser(tv.server.id, kid.id)
+            return if (currentUser != null) RestoredSession.Success(currentUser) else RestoredSession.ServerOnly(tv.server)
         }
 
         /**
@@ -292,14 +256,7 @@ class ServerRepository
                 withContext(PekeDispatchers.Main) {
                     _current.value = null
                 }
-                mostRecentServerProvider.clearUser()
                 apiClient.update(accessToken = null, deviceInfo = deviceInfo)
-            } else {
-                // The saved session may be a user who isn't current, such as on the user list after a launch
-                val recent = mostRecentServerProvider.get()
-                if (recent is MostRecentServer.ServerAndUser && recent.serverId == user.serverId && recent.userId == user.id) {
-                    mostRecentServerProvider.clearUser()
-                }
             }
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
@@ -312,10 +269,7 @@ class ServerRepository
                 withContext(PekeDispatchers.Main) {
                     _current.value = null
                 }
-                mostRecentServerProvider.clear()
                 apiClient.update(baseUrl = null, accessToken = null, deviceInfo = deviceInfo)
-            } else if (mostRecentServerProvider.get().serverId == server.id) {
-                mostRecentServerProvider.clear()
             }
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
@@ -340,17 +294,6 @@ class ServerRepository
             }
         }
 
-        suspend fun authorizeQuickConnect(code: String): Boolean =
-            withContext(ioDispatcher) {
-                val userId = current.value?.user?.id
-                if (userId == null) {
-                    Timber.e("No user logged in for Quick Connect authorization")
-                    throw IllegalStateException("Must be logged in to authorize Quick Connect")
-                }
-                val response = apiClient.quickConnectApi.authorizeQuickConnect(code, userId)
-                response.content
-            }
-
         /**
          * Update [currentUserDto] by querying the server
          */
@@ -369,6 +312,13 @@ class ServerRepository
                 if (currentUser?.id == userDto.id) ServerUserConfig(userDto) else it
             }
         }
+
+        companion object {
+            /**
+             * How long [restoreLastSession] waits for this TV's state, from local data only
+             */
+            private const val TV_STATE_TIMEOUT_MILLIS = 5_000L
+        }
     }
 
 @Serializable
@@ -377,10 +327,26 @@ data class CurrentUser(
     val user: JellyfinUser,
 )
 
-private val MostRecentServer.serverId: UUID?
-    get() =
-        when (this) {
-            MostRecentServer.None -> null
-            is MostRecentServer.Server -> serverId
-            is MostRecentServer.ServerAndUser -> serverId
-        }
+/**
+ * The result of restoring a session
+ */
+sealed interface RestoredSession {
+    /**
+     * Session could not be restored
+     */
+    data object None : RestoredSession
+
+    /**
+     * Only the server is known: no kid could be restored
+     */
+    data class ServerOnly(
+        val server: JellyfinServer,
+    ) : RestoredSession
+
+    /**
+     * Session was restored successfully
+     */
+    data class Success(
+        val currentUser: CurrentUser,
+    ) : RestoredSession
+}
