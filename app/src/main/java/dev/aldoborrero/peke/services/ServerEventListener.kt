@@ -110,7 +110,7 @@ class ServerEventListener
                                             val toast =
                                                 listOfNotNull(header, text)
                                                     .joinToString("\n")
-                                            if (toast.isNotBlank() && !hideForKids(header)) {
+                                            if (toast.isNotBlank() && KidsServerMessages.shouldShow(header, hideForKids(header))) {
                                                 showToast(context, toast, Toast.LENGTH_LONG)
                                             }
                                         }
@@ -148,7 +148,8 @@ class ServerEventListener
 
         /**
          * In kids mode, the Kids plugin's own warnings and denial messages are hidden when they repeat what kids mode
-         * already shows. They are a sign the status changed, so it is read again first.
+         * already shows. They are a sign the status changed, so it is read again first. Every other
+         * account's message is dropped, see [KidsServerMessages.shouldShow].
          */
         private suspend fun hideForKids(header: String?): Boolean {
             if (!kidsModeService.isActive || !KidsServerMessages.isKids(header)) return false

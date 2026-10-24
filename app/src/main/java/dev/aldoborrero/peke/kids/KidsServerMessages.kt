@@ -32,6 +32,16 @@ object KidsServerMessages {
     fun isKids(header: String?): Boolean = header != null && HEADERS.any { it.equals(header.trim(), ignoreCase = true) }
 
     /**
+     * Whether a session message with [header] reaches the kid's screen: only the Kids plugin's, unless [hidden] because
+     * Peke already shows the same. Peke has no grown-up viewing, so any other account's message is dropped (spec 005
+     * FR-018).
+     */
+    fun shouldShow(
+        header: String?,
+        hidden: Boolean,
+    ): Boolean = isKids(header) && !hidden
+
+    /**
      * Whether to hide the Kids plugin message with [header], because Peke already shows the same, from [limits]
      * read just now. Messages that aren't the plugin's are never hidden.
      *
