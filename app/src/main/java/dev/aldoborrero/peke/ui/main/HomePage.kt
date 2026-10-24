@@ -139,12 +139,14 @@ fun HomePage(
             val onFocusPosition = remember { { it: RowColumn -> position = it } }
             val currentHomePrefs by rememberUpdatedState(preferences.appPreferences.homePagePreferences)
             val kidsMode by rememberUpdatedState(LocalKidsMode.current.isActive)
+            // The rows as they are now: the remembered handlers outlive the composition that made them (C13)
+            val currentRows by rememberUpdatedState(homeRows)
             val onClickItem =
                 remember {
                     { clickedPosition: RowColumn, item: BaseItem ->
                         position = clickedPosition
                         viewModel.navigationManager.navigateTo(
-                            homeRows.getOrNull(clickedPosition.row).clickDestination(item, currentHomePrefs.clickToPlay, kidsMode),
+                            currentRows.getOrNull(clickedPosition.row).clickDestination(item, currentHomePrefs.clickToPlay, kidsMode),
                         )
                     }
                 }
@@ -153,7 +155,7 @@ fun HomePage(
                     { clickedPosition: RowColumn, item: BaseItem ->
                         position = clickedPosition
                         val row =
-                            (homeRows.getOrNull(clickedPosition.row) as? HomeRowLoadingState.Success)
+                            (currentRows.getOrNull(clickedPosition.row) as? HomeRowLoadingState.Success)
                         val canRemoveContinueWatching =
                             row?.rowType is HomeRowConfig.ContinueWatching || row?.rowType is HomeRowConfig.ContinueWatchingCombined
                         val canRemoveNextUp =
@@ -202,8 +204,10 @@ fun HomePage(
                 }
             val onClickPlay =
                 remember {
-                    { _: RowColumn, item: BaseItem ->
-                        viewModel.navigationManager.navigateTo(Destination.Playback(item))
+                    { clickedPosition: RowColumn, item: BaseItem ->
+                        viewModel.navigationManager.navigateTo(
+                            currentRows.getOrNull(clickedPosition.row).playKeyDestination(item, currentHomePrefs.clickToPlay, kidsMode),
+                        )
                     }
                 }
             val onClickViewMore =
@@ -290,6 +294,16 @@ fun HomeRowLoadingState?.clickDestination(
         clickToPlay -> Destination.Playback(item)
         else -> item.destination()
     }
+
+/**
+ * Where the remote's Play key on [item] in this row goes: for a kid, the same as a click ([clickDestination]), so only
+ * keep watching plays straight away (spec 005 FR-001); for anyone else, the player.
+ */
+fun HomeRowLoadingState?.playKeyDestination(
+    item: BaseItem,
+    clickToPlay: Boolean,
+    kidsMode: Boolean,
+): Destination = if (kidsMode) clickDestination(item, clickToPlay, kidsMode = true) else Destination.Playback(item)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

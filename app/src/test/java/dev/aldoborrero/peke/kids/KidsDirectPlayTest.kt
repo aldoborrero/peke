@@ -1,27 +1,53 @@
 package dev.aldoborrero.peke.kids
 
+import android.content.Context
+import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
+import dev.aldoborrero.peke.kids.playback.KidsDirectPlayViewModel
 import dev.aldoborrero.peke.kids.playback.KidsSuggestionsViewModel
 import dev.aldoborrero.peke.kids.ui.kidsInterfaceCustomization
 import dev.aldoborrero.peke.services.NavigationManager
+import dev.aldoborrero.peke.services.PlaylistCreator
 import dev.aldoborrero.peke.test.item
 import dev.aldoborrero.peke.ui.detail.series.SeasonEpisodeIds
 import dev.aldoborrero.peke.ui.main.clickDestination
 import dev.aldoborrero.peke.ui.nav.Destination
+import dev.aldoborrero.peke.ui.showToast
+import dev.aldoborrero.peke.ui.successResponse
 import dev.aldoborrero.peke.ui.util.ResStringProvider
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.HomeRowLoadingState
+import dev.aldoborrero.peke.util.PekeDispatchers
+import dev.aldoborrero.peke.util.configure
+import dev.aldoborrero.peke.util.reset
+import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkAll
+import io.mockk.verify
 import io.mockk.verifyOrder
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.extensions.userLibraryApi
+import org.jellyfin.sdk.api.operations.UserLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ExtraType
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.util.UUID
 
@@ -144,4 +170,87 @@ class KidsDirectPlayTest {
             assertFalse(it.name, customization.allows(it))
         }
     }
+}
+
+/**
+ * Spec 005 FR-003, FR-004: the loading page becomes the player only while it is still on top (C14)
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class KidsDirectPlayViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+    private val movie = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE)
+    private val destination = Destination.KidsResume(Destination.MediaItem(movie.id, BaseItemKind.MOVIE))
+    private val navigationManager = mockk<NavigationManager>(relaxed = true)
+    private val context = mockk<Context>(relaxed = true)
+    private val userLibraryApi = mockk<UserLibraryApi>()
+    private val api = mockk<ApiClient>(relaxed = true)
+
+    @Before
+    fun setUp() {
+        PekeDispatchers.configure(dispatcher)
+        mockkStatic("dev.aldoborrero.peke.ui.ExtensionsKt")
+        coEvery { showToast(any(), any<CharSequence>()) } just Runs
+        every { api.userLibraryApi } returns userLibraryApi
+        every { context.getString(any()) } returns "nothing"
+    }
+
+    @After
+    fun tearDown() {
+        PekeDispatchers.reset()
+        unmockkAll()
+    }
+
+    private fun viewModel() =
+        KidsDirectPlayViewModel(
+            context,
+            api,
+            mockk<ServerRepository>(relaxed = true),
+            navigationManager,
+            mockk<PlaylistCreator>(relaxed = true),
+        )
+
+    @Test
+    fun `the player replaces the loading page`() =
+        runTest(dispatcher) {
+            coEvery { userLibraryApi.getItem(itemId = movie.id, userId = any()) } returns successResponse(movie)
+            every { navigationManager.replaceTop(any(), any()) } returns true
+            viewModel().play(destination)
+            advanceUntilIdle()
+            verify { navigationManager.replaceTop(destination, match { it is Destination.Playback && it.itemId == movie.id }) }
+            verify(exactly = 0) { navigationManager.goBack() }
+            verify(exactly = 0) { navigationManager.navigateTo(any()) }
+            coVerify(exactly = 0) { showToast(any(), any<CharSequence>()) }
+        }
+
+    @Test
+    fun `nothing happens after the kid went back`() =
+        runTest(dispatcher) {
+            coEvery { userLibraryApi.getItem(itemId = movie.id, userId = any()) } returns successResponse(movie)
+            every { navigationManager.replaceTop(any(), any()) } returns false
+            viewModel().play(destination)
+            advanceUntilIdle()
+            verify(exactly = 0) { navigationManager.goBack() }
+            verify(exactly = 0) { navigationManager.navigateTo(any()) }
+        }
+
+    @Test
+    fun `nothing to play is said only on the loading page`() =
+        runTest(dispatcher) {
+            coEvery { userLibraryApi.getItem(itemId = movie.id, userId = any()) } throws IllegalStateException("gone")
+            every { navigationManager.replaceTop(any(), any()) } returns true
+            viewModel().play(destination)
+            advanceUntilIdle()
+            verify { navigationManager.replaceTop(destination, null) }
+            coVerify(exactly = 1) { showToast(any(), any<CharSequence>()) }
+        }
+
+    @Test
+    fun `nothing to play is not said after the kid went back`() =
+        runTest(dispatcher) {
+            coEvery { userLibraryApi.getItem(itemId = movie.id, userId = any()) } throws IllegalStateException("gone")
+            every { navigationManager.replaceTop(any(), any()) } returns false
+            viewModel().play(destination)
+            advanceUntilIdle()
+            coVerify(exactly = 0) { showToast(any(), any<CharSequence>()) }
+        }
 }

@@ -22,6 +22,9 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomeRowViewOptions
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
@@ -353,6 +356,7 @@ fun RecommendedContent(
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
     onFocusPosition: ((RowColumn) -> Unit)? = null,
 ) {
+    val kidsMode = LocalKidsMode.current.isActive
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
     var overviewDialog by remember { mutableStateOf<ItemDetailsDialogInfo?>(null) }
     var showPlaylistDialog by remember { mutableStateOf<Optional<UUID>>(Optional.absent()) }
@@ -426,7 +430,7 @@ fun RecommendedContent(
                         )
                 },
                 onClickPlay = { _, item ->
-                    viewModel.navigationManager.navigateTo(Destination.Playback(item))
+                    viewModel.navigationManager.navigateTo(if (kidsMode) kidsPlayKeyDestination(item) else Destination.Playback(item))
                 },
                 onFocusPosition = {
                     position = it

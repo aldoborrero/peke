@@ -46,6 +46,25 @@ class NavigationManager
         }
 
         /**
+         * Swap [expected] for [with] (or only remove it when [with] is null), but only while [expected] is the page on
+         * top: a result that comes back after the user left that page changes nothing (spec 005 FR-003)
+         *
+         * @return whether [expected] was on top and was replaced
+         */
+        fun replaceTop(
+            expected: Destination,
+            with: Destination?,
+        ): Boolean {
+            synchronized(this) {
+                if (backStack.size < 2 || backStack.lastOrNull() != expected) return false
+                backStack.removeLastOrNull()
+                if (with != null) backStack.add(with)
+            }
+            log()
+            return true
+        }
+
+        /**
          * Go all the way back to the home page
          */
         fun goToHome() {

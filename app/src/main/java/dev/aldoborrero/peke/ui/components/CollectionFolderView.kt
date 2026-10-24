@@ -45,6 +45,9 @@ import dev.aldoborrero.peke.data.model.GetItemsFilter
 import dev.aldoborrero.peke.data.model.GetItemsFilterOverride
 import dev.aldoborrero.peke.data.model.LibraryDisplayInfo
 import dev.aldoborrero.peke.kids.KidsItemTypes
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
@@ -831,8 +834,10 @@ fun CollectionFolderViewContent(
     val filterButtonFocusRequester = remember { FocusRequester() }
     val randomButtonFocusRequester = remember { FocusRequester() }
 
+    // A kid's Play key opens the details page (spec 005 FR-001)
+    val kidsMode = LocalKidsMode.current.isActive
     val gridActions =
-        remember(actions) {
+        remember(actions, kidsMode) {
             GridClickActions(
                 onClickItem = { index, item ->
                     position = index
@@ -885,6 +890,8 @@ fun CollectionFolderViewContent(
                                     recursive = true,
                                     startSlideshow = true,
                                 )
+                            } else if (kidsMode) {
+                                kidsPlayKeyDestination(item)
                             } else {
                                 Destination.Playback(item)
                             }
