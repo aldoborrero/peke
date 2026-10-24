@@ -183,7 +183,12 @@ sealed interface KidRowState {
 
     data object Working : KidRowState
 
-    data object Done : KidRowState
+    /**
+     * @param outsideHours signed in, but outside their allowed hours right now
+     */
+    data class Done(
+        val outsideHours: Boolean = false,
+    ) : KidRowState
 
     data class Problem(
         val result: KidSignInResult,
@@ -241,7 +246,7 @@ sealed interface SetupScreen {
         val finishing: Boolean = false,
     ) : SetupScreen {
         val canFinish: Boolean get() =
-            !finishing && rows.any { it.state == KidRowState.Done } &&
+            !finishing && rows.any { it.state is KidRowState.Done } &&
                 rows.none { it.state == KidRowState.Working }
     }
 }
@@ -609,7 +614,8 @@ class SetupFlowViewModel
             server: JellyfinServer,
             kids: List<SetupKid>,
         ) {
-            _screen.value = SetupScreen.SignIn(server, kids.map { SetupKidRow(it, if (it.onTv) KidRowState.Done else KidRowState.Waiting) })
+            _screen.value =
+                SetupScreen.SignIn(server, kids.map { SetupKidRow(it, if (it.onTv) KidRowState.Done() else KidRowState.Waiting) })
             kids.filter { !it.onTv }.forEach { signInKid(it.id) }
         }
 
@@ -648,7 +654,7 @@ class SetupFlowViewModel
             }
 
         private fun rowState(result: KidSignInResult) =
-            if (result is KidSignInResult.SignedIn) KidRowState.Done else KidRowState.Problem(result)
+            if (result is KidSignInResult.SignedIn) KidRowState.Done(result.outsideHours) else KidRowState.Problem(result)
 
         private fun setRow(
             kidId: UUID,
@@ -1202,8 +1208,9 @@ private fun SignInStep(
                             }
                         }
 
-                        KidRowState.Done -> {
+                        is KidRowState.Done -> {
                             Text(stringResource(R.string.peke_setup_kid_done))
+                            if (state.outsideHours) Text(stringResource(R.string.peke_setup_kid_outside_hours, name))
                         }
 
                         is KidRowState.Problem -> {

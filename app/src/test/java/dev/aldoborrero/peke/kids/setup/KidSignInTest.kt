@@ -235,13 +235,59 @@ class KidSignInTest {
     fun `a token the server refuses is not saved, and its session ends`() =
         runTest(UnconfinedTestDispatcher()) {
             quickConnectOn()
-            http.on("GET", "/Users/Me", 403)
+            http.on("GET", "/Users/Me", 401)
 
             assertEquals(KidSignInResult.AccountRefused, signIn().withQuickConnect(admin(), kidId))
             coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
             val logout = requests("/Sessions/Logout").single()
             assertEquals("kid-token", tokenOf(logout))
             assertEquals(kidDevice, deviceIdOf(logout))
+        }
+
+    @Test
+    fun `a kid outside their allowed hours keeps the token, signed in for when their time comes`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            // Bedtime: Jellyfin's access schedule, or the Kids plugin's, refuses the token with 403 for now
+            http.on("GET", "/Users/Me", 403)
+            http.on("GET", "/Users/$kidId", 200, userJson(kidId, enableAllDevices = true))
+
+            val result = signIn().withQuickConnect(admin(), kidId)
+
+            assertEquals(KidSignInResult.SignedIn(savedKid, outsideHours = true), result)
+            coVerify(exactly = 1) { serverRepository.saveUser(server.url, match { it.accessToken == "kid-token" }, null) }
+            coVerify(exactly = 1) { kidProfileRepository.refresh(server, savedKid) }
+            assertTrue(requests("/Sessions/Logout").isEmpty())
+            // The policy is read as the administrator
+            assertEquals("admin-token", tokenOf(request("/Users/$kidId")))
+        }
+
+    @Test
+    fun `a 403 for a kid whose policy can't be read keeps the token too`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            http.on("GET", "/Users/Me", 403)
+            http.on("GET", "/Users/$kidId", 500)
+
+            assertEquals(KidSignInResult.SignedIn(savedKid, outsideHours = true), signIn().withQuickConnect(admin(), kidId))
+            assertTrue(requests("/Sessions/Logout").isEmpty())
+        }
+
+    @Test
+    fun `a 403 for a kid whose account is turned off is not saved, and its session ends`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            http.on("GET", "/Users/Me", 403)
+            http.on(
+                "GET",
+                "/Users/$kidId",
+                200,
+                userJson(kidId, enableAllDevices = true).replace("\"IsDisabled\":false", "\"IsDisabled\":true"),
+            )
+
+            assertEquals(KidSignInResult.AccountRefused, signIn().withQuickConnect(admin(), kidId))
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
+            assertEquals("kid-token", tokenOf(requests("/Sessions/Logout").single()))
         }
 
     @Test
@@ -278,6 +324,16 @@ class KidSignInTest {
             http.on("POST", "/Users/AuthenticateByName", 401)
 
             assertEquals(KidSignInResult.WrongPassword, signIn().withPassword(server, kidId, "Manuel", "nope"))
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
+        }
+
+    @Test
+    fun `a password sign-in the server forbids isn't a wrong password`() =
+        runTest(UnconfinedTestDispatcher()) {
+            // Turned off or outside the allowed hours: Jellyfin gives no token, with 403
+            http.on("POST", "/Users/AuthenticateByName", 403)
+
+            assertEquals(KidSignInResult.AccountRefused, signIn().withPassword(server, kidId, "Manuel", "kid-password"))
             coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
         }
 

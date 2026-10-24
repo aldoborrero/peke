@@ -33,6 +33,7 @@ import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -160,6 +161,61 @@ class RefusedSessionsTest {
             picker.gatePassed().join()
             advanceUntilIdle()
             assertEquals(SetupDestination.SignInAgain(server, revoked), setupNavigationManager.backStack.single())
+        }
+
+    @Test
+    fun `a kid at bedtime keeps their token, and only a 401 takes it`() =
+        runTest(dispatcher) {
+            val (manuel, lucia) = setUpTv()
+            val tvSetupRepository = tvSetupRepository()
+            val serverRepository = serverRepository(tvSetupRepository)
+            serverRepository.restoreUser(server, manuel)
+            // Outside the access schedule or in the plugin's bedtime, the server answers the kid's calls with 403
+            http.on("GET", "/Users/Me", 403)
+            http.on("GET", "/Kids/Users/${manuel.id}/Profile", 403)
+            http.on("GET", "/Videos/${manuel.id}/stream", 403)
+
+            // The user config refresh, the profile refresh and a playback call
+            try {
+                serverRepository.updateUserDto()
+            } catch (_: InvalidStatusException) {
+            }
+            assertEquals(
+                KidsResult.Forbidden,
+                http.api(dispatcher).profile(server.url, KidsCaller("token-manuel", manuel.id), manuel.id),
+            )
+            http.client
+                .newCall(
+                    okhttp3.Request
+                        .Builder()
+                        .url("${server.url}/Videos/${manuel.id}/stream")
+                        .header("Authorization", """MediaBrowser Client="Peke", DeviceId="d", Token="token-manuel"""")
+                        .build(),
+                ).execute()
+                .close()
+            advanceUntilIdle()
+
+            assertEquals("token-manuel", stored(manuel)?.accessToken)
+            assertEquals(
+                manuel.rowId,
+                serverRepository.current.value
+                    ?.user
+                    ?.rowId,
+            )
+            val tv = tvSetupRepository.state.first { it is TvState.SetUp } as TvState.SetUp
+            assertFalse(needsGrownUp(tv.kids.single { it.rowId == manuel.rowId }))
+            // The launch rule still opens the kids side, where their stop screen shows
+            assertEquals(LaunchDestination.Picker(server, tv.kids), LaunchRule.destination(tv))
+
+            // Signed out from the dashboard: now the token goes
+            http.on("GET", "/Users/Me", 401)
+            try {
+                serverRepository.updateUserDto()
+            } catch (_: InvalidStatusException) {
+            }
+            appDb.serverDao().getUserFlow(server.id, manuel.id).first { it?.accessToken == null }
+            assertNull(serverRepository.current.value)
+            assertEquals("token-lucia", stored(lucia)?.accessToken)
         }
 
     @Test

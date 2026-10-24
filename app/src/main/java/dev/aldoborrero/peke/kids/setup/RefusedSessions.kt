@@ -20,8 +20,9 @@ import javax.inject.Singleton
  * they were current the kids side starts over from the launch rule.
  *
  * Only 401 counts: Jellyfin answers it for a token it doesn't know any more (signed out in the dashboard, password
- * changed, device removed), while the Kids plugin refuses a missing or expired grant with 403. A token no row has, such
- * as an administrator's or one being checked during a sign-in, changes nothing.
+ * changed, device removed). A 403 leaves the token alone: Jellyfin answers it for a kid outside their access schedule,
+ * the Kids plugin for its bedtime or a missing or expired grant, and the token works again later. A token no row has,
+ * such as an administrator's or one being checked during a sign-in, changes nothing.
  */
 @Singleton
 class RefusedSessions

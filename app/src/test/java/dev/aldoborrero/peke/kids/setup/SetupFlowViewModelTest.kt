@@ -145,7 +145,7 @@ class SetupFlowViewModelTest {
             coVerify(exactly = 1) { kidSignIn.withQuickConnect(any(), kidId) }
             coVerify(exactly = 0) { kidSignIn.withQuickConnect(any(), siblingId) }
             val signIn = vm.screenAs() as SetupScreen.SignIn
-            assertEquals(KidRowState.Done, signIn.rows.single().state)
+            assertEquals(KidRowState.Done(), signIn.rows.single().state)
             assertTrue(logouts().isEmpty())
 
             vm.finish().join()
@@ -232,7 +232,23 @@ class SetupFlowViewModelTest {
             // The password, typed once, signs them in
             coEvery { kidSignIn.withPassword(server, kidId, "Manuel", "kid-pw") } returns KidSignInResult.SignedIn(manuel)
             vm.signInWithPassword(kidId, "kid-pw").join()
-            assertEquals(KidRowState.Done, (vm.screenAs() as SetupScreen.SignIn).rows.single().state)
+            assertEquals(KidRowState.Done(), (vm.screenAs() as SetupScreen.SignIn).rows.single().state)
+            vm.finish().join()
+            coVerify(exactly = 1) { tvSetupRepository.markDone(server) }
+        }
+
+    @Test
+    fun `a kid signed in outside their allowed hours is done, with a notice, and setup can finish`() =
+        runTest(dispatcher) {
+            coEvery { kidSignIn.withQuickConnect(any(), kidId) } returns KidSignInResult.SignedIn(manuel, outsideHours = true)
+            val vm = viewModel()
+            vm.toKids()
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+
+            val signIn = vm.screenAs() as SetupScreen.SignIn
+            assertEquals(KidRowState.Done(outsideHours = true), signIn.rows.single().state)
+            assertTrue(signIn.canFinish)
             vm.finish().join()
             coVerify(exactly = 1) { tvSetupRepository.markDone(server) }
         }

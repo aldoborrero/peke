@@ -844,6 +844,7 @@
     <string name="peke_setup_kid_device">%1$s solo puede usar los dispositivos elegidos para %1$s en el panel, y esta tele aún no es uno de ellos. En Panel → Usuarios → %1$s → Acceso, activa Habilitar el acceso desde todos los dispositivos y vuelve a intentarlo.</string>
     <string name="peke_setup_admin_expired">La sesión del administrador terminó en el servidor. Vuelve a iniciar sesión para seguir.</string>
     <string name="peke_setup_kid_done">Preparado</string>
+    <string name="peke_setup_kid_outside_hours">%1$s está fuera de su horario permitido ahora mismo. Ya tiene la sesión iniciada y podrá ver cosas cuando llegue su hora.</string>
     <string name="peke_setup_kid_failed">No se pudo iniciar la sesión de %1$s. Vuelve a intentarlo.</string>
     <string name="peke_setup_kid_quick_connect_off">Conexión Rápida está desactivada en este servidor. Actívala en Panel → General, o escribe una vez la contraseña de %1$s.</string>
     <string name="peke_setup_kid_refused">La cuenta de %1$s está desactivada o fuera de su horario permitido. Revísala en el panel.</string>

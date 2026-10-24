@@ -1023,6 +1023,7 @@
     <string name="peke_setup_kid_waiting">Waiting</string>
     <string name="peke_setup_kid_working">Signing in…</string>
     <string name="peke_setup_kid_done">Ready</string>
+    <string name="peke_setup_kid_outside_hours">%1$s is outside their allowed hours right now. They\'re signed in and can watch when their time comes.</string>
     <string name="peke_setup_done">Done</string>
     <string name="peke_setup_try_again">Try again</string>
     <string name="peke_setup_kid_device">%1$s can only use the devices picked for them in the dashboard, and this TV isn\'t one of them yet. In Dashboard → Users → %1$s → Access, turn on Enable access from all devices, then try again.</string>

@@ -23,6 +23,7 @@ import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.DeviceInfo
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
+import org.jellyfin.sdk.model.api.UserPolicy
 import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
@@ -32,8 +33,13 @@ import javax.inject.Inject
  * The outcome of signing a kid in on this TV (`contracts/server-calls.md`)
  */
 sealed interface KidSignInResult {
+    /**
+     * @param outsideHours the kid is outside their allowed hours right now (their Jellyfin access schedule, or the Kids
+     * plugin's bedtime): the token works, but the server refuses it until their time comes
+     */
     data class SignedIn(
         val user: JellyfinUser,
+        val outsideHours: Boolean = false,
     ) : KidSignInResult
 
     /**
@@ -68,7 +74,9 @@ sealed interface KidSignInResult {
     data object UnknownUser : KidSignInResult
 
     /**
-     * The server gave a token but refuses it: the account is turned off or outside its allowed hours
+     * The account is turned off: the server gave a token but refuses it with 401, or with 403 and the kid's policy says
+     * it's disabled. With the password, a sign-in the server refuses with 403, as it does outside the kid's allowed
+     * hours too: no token is given then.
      */
     data object AccountRefused : KidSignInResult
 
@@ -141,7 +149,7 @@ class KidSignIn
                             }
                         if (!approved) return@withContext KidSignInResult.Failed(0)
                         val result = kidApi.userApi.authenticateWithQuickConnect(QuickConnectDto(secret = request.secret)).content
-                        return@withContext save(server, kidId, kidApi, result)
+                        return@withContext save(server, kidId, kidApi, result, admin)
                     }
                     KidSignInResult.CodeExpired
                 } catch (ex: CancellationException) {
@@ -167,10 +175,15 @@ class KidSignIn
                         try {
                             kidApi.userApi.authenticateUserByName(username = username, password = password).content
                         } catch (ex: InvalidStatusException) {
-                            if (ex.status == 401 || ex.status == 403) return@withContext KidSignInResult.WrongPassword
-                            throw ex
+                            // Jellyfin answers a wrong password with 401, and an account turned off, outside its
+                            // allowed hours or kept off remote access with 403 (`UserManager.AuthenticateUser`)
+                            when (ex.status) {
+                                401 -> return@withContext KidSignInResult.WrongPassword
+                                403 -> return@withContext KidSignInResult.AccountRefused
+                                else -> throw ex
+                            }
                         }
-                    save(server, kidId, kidApi, result)
+                    save(server, kidId, kidApi, result, admin = null)
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
@@ -199,23 +212,34 @@ class KidSignIn
 
         /**
          * Check the new token with `Users/Me`, then save the kid and cache their profile, so this TV lists them
+         *
+         * A 401 is a token the server doesn't take. A 403 is one it knows but won't serve right now: outside the kid's
+         * access schedule (Jellyfin's default authorization policy) or the Kids plugin's bedtime. Only a kid whose
+         * policy, read as [admin], says the account is turned off loses it then; any other kid keeps it and can watch
+         * when their time comes.
          */
         private suspend fun save(
             server: JellyfinServer,
             kidId: UUID,
             kidApi: ApiClient,
             result: AuthenticationResult,
+            admin: AdminSession?,
         ): KidSignInResult {
             val token = result.accessToken ?: return KidSignInResult.Failed(0)
             kidApi.update(accessToken = token)
-            try {
-                kidApi.userApi.getCurrentUser()
-            } catch (ex: InvalidStatusException) {
-                if (ex.status != 401 && ex.status != 403) throw ex
-                // A token nobody can use: end its session rather than leave it in the dashboard
-                endSession(kidApi)
-                return KidSignInResult.AccountRefused
-            }
+            val outsideHours =
+                try {
+                    kidApi.userApi.getCurrentUser()
+                    false
+                } catch (ex: InvalidStatusException) {
+                    if (ex.status != 401 && ex.status != 403) throw ex
+                    if (ex.status == 401 || isDisabled(admin, kidId)) {
+                        // A token nobody can use: end its session rather than leave it in the dashboard
+                        endSession(kidApi)
+                        return KidSignInResult.AccountRefused
+                    }
+                    true
+                }
             val existing = serverDao.getServer(server.id)?.users?.firstOrNull { it.id == kidId }
             // Saved, not made current: the kid whose pages are on screen, if any, stays theirs
             val saved = serverRepository.saveUser(server.url, result, existing)
@@ -225,8 +249,17 @@ class KidSignIn
             }
             // Unmarked in the dashboard meanwhile: the refresh signed them out again
             if (!kidProfileRepository.isKid(saved.user)) return KidSignInResult.UnknownUser
-            return KidSignInResult.SignedIn(saved.user)
+            return KidSignInResult.SignedIn(saved.user, outsideHours)
         }
+
+        /**
+         * Whether [kidId]'s account is turned off, from their policy read as [admin]. Without an answer it isn't known to
+         * be, so a token the server knows is kept.
+         */
+        private suspend fun isDisabled(
+            admin: AdminSession?,
+            kidId: UUID,
+        ): Boolean = admin?.let { policyOf(it, kidId) }?.isDisabled == true
 
         /**
          * Authorize answered 403: the kid may not use this device, or has too many sessions. Jellyfin doesn't say
@@ -238,17 +271,7 @@ class KidSignIn
             admin: AdminSession,
             kidId: UUID,
         ): KidSignInResult {
-            val policy =
-                try {
-                    admin.api.userApi
-                        .getUserById(kidId)
-                        .content.policy
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.w("Could not read the kid's policy: %s", ex.javaClass.simpleName)
-                    null
-                }
+            val policy = policyOf(admin, kidId)
             val device = deviceInfo.forKid(kidId).id
             return when {
                 policy == null -> KidSignInResult.Failed(403)
@@ -257,6 +280,24 @@ class KidSignIn
                 else -> KidSignInResult.Failed(403)
             }
         }
+
+        /**
+         * [kidId]'s policy, read as [admin], or null if it can't be read
+         */
+        private suspend fun policyOf(
+            admin: AdminSession,
+            kidId: UUID,
+        ): UserPolicy? =
+            try {
+                admin.api.userApi
+                    .getUserById(kidId)
+                    .content.policy
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w("Could not read the kid's policy: %s", ex.javaClass.simpleName)
+                null
+            }
 
         private suspend fun endSession(api: ApiClient) {
             try {
