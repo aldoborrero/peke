@@ -24,7 +24,9 @@ import javax.inject.Singleton
 object KidsModule {
     @Provides
     @Singleton
-    fun monotonicClock(): MonotonicClock = SystemMonotonicClock
+    fun monotonicClock(
+        @ApplicationContext context: Context,
+    ): MonotonicClock = SystemMonotonicClock(context)
 
     @Provides
     @Singleton

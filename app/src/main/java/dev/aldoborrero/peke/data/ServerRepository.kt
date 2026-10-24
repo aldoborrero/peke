@@ -8,6 +8,7 @@ import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.TvState
+import dev.aldoborrero.peke.services.AppVisibility
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import dev.aldoborrero.peke.services.hilt.forKid
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -54,6 +55,8 @@ class ServerRepository
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val tvSetupRepository: TvSetupRepository,
         private val kidsDataCleaner: KidsDataCleaner,
+        private val userConfigCache: UserConfigCache,
+        private val appVisibility: AppVisibility,
     ) {
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
@@ -126,12 +129,14 @@ class ServerRepository
                 val currentUser = CurrentUser(updatedServer, updatedUser)
                 _current.value = currentUser
                 _currentUserDto.value = ServerUserConfig(userDto)
+                userConfigCache.save(userDto)
                 return@withContext currentUser
             }
 
         /**
          * Makes a saved user current from their stored rows, without asking the server, so a kid opens while it can't
-         * be reached (research R4). [currentUserDto] stays unknown until [updateUserDto] refreshes it.
+         * be reached (research R4). [currentUserDto] is the user's configuration as the server last sent it, or unknown
+         * until [updateUserDto] refreshes it.
          */
         suspend fun restoreUser(
             server: JellyfinServer,
@@ -144,19 +149,22 @@ class ServerRepository
                 Timber.v("Restoring user ${user.name} on ${server.url}")
                 apiClient.update(baseUrl = server.url, accessToken = user.accessToken, deviceInfo = deviceInfo.forKid(user.id))
                 val currentUser = CurrentUser(server, user)
-                _currentUserDto.value = null
+                _currentUserDto.value = userConfigCache.get(user.id)?.takeIf { it.id == user.id }?.let(::ServerUserConfig)
                 _current.value = currentUser
                 return@withContext currentUser
             }
 
         /**
          * Try to restore the session of this TV's last kid, or of its only kid, for work that runs without the app's
-         * pages such as the home screen channels. Never a user who isn't one of this TV's kids, and nobody when the TV
-         * isn't set up.
-         *
-         * Does not check if the user profile is protected
+         * pages such as the home screen channels. Never a user who isn't one of this TV's kids, nobody when the TV
+         * isn't set up, and nobody while the app's pages are on screen: they decide who is current, and the picker,
+         * setup or a grown-up page may be showing.
          */
         suspend fun restoreLastSession(): RestoredSession {
+            if (appVisibility.started) {
+                Timber.d("restoreLastSession: the app's pages are on screen")
+                return RestoredSession.None
+            }
             val tv =
                 withTimeoutOrNull(TV_STATE_TIMEOUT_MILLIS) { tvSetupRepository.state.first { it != TvState.Loading } }
                     as? TvState.SetUp
@@ -169,7 +177,7 @@ class ServerRepository
         }
 
         /**
-         * Try to change to the given server & user. If the user's profile is protected, returns null
+         * Try to change to the given server & user
          *
          * @return the server/user or null if the session could not be restored
          */
@@ -185,7 +193,7 @@ class ServerRepository
                     val serverAndUsers = serverDao.getServer(serverId)
                     if (serverAndUsers != null) {
                         val user = serverAndUsers.users.firstOrNull { it.id == userId }
-                        if (user != null && !user.isProtected) {
+                        if (user != null) {
                             changeUser(serverAndUsers.server, user)
                         } else {
                             null
@@ -204,51 +212,108 @@ class ServerRepository
             authenticationResult: AuthenticationResult,
             existingUser: JellyfinUser?,
         ) = withContext(ioDispatcher) {
-            val accessToken = authenticationResult.accessToken
-            if (accessToken != null) {
-                val authedUser = authenticationResult.user
-                val server =
-                    authenticationResult.serverId?.toUUIDOrNull()?.let {
-                        JellyfinServer(
-                            id = it,
-                            name = authedUser?.serverName,
-                            url = serverUrl,
-                            null,
-                        )
-                    }
-                if (server != null) {
-                    val user =
-                        authedUser?.let {
-                            if (existingUser != null) {
-                                Timber.d("Re-using existing user")
-                                existingUser.copy(
-                                    // If the server authenticated via the server, always remove the PIN
-                                    pin = null,
-                                    accessToken = accessToken,
-                                    lastUsed = ZonedDateTime.now(),
-                                )
-                            } else {
-                                Timber.d("Creating new user")
-                                JellyfinUser(
-                                    id = it.id,
-                                    name = it.name,
-                                    serverId = server.id,
-                                    accessToken = accessToken,
-                                    lastUsed = ZonedDateTime.now(),
-                                )
-                            }
-                        }
-                    if (user != null) {
-                        return@withContext changeUser(server, user)
-                    } else {
-                        throw IllegalArgumentException("Authentication result's user was null")
-                    }
-                } else {
-                    throw IllegalArgumentException("Authentication result's serverId not valid: ${authenticationResult.serverId}")
+            val (server, user) = authenticated(serverUrl, authenticationResult, existingUser)
+            return@withContext changeUser(server, user)
+        }
+
+        /**
+         * Given a successful [AuthenticationResult], save the user that just authenticated without making them current:
+         * a kid signed in on this TV while another kid's pages, the picker or setup are on screen (spec 004). Only if the
+         * current user is the one who signed in again does their session move to the new token.
+         *
+         * @return the stored server and the saved user
+         */
+        suspend fun saveUser(
+            serverUrl: String,
+            authenticationResult: AuthenticationResult,
+            existingUser: JellyfinUser?,
+        ): CurrentUser =
+            withContext(ioDispatcher) {
+                val (server, user) = authenticated(serverUrl, authenticationResult, existingUser)
+                // The stored server keeps its name and version, which a sign-in doesn't carry
+                val stored = serverDao.getServer(server.id)?.server ?: server.also { serverDao.addOrUpdateServer(it) }
+                val saved = serverDao.addOrUpdateUser(user)
+                authenticationResult.user?.let { userConfigCache.save(it) }
+                _current.value?.takeIf { it.server.id == stored.id && it.user.rowId == saved.rowId }?.let { current ->
+                    apiClient.update(baseUrl = stored.url, accessToken = saved.accessToken, deviceInfo = deviceInfo.forKid(saved.id))
+                    _current.value = current.copy(user = saved)
                 }
-            } else {
-                throw IllegalArgumentException("Authentication result's access token was null")
+                CurrentUser(stored, saved)
             }
+
+        /**
+         * The server and user rows for a successful [AuthenticationResult]
+         */
+        private fun authenticated(
+            serverUrl: String,
+            authenticationResult: AuthenticationResult,
+            existingUser: JellyfinUser?,
+        ): Pair<JellyfinServer, JellyfinUser> {
+            val accessToken =
+                authenticationResult.accessToken ?: throw IllegalArgumentException("Authentication result's access token was null")
+            val authedUser = authenticationResult.user ?: throw IllegalArgumentException("Authentication result's user was null")
+            val server =
+                authenticationResult.serverId?.toUUIDOrNull()?.let {
+                    JellyfinServer(
+                        id = it,
+                        name = authedUser.serverName,
+                        url = serverUrl,
+                        null,
+                    )
+                } ?: throw IllegalArgumentException("Authentication result's serverId not valid: ${authenticationResult.serverId}")
+            val user =
+                if (existingUser != null) {
+                    Timber.d("Re-using existing user")
+                    existingUser.copy(
+                        // If the server authenticated via the server, always remove the PIN
+                        pin = null,
+                        requireLogin = false,
+                        accessToken = accessToken,
+                        lastUsed = ZonedDateTime.now(),
+                    )
+                } else {
+                    Timber.d("Creating new user")
+                    JellyfinUser(
+                        id = authedUser.id,
+                        name = authedUser.name,
+                        serverId = server.id,
+                        accessToken = accessToken,
+                        lastUsed = ZonedDateTime.now(),
+                    )
+                }
+            return server to user
+        }
+
+        /**
+         * The server refused [token] (401): the session of whoever it belongs to no longer works. Their row keeps no
+         * token, so they show as needing a grown-up (spec FR-019); if they were current, nobody is, and the kids side
+         * starts over from the launch rule.
+         *
+         * @return whether a stored user had that token
+         */
+        suspend fun forgetToken(token: String): Boolean =
+            withContext(ioDispatcher) {
+                val users = serverDao.getServers().flatMap { it.users }.filter { it.accessToken == token }
+                users.forEach { serverDao.addOrUpdateUser(it.copy(accessToken = null)) }
+                val current = _current.value
+                if (current != null && current.user.accessToken == token) {
+                    Timber.i("The server refused the current user's session: %s", current.user.rowId)
+                    clearCurrent()
+                }
+                users.isNotEmpty()
+            }
+
+        /**
+         * Nobody is current, for the kids picker, the "no kids" page and setup: no kid's session is used while none of
+         * their pages is on screen
+         */
+        suspend fun clearCurrent() {
+            if (_current.value == null) return
+            withContext(PekeDispatchers.Main) {
+                _current.value = null
+                _currentUserDto.value = null
+            }
+            apiClient.update(accessToken = null, deviceInfo = deviceInfo)
         }
 
         suspend fun removeUser(user: JellyfinUser) {
@@ -262,6 +327,7 @@ class ServerRepository
                 serverDao.deleteUser(user.serverId, user.id)
             }
             kidsDataCleaner.onUserRemoved(user.rowId)
+            userConfigCache.forget(user.id)
         }
 
         suspend fun removeServer(server: JellyfinServer) {
@@ -277,29 +343,13 @@ class ServerRepository
             kidsDataCleaner.onServerRemoved(server.id)
         }
 
-        suspend fun updateUserAuth(
-            user: JellyfinUser,
-            pin: String?,
-            requireLogin: Boolean,
-        ) {
-            val newUser = user.copy(pin = pin, requireLogin = requireLogin)
-            val updatedUser = serverDao.addOrUpdateUser(newUser)
-            val cur = current.value
-            if (cur?.user?.id == updatedUser.id && cur.server?.id == user.serverId) {
-                // Updating current user, so push out the change
-                current.value?.let {
-                    val newCurrent = it.copy(user = updatedUser)
-                    _current.value = newCurrent
-                }
-            }
-        }
-
         /**
          * Update [currentUserDto] by querying the server
          */
         suspend fun updateUserDto() {
             val userDto by apiClient.userApi.getCurrentUser()
             updateUserDto(userDto)
+            if (currentUser?.id == userDto.id) userConfigCache.save(userDto)
         }
 
         /**

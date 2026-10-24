@@ -10,10 +10,15 @@ import dev.aldoborrero.peke.kids.data.KidProfile
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -249,5 +254,51 @@ class TvSetupRepositoryTest {
             advanceUntilIdle()
             assertNull(tvSetupDao.row.value)
             assertEquals(TvState.NotSetUp, repository.state.value)
+        }
+
+    @Test
+    fun `a corrupt row keeps the TV set up and is seen again once setup writes it`() =
+        runTest(UnconfinedTestDispatcher()) {
+            tvSetupDao.row.value = row(TvSetupStep.DONE)
+            tvSetupDao.unreadable = true
+            servers.value = listOf(JellyfinServerUsers(server, emptyList()))
+            val repository = repository()
+            advanceUntilIdle()
+            assertEquals(TvState.SetUp(server, emptyList()), repository.state.value)
+
+            // A reset and a new setup write the row again: the state follows, it isn't stuck on the corrupt one
+            repository.erase()
+            repository.markStep(server, TvSetupStep.ADMIN)
+            advanceUntilIdle()
+            assertEquals(TvState.InSetup(TvSetupStep.ADMIN), repository.state.value)
+            repository.markStep(server, TvSetupStep.KIDS)
+            advanceUntilIdle()
+            assertEquals(TvState.InSetup(TvSetupStep.KIDS), repository.state.value)
+        }
+
+    @Test
+    fun `kids that can't be read fail closed without ending the state, and are read again`() =
+        runTest(UnconfinedTestDispatcher()) {
+            var failures = 1
+            val failingDao =
+                object : FakeKidProfileDao() {
+                    // As Room's, each collection queries again
+                    override fun observeUserIds(): Flow<List<Int>> =
+                        flow {
+                            if (failures-- > 0) throw IllegalStateException("database is corrupt")
+                            emitAll(super.observeUserIds())
+                        }
+                }
+            failingDao.upsert(KidProfile(userId = kid1.rowId, serverId = server.id))
+            tvSetupDao.row.value = row(TvSetupStep.DONE)
+            servers.value = listOf(JellyfinServerUsers(server, listOf(kid1)))
+            val repository = TvSetupRepository(tvSetupDao, serverDao, failingDao, backgroundScope)
+            runCurrent()
+
+            // Set up, with no kid known: only Grown-ups, never an unlocked home
+            assertEquals(TvState.SetUp(server, emptyList()), repository.state.value)
+
+            advanceTimeBy(TvSetupRepository.retryDelay(0) + 1)
+            assertEquals(TvState.SetUp(server, listOf(kid1)), repository.state.value)
         }
 }

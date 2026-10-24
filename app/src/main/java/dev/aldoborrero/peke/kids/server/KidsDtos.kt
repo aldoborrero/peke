@@ -149,6 +149,15 @@ data class HouseholdUserDto(
 )
 
 /**
+ * Jellyfin's state of a Quick Connect request (`GET /QuickConnect/Connect`), with only whether it was approved; the
+ * secret it also carries is never read from it
+ */
+@Serializable
+data class QuickConnectState(
+    @SerialName("Authenticated") val authenticated: Boolean = false,
+)
+
+/**
  * A kid of the household: a Jellyfin user with a profile in the Kids plugin
  */
 data class HouseholdKid(

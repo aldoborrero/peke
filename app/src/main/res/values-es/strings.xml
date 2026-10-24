@@ -292,7 +292,6 @@
     <string name="verbose_logging">Registro detallado</string>
     <string name="enter_pin">Introducir PIN</string>
     <string name="press_enter_to_confirm">Pulsa el centro para confirmar</string>
-    <string name="require_pin_code">Requerir PIN para el perfil</string>
     <string name="confirm_pin">Confirmar PIN</string>
     <string name="incorrect">Incorrecto</string>
     <string name="pin_too_short">El PIN debe tener 4 teclas o más</string>
@@ -566,10 +565,8 @@
     <string name="continue_watching_click_behavior">Comportamiento al pulsar en “Seguir viendo” / “Siguiente”</string>
     <string name="continue_watching_click_summary_on">Reproducir al pulsar</string>
     <string name="continue_watching_click_summary_off">Ver detalles al pulsar</string>
-    <string name="require_login">Requerir inicio de sesión para el perfil</string>
     <string name="display_toggles_title">Visualización de valoraciones</string>
     <string name="display_toggles_summary">Personalizar qué mostrar</string>
-    <string name="profile_protection">Protección del perfil</string>
     <string name="stars">Estrellas</string>
     <string name="tomatoes">\"Tomates\"</string>
     <string name="show_voice_search_button">Mostrar botón de búsqueda por voz</string>
@@ -844,7 +841,8 @@
     <string name="peke_setup_continue">Continuar</string>
     <string name="peke_setup_done">Listo</string>
     <string name="peke_setup_kid_code_expired">El código caducó antes de poder usarse. Vuelve a intentarlo.</string>
-    <string name="peke_setup_kid_device">%1$s solo puede usar algunos dispositivos. En el panel, permite esta tele para %1$s y vuelve a intentarlo.</string>
+    <string name="peke_setup_kid_device">%1$s solo puede usar los dispositivos elegidos para %1$s en el panel, y esta tele aún no es uno de ellos. En Panel → Usuarios → %1$s → Acceso, activa Habilitar el acceso desde todos los dispositivos y vuelve a intentarlo.</string>
+    <string name="peke_setup_admin_expired">La sesión del administrador terminó en el servidor. Vuelve a iniciar sesión para seguir.</string>
     <string name="peke_setup_kid_done">Preparado</string>
     <string name="peke_setup_kid_failed">No se pudo iniciar la sesión de %1$s. Vuelve a intentarlo.</string>
     <string name="peke_setup_kid_quick_connect_off">Conexión Rápida está desactivada en este servidor. Actívala en Panel → General, o escribe una vez la contraseña de %1$s.</string>

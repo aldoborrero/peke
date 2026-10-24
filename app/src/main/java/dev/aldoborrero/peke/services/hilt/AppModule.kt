@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.services.hilt
 
 import android.content.Context
 import androidx.work.WorkManager
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -10,6 +11,8 @@ import dagger.hilt.components.SingletonComponent
 import dev.aldoborrero.peke.BuildConfig
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.setup.RefusedSessions
+import dev.aldoborrero.peke.kids.setup.RefusedTokenInterceptor
 import dev.aldoborrero.peke.util.CoroutineContextApiClientFactory
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineDispatcher
@@ -87,11 +90,13 @@ object AppModule {
     @StandardOkHttpClient
     @Provides
     @Singleton
-    fun okHttpClient() =
+    fun okHttpClient(refusedSessions: Lazy<RefusedSessions>) =
         OkHttpClient
             .Builder()
             .apply {
                 // TODO user agent, timeouts, logging, etc
+                // A kid's session the server refused shows as needing a grown-up (spec FR-019)
+                addNetworkInterceptor(RefusedTokenInterceptor { refusedSessions.get().refused(it) })
             }.build()
 
     @AuthOkHttpClient

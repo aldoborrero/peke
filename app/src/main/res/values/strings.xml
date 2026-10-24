@@ -376,8 +376,6 @@
     <string name="verbose_logging">Verbose logging</string>
     <string name="enter_pin">Enter PIN</string>
     <string name="press_enter_to_confirm">Press center to confirm</string>
-    <string name="require_pin_code">Require PIN for profile</string>
-    <string name="require_login">Require login for profile</string>
     <string name="confirm_pin">Confirm PIN</string>
     <string name="incorrect">Incorrect</string>
     <string name="pin_too_short">PIN must be 4 keys or longer</string>
@@ -771,7 +769,6 @@
     <string name="user_interface_language">User interface language</string>
     <string name="display_toggles_title">Ratings display</string>
     <string name="display_toggles_summary">Customize which to display</string>
-    <string name="profile_protection">Profile protection</string>
     <string name="continue_watching_click_behavior">Continue watching/Next up click behavior</string>
     <string name="continue_watching_click_summary_on">Play on click</string>
     <string name="continue_watching_click_summary_off">Show details on click</string>
@@ -1028,7 +1025,8 @@
     <string name="peke_setup_kid_done">Ready</string>
     <string name="peke_setup_done">Done</string>
     <string name="peke_setup_try_again">Try again</string>
-    <string name="peke_setup_kid_device">%1$s can only use some devices. In the dashboard, allow this TV for %1$s, then try again.</string>
+    <string name="peke_setup_kid_device">%1$s can only use the devices picked for them in the dashboard, and this TV isn\'t one of them yet. In Dashboard → Users → %1$s → Access, turn on Enable access from all devices, then try again.</string>
+    <string name="peke_setup_admin_expired">The administrator\'s sign-in ended on the server. Sign in again to go on.</string>
     <string name="peke_setup_kid_sessions">%1$s is signed in on too many devices. Sign them out somewhere, then try again.</string>
     <string name="peke_setup_kid_code_expired">The code expired before it could be used. Try again.</string>
     <string name="peke_setup_kid_refused">%1$s\'s account is turned off or outside their allowed hours. Check it in the dashboard.</string>

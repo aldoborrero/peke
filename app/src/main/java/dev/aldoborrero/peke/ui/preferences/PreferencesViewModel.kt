@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
@@ -18,7 +17,6 @@ import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.ui.launchIO
 import dev.aldoborrero.peke.util.DataLoadingState
-import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -69,27 +67,6 @@ class PreferencesViewModel
         fun resetSubtitleSettings() {
             viewModelScope.launchIO {
                 resetSubtitleSettings(preferenceDataStore)
-            }
-        }
-
-        fun setPin(
-            user: JellyfinUser,
-            pin: String?,
-        ) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, pin, false)
-            }
-        }
-
-        fun setRequireLogin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, true)
-            }
-        }
-
-        fun removeLoginAndPin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, false)
             }
         }
 

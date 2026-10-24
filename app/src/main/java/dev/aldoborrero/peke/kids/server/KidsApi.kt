@@ -3,7 +3,6 @@ package dev.aldoborrero.peke.kids.server
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import dev.aldoborrero.peke.services.hilt.StandardOkHttpClient
 import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
@@ -19,15 +18,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.jellyfin.sdk.Jellyfin
-import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.exception.InvalidStatusException
-import org.jellyfin.sdk.api.client.exception.MissingBaseUrlException
-import org.jellyfin.sdk.api.client.exception.SecureConnectionException
-import org.jellyfin.sdk.api.client.exception.TimeoutException
-import org.jellyfin.sdk.api.client.extensions.authenticateUserByName
-import org.jellyfin.sdk.api.client.extensions.sessionApi
-import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.util.AuthorizationHeaderBuilder
 import org.jellyfin.sdk.model.ClientInfo
 import org.jellyfin.sdk.model.DeviceInfo
@@ -107,16 +97,14 @@ class KidsCaller(
 /**
  * Calls the Jellyfin Kids plugin's client API (`/Kids`, version 1)
  *
- * The Jellyfin SDK can't send the grant header or read error bodies, so this uses OkHttp directly, except for the
- * administrator check in [isAdministrator], which is Jellyfin's own sign-in. Every call names the server and the
- * [KidsCaller] it runs as, because kids calls are not always made as the current user.
+ * The Jellyfin SDK can't send the grant header or read error bodies, so this uses OkHttp directly. Every call names the
+ * server and the [KidsCaller] it runs as, because kids calls are not always made as the current user.
  */
 @Singleton
 class KidsApi
     @Inject
     constructor(
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
-        private val jellyfin: Jellyfin,
         private val clientInfo: ClientInfo,
         private val deviceInfo: DeviceInfo,
         @param:IoDispatcher private val dispatcher: CoroutineDispatcher,
@@ -281,50 +269,20 @@ class KidsApi
         }
 
         /**
-         * Sign in to Jellyfin as a one-off device, only to learn whether [username] is an administrator, then end that
-         * session. The credentials and the token are never kept or logged.
+         * Whether the Quick Connect request with [secret] was approved (`GET /QuickConnect/Connect`), for an
+         * administrator signing in with Quick Connect
+         *
+         * Through this client rather than the Jellyfin SDK, which logs every request's URL, and with it the secret in
+         * the query: whoever reads the log could redeem it for the administrator's session. Nothing here logs a URL or
+         * a query.
          */
-        suspend fun isAdministrator(
+        suspend fun quickConnectApproved(
             baseUrl: String,
-            username: String,
-            password: String,
+            secret: String,
         ): KidsResult<Boolean> =
-            withContext(dispatcher) {
-                // A device of its own, so no session of this TV is replaced
-                val device = deviceInfo.copy(id = UUID.randomUUID().toString())
-                val result =
-                    try {
-                        jellyfin
-                            .createApi(baseUrl = baseUrl, deviceInfo = device)
-                            .userApi
-                            .authenticateUserByName(username = username, password = password)
-                            .content
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        return@withContext signInFailure(ex)
-                    }
-                result.accessToken?.let { token ->
-                    endSession(jellyfin.createApi(baseUrl = baseUrl, accessToken = token, deviceInfo = device))
-                }
-                KidsResult.Ok(result.user?.policy?.isAdministrator == true)
+            call(baseUrl, "QuickConnect/Connect", null, query = mapOf("secret" to secret), timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) {
+                decode(QuickConnectState.serializer(), it).authenticated
             }
-
-        /**
-         * Best effort, with one retry, since a session left behind only shows up in the server's device list
-         */
-        private suspend fun endSession(api: ApiClient) {
-            repeat(2) { attempt ->
-                try {
-                    api.sessionApi.reportSessionEnded()
-                    return
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.w("Could not end the administrator check session (try %d): %s", attempt + 1, ex.javaClass.simpleName)
-                }
-            }
-        }
 
         private suspend fun <T> call(
             baseUrl: String,
@@ -333,6 +291,7 @@ class KidsApi
             grant: String? = null,
             method: String = "GET",
             body: RequestBody? = null,
+            query: Map<String, String> = emptyMap(),
             timeoutSeconds: Long? = null,
             parse: (String) -> T,
         ): KidsResult<T> {
@@ -341,6 +300,7 @@ class KidsApi
                     .toHttpUrlOrNull()
                     ?.newBuilder()
                     ?.addPathSegments(path)
+                    ?.apply { query.forEach { (name, value) -> addQueryParameter(name, value) } }
                     ?.build()
                     ?: return KidsResult.Unreachable
             val request =
@@ -366,7 +326,9 @@ class KidsApi
                                     try {
                                         KidsResult.Ok(parse(text))
                                     } catch (ex: Exception) {
-                                        Timber.w(ex, "Unreadable answer from %s", path)
+                                        // Only the kind of error: a parser's message quotes the answer, which can hold a
+                                        // verifier or a token
+                                        Timber.w("Unreadable answer from %s: %s", path, ex.javaClass.simpleName)
                                         KidsResult.Failed(response.code)
                                     }
                                 }
@@ -397,7 +359,7 @@ class KidsApi
                             }
                         }
                 } catch (ex: IOException) {
-                    Timber.d(ex, "Kids call %s failed", path)
+                    Timber.d("Kids call %s failed: %s", path, ex.javaClass.simpleName)
                     KidsResult.Unreachable
                 }
             }
@@ -469,19 +431,6 @@ class KidsApi
                     ?: DEFAULT_RETRY_SECONDS
 
             private const val DEFAULT_RETRY_SECONDS = 30
-
-            /**
-             * Maps a failed administrator sign-in like the other calls: 401 or 403 is a wrong user name or password,
-             * and no HTTP answer at all is unreachable
-             */
-            private fun signInFailure(ex: Exception): KidsResult<Nothing> =
-                when {
-                    ex is InvalidStatusException && (ex.status == 401 || ex.status == 403) -> KidsResult.Forbidden
-                    ex is InvalidStatusException -> KidsResult.Failed(ex.status)
-                    ex is TimeoutException || ex is SecureConnectionException || ex is MissingBaseUrlException -> KidsResult.Unreachable
-                    ex.cause is IOException -> KidsResult.Unreachable
-                    else -> KidsResult.Failed(0)
-                }
         }
     }
 

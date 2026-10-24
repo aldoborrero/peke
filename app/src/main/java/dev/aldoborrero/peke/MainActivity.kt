@@ -39,6 +39,7 @@ import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsLiveTv
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
+import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.setup.LaunchRule
@@ -49,6 +50,7 @@ import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KidsMusicGuard
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.services.AppUpgradeHandler
+import dev.aldoborrero.peke.services.AppVisibility
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.DatePlayedInvalidationService
 import dev.aldoborrero.peke.services.DeviceProfileService
@@ -175,6 +177,15 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var tvSetupRepository: TvSetupRepository
 
+    @Inject
+    lateinit var tvLauncher: TvLauncher
+
+    @Inject
+    lateinit var grownUpSessions: GrownUpSessions
+
+    @Inject
+    lateinit var appVisibility: AppVisibility
+
     private val json =
         Json {
             classDiscriminator = "_type"
@@ -193,6 +204,8 @@ class MainActivity : AppCompatActivity() {
         lifecycle.addObserver(kidsMusicGuard)
         if (savedInstanceState == null) lifecycleScope.launch { kidsDataCleaner.sweep() }
 
+        // Whose pages the saved back stack holds: opening anyone else starts them from their home (C12)
+        tvLauncher.pagesOf = savedInstanceState?.getInt(KEY_BACK_STACK_KID, -1)?.takeIf { it >= 0 }
         val backStackStr = savedInstanceState?.getString(KEY_BACK_STACK)
         val restoredBackStack =
             if (backStackStr != null) {
@@ -219,19 +232,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             navigationManager.backStack = NavBackStack(Destination.Home())
         }
-
-        viewModel.serverRepository.currentUserFlow
-            .onEach { user ->
-                withContext(PekeDispatchers.Main) {
-                    if (user?.hasPin == true) {
-                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                }
-            }.catch { ex ->
-                Timber.e(ex, "Error with settings flag secure")
-            }.launchIn(lifecycleScope)
 
         screensaverService.keepScreenOn
             .onEach { keepScreenOn ->
@@ -348,6 +348,9 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         Timber.d("onStop")
         screensaverService.stop(true)
+        appVisibility.started = false
+        // Home or standby leaves the TV to a kid: nothing a grown-up opened stays open (spec FR-004, FR-008)
+        grownUpSessions.end()
     }
 
     override fun onPause() {
@@ -358,6 +361,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         Timber.d("onStart")
+        appVisibility.started = true
 
         lifecycleScope.launchDefault {
             val appPreferences = userPreferencesDataStore.data.first()
@@ -384,6 +388,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val str = json.encodeToString(navigationManager.backStack.toList())
             outState.putString(KEY_BACK_STACK, str)
+            tvLauncher.pagesOf?.let { outState.putInt(KEY_BACK_STACK_KID, it) }
         } catch (ex: Exception) {
             // Best-effort: some destinations carry types we can't serialize; skip persisting
             // the back stack rather than crashing in onSaveInstanceState.
@@ -432,6 +437,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_BACK_STACK = "backStack"
+        private const val KEY_BACK_STACK_KID = "backStackKid"
 
         lateinit var instance: MainActivity
             private set
@@ -468,8 +474,11 @@ class MainActivityViewModel
                         )
                     }
 
+                    // With no kid current, as on a cold start, an intent waits for the launch rule: it runs once that
+                    // opened the only kid, and is dropped on the picker. It never picks a kid itself.
+                    val waitForKid = intent != null && serverRepository.current.value == null
                     try {
-                        val result = handleIntent(intent)
+                        val result = !waitForKid && handleIntent(intent)
                         if (result) {
                             Timber.i("appStart was handled by intent")
                             return@withLock
@@ -486,6 +495,15 @@ class MainActivityViewModel
                         val state = tvSetupRepository.state.value
                         val notSetUp = state == TvState.NotSetUp || state is TvState.InSetup
                         setupNavigationManager.navigateTo(if (notSetUp) SetupDestination.Setup() else SetupDestination.Loading)
+                        return@withLock
+                    }
+
+                    if (waitForKid && serverRepository.current.value != null) {
+                        try {
+                            if (handleIntent(intent)) Timber.i("The intent ran as the kid the launch rule opened")
+                        } catch (ex: Exception) {
+                            Timber.e(ex, "Error parsing intent")
+                        }
                     }
                 }
             }

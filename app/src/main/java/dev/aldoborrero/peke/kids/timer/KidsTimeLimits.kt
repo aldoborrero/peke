@@ -281,32 +281,39 @@ class KidsInterruptedPlayback {
 }
 
 /**
- * Whether [status], the last one cached for a kid, still stops them at [now]: time's up until the next day starts,
- * a break until it ends and outside allowed hours until they start, by the wall clock (research R6). A denial whose
- * end can't be told counts as stopped (fail closed); no status, or one without a denial, doesn't stop.
+ * Whether [status], the last one cached for a kid, still stops them [sinceFetch] after it was fetched, by this TV's
+ * monotonic clock, so moving the wall clock forward doesn't end a stop (research R6). The stop left is counted by the
+ * server's own times, from `ServerTime` to its end: time's up until the next day starts, a break until it ends and
+ * outside allowed hours until they start. A denial whose end can't be told, or a time since the fetch that can't, as
+ * after a reboot, counts as stopped (fail closed); no status, or one without a denial, doesn't stop.
  */
 fun isStopped(
     status: KidsStatus?,
-    now: Instant,
+    sinceFetch: Duration?,
 ): Boolean {
     val denial = status?.denial ?: return false
+    val left = stopLeft(status, denial) ?: return true
+    return sinceFetch == null || sinceFetch < left
+}
+
+/**
+ * The stop left by [status]'s own clock when it was sent, or null if it can't be told
+ */
+private fun stopLeft(
+    status: KidsStatus,
+    denial: KidsDenial,
+): Duration? {
+    if (denial == KidsDenial.SITTING_OVER) status.breakRemainingSeconds?.let { return it.seconds }
+    val serverTime = instantOrNull(status.serverTime) ?: return null
     val end =
         when (denial) {
-            KidsDenial.TIME_UP -> {
-                instantOrNull(status.deniedUntil) ?: instantOrNull(status.nextDayStartsAt)
-            }
-
-            KidsDenial.BEDTIME -> {
-                instantOrNull(status.deniedUntil)
-            }
-
-            KidsDenial.SITTING_OVER -> {
-                val serverTime = instantOrNull(status.serverTime)
-                val breakLeft = status.breakRemainingSeconds
-                if (serverTime != null && breakLeft != null) serverTime.plusSeconds(breakLeft) else instantOrNull(status.deniedUntil)
-            }
-        } ?: return true
-    return now.isBefore(end)
+            KidsDenial.TIME_UP -> instantOrNull(status.deniedUntil) ?: instantOrNull(status.nextDayStartsAt)
+            KidsDenial.BEDTIME, KidsDenial.SITTING_OVER -> instantOrNull(status.deniedUntil)
+        } ?: return null
+    return java.time.Duration
+        .between(serverTime, end)
+        .toMillis()
+        .milliseconds
 }
 
 private fun instantOrNull(value: String?): Instant? {

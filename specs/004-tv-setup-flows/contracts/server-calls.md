@@ -23,8 +23,17 @@ sign-in. Nothing in this table is stored, except the kid tokens.
 |---|---|
 | `/Kids/Info` missing or older than 0.0.7.0 | "This server needs the Jellyfin Kids plugin 0.0.7.0 or later." |
 | Sign-in by a non-administrator | "This account can't set up the TV. Sign in with a server administrator." |
-| Authorize 403, device access | "{Kid} can only use some devices. In the dashboard, allow this TV for {Kid}, then try again." |
+| Authorize 403, device access (the kid's policy doesn't allow all devices and doesn't list this TV's id for them) | "{Kid} can only use the devices picked for them in the dashboard, and this TV isn't one of them yet. In Dashboard → Users → {Kid} → Access, turn on Enable access from all devices, then try again." |
 | Authorize 403, sessions | "{Kid} is signed in on too many devices. Sign them out somewhere, then try again." |
+| Authorize 403, anything else | "Couldn't sign {Kid} in. Try again." |
+| Authorize 401 while `/QuickConnect/Enabled` still says on | "The administrator's sign-in ended on the server. Sign in again to go on." (back to the administrator step) |
 | Authorize 404 | "The code expired. Trying again…" (a new request starts automatically) |
 | `Users/Me` refused after sign-in | "{Kid}'s account is turned off or outside their allowed hours. Check it in the dashboard." |
 | Quick Connect off | "Quick Connect is off on this server. Turn it on in Dashboard → General, or type {Kid}'s password once." |
+
+## Logs
+
+The administrator's Quick Connect state (`GET /QuickConnect/Connect?secret=`) is polled through `KidsApi`'s OkHttp
+client, not the SDK: the SDK logs each request's URL at INFO, and the secret is in the query. Every line written to
+logcat also goes through `LogRedaction`, which hides `secret=`, `api_key=`, `Token="…"` and secret JSON fields, since
+crash reports and "Send app logs" read logcat.

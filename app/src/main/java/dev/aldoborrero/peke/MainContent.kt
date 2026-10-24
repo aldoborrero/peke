@@ -93,13 +93,16 @@ fun MainContent(
                                     SetupFlow(step = key.step, modifier = Modifier.fillMaxSize())
                                 }
 
+                                // Only after the parent gate (spec FR-019)
                                 is SetupDestination.SignInAgain -> {
-                                    SetupFlow(
-                                        step = TvSetupStep.SIGN_IN,
-                                        againServer = key.server,
-                                        againKid = key.kid,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                    GrownUpGuard(inKidPages = false, modifier = Modifier.fillMaxSize()) {
+                                        SetupFlow(
+                                            step = TvSetupStep.SIGN_IN,
+                                            againServer = key.server,
+                                            againKid = key.kid,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
                                 }
 
                                 SetupDestination.KidsPicker -> {

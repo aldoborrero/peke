@@ -174,7 +174,16 @@ class ResetTvTest {
                 mockk<SetupNavigationManager>(relaxed = true) {
                     every { backStack } returns mutableListOf<SetupDestination>(SetupDestination.AppContent(CurrentUser(server, manuel)))
                 }
-            TvLauncher(repository, serverRepository, setupNavigationManager, navigationManager, backgroundScope).launch()
+            coEvery { serverRepository.clearCurrent() } answers { current.value = null }
+            TvLauncher(
+                repository,
+                serverRepository,
+                serverDao,
+                mockk(relaxed = true),
+                setupNavigationManager,
+                navigationManager,
+                backgroundScope,
+            ).launch()
             verify { setupNavigationManager.navigateTo(SetupDestination.Setup(TvSetupStep.SERVER)) }
         }
 }

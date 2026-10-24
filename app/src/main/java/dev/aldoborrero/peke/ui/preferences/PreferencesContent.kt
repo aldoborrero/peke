@@ -98,7 +98,6 @@ fun PreferencesContent(
     val state = rememberLazyListState()
     var preferences by remember { mutableStateOf(initialPreferences) }
     val currentUser by viewModel.currentUser.collectAsState()
-    var showPinFlow by remember { mutableStateOf(false) }
     var showVersionDialog by remember { mutableStateOf(false) }
     val kidsAvailable by viewModel.kidsAvailable.collectAsState()
 
@@ -408,50 +407,6 @@ fun PreferencesContent(
                                     )
                                 }
 
-                                AppPreference.ProtectProfilePreference -> {
-                                    val summary =
-                                        when {
-                                            currentUser?.requireLogin == true -> R.string.require_login
-                                            currentUser?.hasPin == true -> R.string.require_pin_code
-                                            else -> R.string.none
-                                        }
-                                    ChoicePreference(
-                                        title = stringResource(pref.title),
-                                        summary = stringResource(summary),
-                                        interactionSource = interactionSource,
-                                        possibleValues =
-                                            listOf(
-                                                stringResource(R.string.none),
-                                                stringResource(R.string.require_pin_code),
-                                                stringResource(R.string.require_login),
-                                            ),
-                                        selectedIndex =
-                                            when {
-                                                currentUser?.requireLogin == true -> ProfileProtection.LOGIN
-                                                currentUser?.hasPin == true -> ProfileProtection.PIN
-                                                else -> ProfileProtection.NONE
-                                            }.ordinal,
-                                        onValueChange = {
-                                            currentUser?.let { user ->
-                                                when (ProfileProtection.entries[it]) {
-                                                    ProfileProtection.NONE -> {
-                                                        viewModel.removeLoginAndPin(user)
-                                                    }
-
-                                                    ProfileProtection.PIN -> {
-                                                        showPinFlow = true
-                                                    }
-
-                                                    ProfileProtection.LOGIN -> {
-                                                        viewModel.setRequireLogin(user)
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        modifier = focusModifier,
-                                    )
-                                }
-
                                 ScreensaverPreference.Start -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -560,22 +515,6 @@ fun PreferencesContent(
                         }
                     }
                 }
-            }
-        }
-        if (showPinFlow && currentUser != null) {
-            currentUser?.let { user ->
-                SetPinFlow(
-                    currentPin = user.pin,
-                    onAddPin = {
-                        viewModel.setPin(user, it)
-                        showPinFlow = false
-                    },
-                    onRemovePin = {
-                        viewModel.setPin(user, null)
-                        showPinFlow = false
-                    },
-                    onDismissRequest = { showPinFlow = false },
-                )
             }
         }
     }

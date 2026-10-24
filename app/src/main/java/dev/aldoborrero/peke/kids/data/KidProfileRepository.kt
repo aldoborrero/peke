@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.kids.data
 
 import dev.aldoborrero.peke.data.JellyfinServerDao
+import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.gate.KidsAuth
@@ -12,6 +13,7 @@ import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsResult
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
+import dev.aldoborrero.peke.kids.setup.KidSignOut
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +60,8 @@ class KidProfileRepository
         private val serverDao: JellyfinServerDao,
         private val pluginService: KidsPluginService,
         private val parentLockService: ParentLockService,
+        private val serverRepository: ServerRepository,
+        private val kidSignOut: KidSignOut,
     ) {
         private suspend fun available(server: JellyfinServer) = pluginService.state(server.id).status == KidsServerStatus.AVAILABLE
 
@@ -96,7 +100,7 @@ class KidProfileRepository
 
                 KidsResult.NotAKid, KidsResult.NotFound -> {
                     // A cached profile kept after an unclear 404 (fail closed) still makes them a kid
-                    deleteIfNotAKid(server, user, result)
+                    if (deleteIfNotAKid(server, user, result)) forgetUser(server, user)
                     answeredNotAKid(user.rowId)
                     true
                 }
@@ -131,7 +135,10 @@ class KidProfileRepository
         }
 
         /**
-         * Update the cache for every signed-in user of [server]: who is a kid, and the profiles that changed
+         * Update the cache for every signed-in user of [server]: who is a kid, and the profiles that changed. The plugin
+         * is asked with a kid's own token, [preferred] first; a user the plugin no longer lists as a kid, such as one
+         * unmarked in the dashboard or an administrator left by an older version, is signed out and forgotten on this
+         * TV (spec 004, edge cases).
          */
         suspend fun refreshServer(
             server: JellyfinServer,
@@ -139,8 +146,12 @@ class KidProfileRepository
         ) {
             if (!available(server)) return
             val users = withContext(PekeDispatchers.IO) { serverDao.getServer(server.id)?.users }.orEmpty()
+            val kidIds = kidProfileDao.allUserIds().toSet()
             val caller =
-                (listOfNotNull(preferred) + users).firstNotNullOfOrNull { u -> u.accessToken?.let { KidsCaller(it, u.id) } } ?: return
+                (listOfNotNull(preferred) + users)
+                    .filter { it.rowId in kidIds }
+                    .firstNotNullOfOrNull { u -> u.accessToken?.let { KidsCaller(it, u.id) } }
+                    ?: return
             val refs =
                 when (val result = kidsApi.profiles(server.url, caller)) {
                     is KidsResult.Ok -> result.value.mapNotNull { ref -> ref.userId.toUUIDOrNull()?.let { it to ref.revision } }.toMap()
@@ -151,11 +162,30 @@ class KidProfileRepository
                 if (revision == null) {
                     kidProfileDao.delete(user.rowId)
                     answeredNotAKid(user.rowId)
+                    forgetUser(server, user)
                 } else if (kidProfileDao.get(user.rowId)?.revision != revision) {
                     refresh(server, user)
                 }
             }
         }
+
+        /**
+         * [user] is no kid: their session ends on the server, best effort, and their row goes from this TV, so no token
+         * but kids' stays here. Marked again in the dashboard, they can be added back.
+         */
+        private suspend fun forgetUser(
+            server: JellyfinServer,
+            user: JellyfinUser,
+        ) {
+            Timber.i("User %s is no kid: signing them out of this TV", user.rowId)
+            kidSignOut.signOut(server, user)
+            serverRepository.removeUser(user)
+        }
+
+        /**
+         * Whether [user] has a cached kid profile, the mark of a kid on this TV
+         */
+        suspend fun isKid(user: JellyfinUser): Boolean = kidProfileDao.get(user.rowId) != null
 
         suspend fun mark(user: JellyfinUser): SaveResult {
             val auth = parentLockService.auth() ?: return SaveResult.NEEDS_GRANT

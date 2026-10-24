@@ -1,12 +1,12 @@
 package dev.aldoborrero.peke.kids.setup
 
-import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
-import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.FakeKidsServer
 import dev.aldoborrero.peke.kids.KIDS_FEATURES_JSON
+import dev.aldoborrero.peke.kids.gate.GrownUpSessions
+import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.signInAnswer
@@ -18,8 +18,10 @@ import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -40,9 +42,10 @@ class SetupFlowViewModelTest {
     private val siblingId = UUID.fromString("c1d00000-0000-0000-0000-000000000002")
     private val http = FakeKidsServer()
 
-    private val tvSetupRepository = mockk<TvSetupRepository>(relaxed = true)
+    private val tvState = MutableStateFlow<TvState>(TvState.NotSetUp)
+    private val tvSetupRepository = mockk<TvSetupRepository>(relaxed = true) { every { state } returns tvState }
     private val serverRepository = mockk<ServerRepository>(relaxed = true)
-    private val serverDao = mockk<JellyfinServerDao> { every { getServer(any()) } returns null }
+    private val parentLockService = mockk<ParentLockService>(relaxed = true)
     private val serverLookup = mockk<SetupServerLookup> { coEvery { find(any()) } returns ServerLookup.Found(server) }
     private val pluginService = mockk<KidsPluginService>(relaxed = true)
     private val kidSignIn = mockk<KidSignIn>()
@@ -76,18 +79,22 @@ class SetupFlowViewModelTest {
 
     private fun logouts() = http.requests.filter { it.path == "/Sessions/Logout" }
 
+    private val adminSessions = AdminSessions(http.jellyfin, http.deviceInfo, http.api(dispatcher), dispatcher)
+    private val grownUpSessions = GrownUpSessions(parentLockService, adminSessions, CoroutineScope(dispatcher))
+
     private fun TestScope.viewModel() =
         SetupFlowViewModel(
             tvSetupRepository,
             serverRepository,
-            serverDao,
             serverLookup,
             pluginService,
             http.api(dispatcher),
-            AdminSessions(http.jellyfin, http.deviceInfo, dispatcher),
+            adminSessions,
             kidSignIn,
             launcher,
             http.jellyfin,
+            parentLockService,
+            grownUpSessions,
             CoroutineScope(dispatcher),
         )
 
@@ -233,7 +240,7 @@ class SetupFlowViewModelTest {
     @Test
     fun `a kid already on this TV isn't signed in again`() =
         runTest(dispatcher) {
-            every { serverDao.getServer(server.id) } returns JellyfinServerUsers(server, listOf(manuel))
+            tvState.value = TvState.SetUp(server, listOf(manuel))
             val vm = viewModel()
             vm.toKids()
             val kids = vm.screenAs() as SetupScreen.Kids
@@ -317,5 +324,104 @@ class SetupFlowViewModelTest {
             coVerify(exactly = 0) { tvSetupRepository.markDone(any()) }
             coVerify { launcher.launch(any()) }
             assertEquals(1, logouts().size)
+        }
+
+    @Test
+    fun `a kid whose row is left but who isn't one of this TV's kids can be added back`() =
+        runTest(dispatcher) {
+            // Unmarked in the dashboard and marked again: no kid profile here, so not on this TV
+            tvState.value = TvState.SetUp(server, emptyList())
+            val vm = viewModel()
+            vm.addKids(server).join()
+            vm.signIn("admin", "pw").join()
+
+            val kids = vm.screenAs() as SetupScreen.Kids
+            assertTrue(kids.adding)
+            assertEquals(listOf(kidId, siblingId).toSet(), kids.kids.map { it.id }.toSet())
+            assertTrue(kids.kids.none { it.onTv })
+        }
+
+    @Test
+    fun `going to the background mid-setup ends the administrator session and asks for a fresh sign-in`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.toKids()
+            assertTrue(vm.screenAs() is SetupScreen.Kids)
+            assertTrue(adminSessions.anyOpen)
+
+            grownUpSessions.end().join()
+
+            assertEquals(SetupScreen.Admin(server), vm.screenAs())
+            assertFalse(adminSessions.anyOpen)
+            assertEquals(1, logouts().size)
+            verify { parentLockService.forgetGrants() }
+            // Nothing can be done with the session that ended
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+            coVerify(exactly = 0) { kidSignIn.withQuickConnect(any(), any()) }
+        }
+
+    @Test
+    fun `a sign-in that answers after the app went to the background is dropped`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.start(TvSetupStep.SERVER).join()
+            vm.addServer("jf.local").join()
+            http.onRequest = { recorded ->
+                // Home is pressed while the sign-in is on its way
+                if (recorded.path == "/Users/AuthenticateByName") grownUpSessions.end()
+            }
+
+            vm.signIn("admin", "pw").join()
+
+            assertEquals(SetupScreen.Admin(server), vm.screenAs())
+            assertFalse(adminSessions.anyOpen)
+            assertEquals(1, logouts().size)
+        }
+
+    @Test
+    fun `back waits for a sign-in on its way`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.start(TvSetupStep.SERVER).join()
+            vm.addServer("jf.local").join()
+            var backed: Boolean? = null
+            var screenAfterBack: SetupScreen? = null
+            http.onRequest = { recorded ->
+                if (recorded.path == "/Users/AuthenticateByName") {
+                    backed = vm.back()
+                    screenAfterBack = vm.screenAs()
+                }
+            }
+
+            vm.signIn("admin", "pw").join()
+
+            assertEquals(true, backed)
+            assertTrue(screenAfterBack is SetupScreen.Admin)
+            assertTrue(vm.screenAs() is SetupScreen.Kids)
+        }
+
+    @Test
+    fun `an administrator session the server ended asks for the sign-in again`() =
+        runTest(dispatcher) {
+            coEvery { kidSignIn.withQuickConnect(any(), kidId) } returns KidSignInResult.AdminExpired
+            val vm = viewModel()
+            vm.toKids()
+            vm.toggle(kidId)
+            vm.confirmKids().join()
+
+            assertEquals(SetupScreen.Admin(server, error = SetupError.ADMIN_EXPIRED), vm.screenAs())
+            assertFalse(adminSessions.anyOpen)
+        }
+
+    @Test
+    fun `signing a kid in again or adding kids ends the gate's grant`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.again(server, manuel).join()
+            vm.signIn("admin", "pw").join()
+            vm.finish().join()
+
+            verify { parentLockService.forgetGrants() }
         }
 }

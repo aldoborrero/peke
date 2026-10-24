@@ -872,11 +872,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val ProtectProfilePreference =
-            AppClickablePreference<AppPreferences>(
-                title = R.string.profile_protection,
-            )
-
         val ImageDiskCacheSize =
             AppSliderPreference<AppPreferences>(
                 title = R.string.image_cache_size,
@@ -1026,7 +1021,6 @@ val basicPreferences =
             title = R.string.profile_specific_settings,
             preferences =
                 listOf(
-                    AppPreference.ProtectProfilePreference,
                     AppPreference.UserInterfaceLanguage,
                     AppPreference.UserProfileSettings,
                     AppPreference.KidsMode,

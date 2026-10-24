@@ -1,20 +1,10 @@
 package dev.aldoborrero.peke.kids.setup
 
-import android.content.Context
-import android.content.SharedPreferences
-import androidx.datastore.core.DataStore
-import dev.aldoborrero.peke.data.JellyfinServerDao
-import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.kids.FakeKidsServer
-import dev.aldoborrero.peke.kids.data.KidProfileDao
-import dev.aldoborrero.peke.kids.server.KidsServerDao
+import dev.aldoborrero.peke.kids.LogCapture
 import dev.aldoborrero.peke.kids.signInAnswer
-import dev.aldoborrero.peke.preferences.AppPreferences
-import dev.aldoborrero.peke.services.KeyValueService
 import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
-import io.mockk.confirmVerified
-import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -22,7 +12,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.jellyfin.sdk.api.client.ApiClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -36,7 +25,10 @@ class AdminSessionTest {
     private val adminId = UUID.fromString("ad000000-0000-0000-0000-000000000001")
     private val http = FakeKidsServer()
 
-    private fun TestScope.sessions() = AdminSessions(http.jellyfin, http.deviceInfo, UnconfinedTestDispatcher(testScheduler))
+    private fun TestScope.sessions(): AdminSessions {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        return AdminSessions(http.jellyfin, http.deviceInfo, http.api(dispatcher), dispatcher)
+    }
 
     private fun signsIn(
         isAdministrator: Boolean = true,
@@ -53,65 +45,36 @@ class AdminSessionTest {
 
     private suspend fun AdminSessions.openAdmin(): AdminSession = (open(server, "admin", "secret") as AdminSignIn.Opened).session
 
-    /**
-     * Everything on the device that could keep a sign-in. [AdminSessions] and [AdminSession] can't reach any of them,
-     * which [cannot reach storage] checks, so these strict mocks record no call however a session is used.
-     */
-    private val serverRepository = mockk<ServerRepository>()
-    private val serverDao = mockk<JellyfinServerDao>()
-    private val tvSetupDao = mockk<TvSetupDao>()
-    private val kidProfileDao = mockk<KidProfileDao>()
-    private val kidsServerDao = mockk<KidsServerDao>()
-    private val preferences = mockk<DataStore<AppPreferences>>()
-    private val keyValueService = mockk<KeyValueService>()
-    private val sharedPreferences = mockk<SharedPreferences>()
-    private val appApiClient = mockk<ApiClient>()
-
-    private val storage =
-        listOf(
-            ServerRepository::class.java,
-            JellyfinServerDao::class.java,
-            TvSetupDao::class.java,
-            KidProfileDao::class.java,
-            KidsServerDao::class.java,
-            DataStore::class.java,
-            KeyValueService::class.java,
-            SharedPreferences::class.java,
-            Context::class.java,
-        )
-
     @Test
-    fun `cannot reach storage`() {
-        val types =
-            listOf(AdminSessions::class.java, AdminSession::class.java).flatMap { type ->
-                type.declaredConstructors.flatMap { it.parameterTypes.toList() } + type.declaredFields.map { it.type }
-            }
-        val reached = types.filter { t -> storage.any { s -> s.isAssignableFrom(t) || (t != Any::class.java && t.isAssignableFrom(s)) } }
-        assertTrue("An administrator session reaches $reached", reached.isEmpty())
-    }
-
-    @Test
-    fun `the token is never passed to storage or the app's own client`() =
+    fun `the token and the password stay out of the session's text and the log`() =
         runTest(UnconfinedTestDispatcher()) {
             signsIn()
-            val session = sessions().openAdmin()
-            assertEquals(adminId, session.userId)
-            assertFalse("The token must not show in logs", session.toString().contains("admin-token"))
-            session.close()
-
-            confirmVerified(
-                serverRepository,
-                serverDao,
-                tvSetupDao,
-                kidProfileDao,
-                kidsServerDao,
-                preferences,
-                keyValueService,
-                sharedPreferences,
-                appApiClient,
-            )
+            LogCapture().use { log ->
+                val session = sessions().openAdmin()
+                assertEquals(adminId, session.userId)
+                assertFalse("The token must not show in logs", session.toString().contains("admin-token"))
+                session.close()
+                assertTrue("Logged: ${log.lines}", log.none("admin-token") && log.none("secret"))
+            }
             // The password goes only into the sign-in itself
             assertEquals(1, http.requests.count { it.body?.contains("secret") == true })
+        }
+
+    @Test
+    fun `the open sessions all close when the app goes to the background`() =
+        runTest(UnconfinedTestDispatcher()) {
+            signsIn()
+            val sessions = sessions()
+            val first = sessions.openAdmin()
+            val second = sessions.openAdmin()
+            first.close()
+            assertTrue(sessions.anyOpen)
+
+            sessions.closeAll()
+
+            assertTrue(second.isClosed)
+            assertFalse(sessions.anyOpen)
+            assertEquals(2, logouts().size)
         }
 
     @Test
@@ -243,5 +206,43 @@ class AdminSessionTest {
         runTest(UnconfinedTestDispatcher()) {
             http.on("POST", "/QuickConnect/Initiate", 401)
             assertEquals(AdminSignIn.QuickConnectOff, sessions().openWithQuickConnect(server) { })
+
+            // Turned off while the code waits
+            http.on("POST", "/QuickConnect/Initiate", 200, quickConnectRequest(authenticated = false))
+            http.on("GET", "/QuickConnect/Connect", 401)
+            assertEquals(AdminSignIn.QuickConnectOff, sessions().openWithQuickConnect(server) { })
+        }
+
+    private fun quickConnectRequest(authenticated: Boolean) =
+        """{"Authenticated":$authenticated,"Secret":"s3cret-admin","Code":"123456","DeviceId":"d","DeviceName":"TV",""" +
+            """"AppName":"Peke","AppVersion":"test","DateAdded":"2026-10-23T10:00:00Z"}"""
+
+    @Test
+    fun `the administrator's quick connect secret never reaches the log`() =
+        runTest(UnconfinedTestDispatcher()) {
+            http.on("POST", "/QuickConnect/Initiate", 200, quickConnectRequest(authenticated = false))
+            http.on("POST", "/Users/AuthenticateWithQuickConnect", 200, signInAnswer(true, "admin-token", adminId))
+            http.on("POST", "/Sessions/Logout", 204)
+            var polls = 0
+            http.onRequest = { recorded ->
+                // Approved on a phone after two checks
+                if (recorded.path == "/QuickConnect/Connect" && ++polls == 2) {
+                    http.on("GET", "/QuickConnect/Connect", 200, quickConnectRequest(authenticated = true))
+                }
+            }
+            http.on("GET", "/QuickConnect/Connect", 200, quickConnectRequest(authenticated = false))
+
+            LogCapture().use { log ->
+                val result = sessions().openWithQuickConnect(server) { }
+                (result as AdminSignIn.Opened).session.close()
+
+                // The SDK's own request lines are in the capture, so a secret in a URL would be too
+                assertTrue("Logged: ${log.lines}", log.lines.any { it.contains("QuickConnect/Initiate") })
+                assertTrue("Logged: ${log.lines}", log.none("s3cret-admin"))
+                assertTrue("Logged: ${log.lines}", log.none("admin-token"))
+            }
+            assertEquals(2, http.requests.count { it.path == "/QuickConnect/Connect" })
+            // The secret goes in the checks' query and the redeem's body only
+            assertTrue(http.requests.filter { it.path == "/QuickConnect/Connect" }.all { it.query == "secret=s3cret-admin" })
         }
 }

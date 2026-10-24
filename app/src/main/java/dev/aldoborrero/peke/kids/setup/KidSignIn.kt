@@ -42,9 +42,15 @@ sealed interface KidSignInResult {
     data object QuickConnectOff : KidSignInResult
 
     /**
-     * The kid's account may only be used on some devices, and this TV isn't one of them
+     * The kid's account may only be used on the devices picked in the dashboard. This TV can't be picked there: the
+     * kid's device id for it never signed in, so it isn't listed. Allowing all devices for the kid is what works.
      */
     data object DeviceNotAllowed : KidSignInResult
+
+    /**
+     * The administrator's session no longer works, for example after the server restarted: sign in again
+     */
+    data object AdminExpired : KidSignInResult
 
     /**
      * The kid is signed in on as many devices as the server allows
@@ -81,8 +87,8 @@ sealed interface KidSignInResult {
  * With Quick Connect, the TV starts a request as the kid's device, the in-memory [AdminSession] approves it for the kid,
  * and the TV redeems the secret for the kid's token: nobody types the kid's password. Without it, the kid's password
  * is typed once and only sent with the sign-in. Either way the token is checked with `Users/Me` before it is saved, and
- * it is saved only through [ServerRepository.changeUser]. The secret and the password live only in these calls' locals
- * and are never logged.
+ * it is saved only through [ServerRepository.saveUser], which doesn't make the kid current: the pages on screen stay
+ * whoever's they were. The secret and the password live only in these calls' locals and are never logged.
  */
 class KidSignIn
     @Inject
@@ -117,7 +123,16 @@ class KidSignIn
 
                                     400 -> return@withContext KidSignInResult.UnknownUser
 
-                                    401 -> return@withContext KidSignInResult.QuickConnectOff
+                                    // Quick Connect was on a moment ago: it was turned off since, or else the
+                                    // administrator's session no longer works
+                                    401 -> return@withContext if (quickConnectEnabled(
+                                            kidApi,
+                                        )
+                                    ) {
+                                        KidSignInResult.AdminExpired
+                                    } else {
+                                        KidSignInResult.QuickConnectOff
+                                    }
 
                                     403 -> return@withContext refusedOnDevice(admin, kidId)
 
@@ -169,6 +184,20 @@ class KidSignIn
         ): ApiClient = jellyfin.createApi(baseUrl = server.url, deviceInfo = deviceInfo.forKid(kidId))
 
         /**
+         * Whether Quick Connect is on, asked again; an answer that can't be read counts as on, so a 401 then says to sign
+         * in again rather than to turn on what may be on
+         */
+        private suspend fun quickConnectEnabled(api: ApiClient): Boolean =
+            try {
+                api.quickConnectApi.getQuickConnectEnabled().content
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w("Could not check Quick Connect again: %s", ex.javaClass.simpleName)
+                true
+            }
+
+        /**
          * Check the new token with `Users/Me`, then save the kid and cache their profile, so this TV lists them
          */
         private suspend fun save(
@@ -188,17 +217,22 @@ class KidSignIn
                 return KidSignInResult.AccountRefused
             }
             val existing = serverDao.getServer(server.id)?.users?.firstOrNull { it.id == kidId }
-            val current = serverRepository.changeUser(server.url, result, existing)
-            if (!kidProfileRepository.refresh(current.server, current.user)) {
+            // Saved, not made current: the kid whose pages are on screen, if any, stays theirs
+            val saved = serverRepository.saveUser(server.url, result, existing)
+            if (!kidProfileRepository.refresh(saved.server, saved.user)) {
                 Timber.w("Signed kid %s in, but couldn't read their profile", kidId)
                 return KidSignInResult.Unreachable
             }
-            return KidSignInResult.SignedIn(current.user)
+            // Unmarked in the dashboard meanwhile: the refresh signed them out again
+            if (!kidProfileRepository.isKid(saved.user)) return KidSignInResult.UnknownUser
+            return KidSignInResult.SignedIn(saved.user)
         }
 
         /**
          * Authorize answered 403: the kid may not use this device, or has too many sessions. Jellyfin doesn't say
-         * which outside development builds, so the kid's policy, read as the administrator, tells.
+         * which outside development builds, so the kid's policy, read as the administrator, tells: a kid limited to some
+         * devices that don't include this TV's id for them can't use it, and otherwise a session limit is what's left.
+         * A policy that can't be read, or one with neither, is a plain failure.
          */
         private suspend fun refusedOnDevice(
             admin: AdminSession,
@@ -215,10 +249,12 @@ class KidSignIn
                     Timber.w("Could not read the kid's policy: %s", ex.javaClass.simpleName)
                     null
                 }
+            val device = deviceInfo.forKid(kidId).id
             return when {
-                policy == null || !policy.enableAllDevices -> KidSignInResult.DeviceNotAllowed
+                policy == null -> KidSignInResult.Failed(403)
+                !policy.enableAllDevices && device !in policy.enabledDevices.orEmpty() -> KidSignInResult.DeviceNotAllowed
                 policy.maxActiveSessions >= 1 -> KidSignInResult.TooManySessions
-                else -> KidSignInResult.DeviceNotAllowed
+                else -> KidSignInResult.Failed(403)
             }
         }
 

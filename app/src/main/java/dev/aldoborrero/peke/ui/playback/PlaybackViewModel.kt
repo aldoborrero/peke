@@ -67,6 +67,7 @@ import dev.aldoborrero.peke.services.RefreshRateService
 import dev.aldoborrero.peke.services.ScreensaverService
 import dev.aldoborrero.peke.services.StreamChoiceService
 import dev.aldoborrero.peke.services.UserPreferencesService
+import dev.aldoborrero.peke.services.hilt.forKid
 import dev.aldoborrero.peke.ui.formatBitrate
 import dev.aldoborrero.peke.ui.gt
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
@@ -1258,8 +1259,11 @@ class PlaybackViewModel
                                 delay(2.seconds)
                                 transcodeInfo =
                                     api.sessionApi
-                                        .getSessions(deviceId = deviceInfo.id)
-                                        .content
+                                        // The id this kid's session runs under, not the install's (research R2)
+                                        .getSessions(
+                                            deviceId =
+                                                serverRepository.currentUser?.let { deviceInfo.forKid(it.id).id } ?: api.deviceInfo.id,
+                                        ).content
                                         .firstOrNull()
                                         ?.transcodingInfo
                                 if (transcodeInfo == null) delay(3.seconds)

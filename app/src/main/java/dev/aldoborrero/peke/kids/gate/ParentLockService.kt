@@ -14,6 +14,8 @@ import dev.aldoborrero.peke.kids.server.KidsServerDao
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.server.SetLockRequest
 import dev.aldoborrero.peke.kids.setup.AdminSession
+import dev.aldoborrero.peke.kids.setup.AdminSessions
+import dev.aldoborrero.peke.kids.setup.AdminSignIn
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.use
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
@@ -145,6 +147,7 @@ class ParentLockService
         private val tvSetupRepository: TvSetupRepository,
         private val kidsApi: KidsApi,
         private val pluginService: KidsPluginService,
+        private val adminSessions: AdminSessions,
         private val clock: MonotonicClock,
         @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher,
     ) {
@@ -185,7 +188,8 @@ class ParentLockService
 
         /**
          * The current kid's server, or else this TV's (the one its setup names, then the most recently used kid's),
-         * with its users that have a token the server hasn't refused
+         * with this TV's kids that have a token the server hasn't refused, the current kid first. Only kids: a row
+         * without a kid profile, such as an administrator's left by an older version, is never used.
          */
         private suspend fun gateTarget(): GateTarget? {
             val current = serverRepository.current.value
@@ -197,10 +201,19 @@ class ParentLockService
                     ?: return null
             val stored = withContext(PekeDispatchers.IO) { serverDao.getServer(server.id) }?.users.orEmpty()
             val users =
-                (listOfNotNull(current?.user?.takeIf { current.server.id == server.id }) + stored.sortedByDescending { it.rowId in kidIds })
+                (listOfNotNull(current?.user?.takeIf { current.server.id == server.id }) + stored)
                     .distinctBy { it.rowId }
-                    .filter { it.tokenWorks() }
+                    .filter { it.rowId in kidIds && it.tokenWorks() }
             return GateTarget(server, users)
+        }
+
+        /**
+         * Ask the server whether it has the plugin, if it didn't answer in this run of the app: the cached status alone
+         * may be missing, as with no kid current or after the kids data was lost, and the gate would never ask the
+         * plugin then
+         */
+        private suspend fun checkPlugin(server: JellyfinServer) {
+            if (!pluginService.answered(server.id)) pluginService.check(server)
         }
 
         /**
@@ -218,6 +231,7 @@ class ParentLockService
         suspend fun lockState(): LockState {
             val target = gateTarget() ?: return LockState.Unknown
             val server = target.server
+            checkPlugin(server)
             if (pluginService.state(server.id).status == KidsServerStatus.AVAILABLE) {
                 for (user in target.users) {
                     when (val result = kidsApi.lock(server.url, KidsCaller(user.accessToken!!, user.id))) {
@@ -275,25 +289,27 @@ class ParentLockService
             password: String,
         ): AdminCheck {
             val server = gateServer() ?: return AdminCheck.UNREACHABLE
-            return when (val result = kidsApi.isAdministrator(server.url, username, password)) {
-                is KidsResult.Ok -> {
-                    if (result.value) {
-                        passedUntil = clock.elapsedMillis() + grantMillis(null)
-                        AdminCheck.ADMIN
-                    } else {
-                        AdminCheck.NOT_ADMIN
-                    }
+            return when (val result = adminSessions.open(server, username, password)) {
+                is AdminSignIn.Opened -> {
+                    // Only the check was needed: the session ends right away
+                    result.session.close()
+                    passedUntil = clock.elapsedMillis() + grantMillis(null)
+                    AdminCheck.ADMIN
                 }
 
-                KidsResult.Forbidden -> {
+                AdminSignIn.NotAdmin -> {
+                    AdminCheck.NOT_ADMIN
+                }
+
+                AdminSignIn.Wrong -> {
                     AdminCheck.WRONG
                 }
 
-                KidsResult.Unreachable -> {
+                AdminSignIn.Unreachable -> {
                     AdminCheck.UNREACHABLE
                 }
 
-                else -> {
+                AdminSignIn.QuickConnectOff, is AdminSignIn.Failed -> {
                     Timber.w("Administrator sign-in failed: %s", result)
                     AdminCheck.FAILED
                 }
@@ -307,6 +323,7 @@ class ParentLockService
         suspend fun verify(code: String): VerifyOutcome {
             val target = gateTarget() ?: return VerifyOutcome.CannotCheck
             val server = target.server
+            checkPlugin(server)
             if (pluginService.state(server.id).status == KidsServerStatus.AVAILABLE) {
                 // The server asked to wait: don't send codes it would refuse unchecked (FR-014)
                 serverWaitSeconds(server.id)?.let { return VerifyOutcome.Throttled(it) }
@@ -536,7 +553,8 @@ class ParentLockService
         /**
          * Recover a forgotten code (spec FR-017): set a new one with [admin], a server administrator's in-memory
          * session, without the current code, which the plugin allows administrators. [admin] is closed afterwards,
-         * however this ends.
+         * however this ends. The administrator, who just proved who they are, then passes the gate ([hasLiveGrant]),
+         * so the parent menu opens with Kids on this TV and Reset this TV.
          */
         suspend fun recover(
             admin: AdminSession,
@@ -550,9 +568,19 @@ class ParentLockService
                     is KidsResult.Ok -> {
                         // The change ended every grant, and the cached verifier would still open the gate with the old code
                         grants.keys.removeIf { it.first == server.id }
-                        passedUntil = null
-                        pluginService.cacheLock(server.id, result.value.lockType ?: type.name, null, result.value.changedAt)
+                        // The plugin gives an administrator the verifier without a grant: with it the gate checks the new
+                        // code even when no kid's token works
+                        val verifier = (kidsApi.verifier(server.url, session.caller, null) as? KidsResult.Ok)?.value
+                        pluginService.cacheLock(
+                            server.id,
+                            verifier?.lockType ?: result.value.lockType ?: type.name,
+                            verifier?.verifier,
+                            result.value.changedAt,
+                        )
                         resetOfflineThrottle(server.id)
+                        // The administrator just proved who they are: the gate counts as passed, so the parent menu,
+                        // with Kids on this TV and Reset this TV, opens
+                        passedUntil = clock.elapsedMillis() + grantMillis(null)
                         LockChange.Done
                     }
 

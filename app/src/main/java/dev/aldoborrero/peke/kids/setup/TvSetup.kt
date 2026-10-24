@@ -16,14 +16,16 @@ import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.gate.mostRecentKidServer
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
 import dev.aldoborrero.peke.util.PekeDispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -98,6 +100,13 @@ interface TvSetupDao {
     @Query("SELECT * FROM tv_setup WHERE id = ${TvSetupEntity.ID}")
     fun observe(): Flow<TvSetupEntity?>
 
+    /**
+     * Emits on every write to the table, without reading the row: a row that can't be read must not end the
+     * observation ([TvSetupRepository.state] reads it with [get] each time)
+     */
+    @Query("SELECT COUNT(*) FROM tv_setup")
+    fun observeChanges(): Flow<Int>
+
     @Query("SELECT * FROM tv_setup WHERE id = ${TvSetupEntity.ID}")
     suspend fun get(): TvSetupEntity?
 
@@ -166,26 +175,53 @@ class TvSetupRepository
         private val kidProfileDao: KidProfileDao,
         @param:DefaultCoroutineScope private val scope: CoroutineScope,
     ) {
+        /**
+         * Each source keeps being observed after an error: the row is read anew on every write, so a corrupt one,
+         * [Row.Unreadable] meanwhile, is seen again once setup or a reset writes it; the servers and the kids are asked
+         * again after a pause, unknown (servers) or none (kids) meanwhile, which fails closed (FR-018).
+         */
         val state: StateFlow<TvState> =
             combine(
                 tvSetupDao
-                    .observe()
-                    .map<TvSetupEntity?, Row> { Row.Read(it) }
-                    .catch { ex ->
-                        Timber.e(ex, "Could not read this TV's setup")
+                    .observeChanges()
+                    .map { readRow() }
+                    .retryWhen { ex, attempt ->
+                        Timber.e(ex, "Could not watch this TV's setup")
                         emit(Row.Unreadable)
+                        delay(retryDelay(attempt))
+                        true
                     },
                 serverDao
                     .observeServers()
                     .map<List<JellyfinServerUsers>, List<JellyfinServerUsers>?> { it }
-                    .catch { ex ->
+                    .retryWhen { ex, attempt ->
                         Timber.e(ex, "Could not read the servers")
                         emit(null)
+                        delay(retryDelay(attempt))
+                        true
                     },
-                kidProfileDao.observeUserIds().map { it.toSet() },
+                kidProfileDao
+                    .observeUserIds()
+                    .map { it.toSet() }
+                    .retryWhen { ex, attempt ->
+                        Timber.e(ex, "Could not read the kids on this TV")
+                        emit(emptySet())
+                        delay(retryDelay(attempt))
+                        true
+                    },
             ) { row, servers, kidIds -> tvState(row, servers, kidIds) }
                 .distinctUntilChanged()
                 .stateIn(scope, SharingStarted.Eagerly, TvState.Loading)
+
+        private suspend fun readRow(): Row =
+            try {
+                Row.Read(tvSetupDao.get())
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.e(ex, "Could not read this TV's setup")
+                Row.Unreadable
+            }
 
         /**
          * Store that setup for [server] has reached [step]
@@ -244,6 +280,17 @@ class TvSetupRepository
          */
         suspend fun erase() {
             tvSetupDao.delete()
+        }
+
+        companion object {
+            private const val FIRST_RETRY_MILLIS = 1_000L
+            private const val MAX_RETRY_MILLIS = 60_000L
+
+            /**
+             * A pause that doubles from a second up to a minute, so a database that keeps failing isn't asked in a loop
+             */
+            internal fun retryDelay(attempt: Long): Long =
+                (FIRST_RETRY_MILLIS shl attempt.coerceAtMost(6).toInt()).coerceAtMost(MAX_RETRY_MILLIS)
         }
 
         /**

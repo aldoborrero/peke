@@ -34,7 +34,7 @@ import java.util.UUID
 /**
  * A [KidProfileDao] in memory. A profile's server is its [KidProfile.serverId], or else [serverOf] of its user row.
  */
-class FakeKidProfileDao(
+open class FakeKidProfileDao(
     private val serverOf: (Int) -> UUID? = { null },
 ) : KidProfileDao {
     val profiles = MutableStateFlow<Map<Int, KidProfile>>(emptyMap())
@@ -201,7 +201,19 @@ class FakeKidsServer {
                 .build()
         }
 
-    private val client by lazy { OkHttpClient.Builder().addInterceptor(interceptor).build() }
+    /**
+     * Interceptors the app's own client has, such as [dev.aldoborrero.peke.kids.setup.RefusedTokenInterceptor]; add them
+     * before the first call. They run before the fake, which answers in place of the network.
+     */
+    val interceptors = mutableListOf<Interceptor>()
+
+    val client by lazy {
+        OkHttpClient
+            .Builder()
+            .apply { interceptors.forEach { addInterceptor(it) } }
+            .addInterceptor(interceptor)
+            .build()
+    }
     val clientInfo = ClientInfo("Peke", "test")
     val deviceInfo = DeviceInfo(DEVICE_ID, "TV")
 
@@ -219,12 +231,62 @@ class FakeKidsServer {
         }
     }
 
-    fun api(dispatcher: CoroutineDispatcher): KidsApi = KidsApi(client, jellyfin, clientInfo, deviceInfo, dispatcher)
+    fun api(dispatcher: CoroutineDispatcher): KidsApi = KidsApi(client, clientInfo, deviceInfo, dispatcher)
 
     private fun Request.bodyText(): String? = body?.let { b -> Buffer().also { b.writeTo(it) }.readUtf8() }
 
     companion object {
         const val DEVICE_ID = "device-1"
+    }
+}
+
+/**
+ * Everything logged while it is open: the app's Timber lines, the Jellyfin SDK's (its slf4j logging goes to Timber)
+ * and OkHttp's (java.util.logging), as logcat, the crash reports and "Send app logs" would get them
+ */
+class LogCapture : AutoCloseable {
+    val lines = java.util.concurrent.CopyOnWriteArrayList<String>()
+
+    private val tree =
+        object : timber.log.Timber.Tree() {
+            override fun log(
+                priority: Int,
+                tag: String?,
+                message: String,
+                t: Throwable?,
+            ) {
+                // MockK logs the mocked calls with their arguments through the same tree; only the app's own lines count
+                if (!message.startsWith("Answering ")) lines += "$tag: $message"
+            }
+        }
+
+    private val okHttpLogger =
+        java.util.logging.Logger
+            .getLogger("okhttp3")
+    private val handler =
+        object : java.util.logging.Handler() {
+            override fun publish(record: java.util.logging.LogRecord) {
+                lines += "${record.loggerName}: ${record.message} ${record.thrown ?: ""}"
+            }
+
+            override fun flush() = Unit
+
+            override fun close() = Unit
+        }
+    private val previousLevel = okHttpLogger.level
+
+    init {
+        timber.log.Timber.plant(tree)
+        okHttpLogger.level = java.util.logging.Level.ALL
+        okHttpLogger.addHandler(handler)
+    }
+
+    fun none(text: String): Boolean = lines.none { it.contains(text) }
+
+    override fun close() {
+        timber.log.Timber.uproot(tree)
+        okHttpLogger.removeHandler(handler)
+        okHttpLogger.level = previousLevel
     }
 }
 
@@ -243,17 +305,29 @@ class FakeTvSetupDao(
             it
         }
 
+    /**
+     * Each write emits, as Room's invalidation does, also one that writes the same row, and so does setting [row]
+     */
+    private val writes = MutableStateFlow(0)
+
+    override fun observeChanges(): Flow<Int> = kotlinx.coroutines.flow.combine(row, writes) { _, count -> count }
+
     override suspend fun get(): TvSetupEntity? {
         if (unreadable) throw IllegalArgumentException("unreadable row")
         return row.value
     }
 
     override suspend fun upsert(setup: TvSetupEntity) {
+        // A write replaces a corrupt row
+        unreadable = false
         row.value = setup
+        writes.value++
     }
 
     override suspend fun delete() {
+        unreadable = false
         row.value = null
+        writes.value++
     }
 }
 

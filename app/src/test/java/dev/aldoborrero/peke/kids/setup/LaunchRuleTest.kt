@@ -22,18 +22,18 @@ class LaunchRuleTest {
 
     @Test
     fun `not set up starts setup at the server step`() {
-        assertEquals(LaunchDestination.Setup(TvSetupStep.SERVER, signInAdminFirst = false), LaunchRule.destination(TvState.NotSetUp))
+        assertEquals(LaunchDestination.Setup(TvSetupStep.SERVER), LaunchRule.destination(TvState.NotSetUp))
     }
 
     @Test
-    fun `in setup resumes at its step, signing the administrator in again past the admin step`() {
+    fun `in setup resumes at its step`() {
         assertEquals(
-            LaunchDestination.Setup(TvSetupStep.ADMIN, signInAdminFirst = false),
+            LaunchDestination.Setup(TvSetupStep.ADMIN),
             LaunchRule.destination(TvState.InSetup(TvSetupStep.ADMIN)),
         )
-        // The administrator session is never stored, so a later step needs a fresh sign-in first
+        // The administrator session is never stored: past the admin step, setup asks for a fresh sign-in itself
         assertEquals(
-            LaunchDestination.Setup(TvSetupStep.KIDS, signInAdminFirst = true),
+            LaunchDestination.Setup(TvSetupStep.KIDS),
             LaunchRule.destination(TvState.InSetup(TvSetupStep.KIDS)),
         )
     }

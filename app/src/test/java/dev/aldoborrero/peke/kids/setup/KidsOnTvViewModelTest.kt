@@ -8,6 +8,8 @@ import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.FakeKidsServer
 import dev.aldoborrero.peke.kids.KIDS_FEATURES_JSON
+import dev.aldoborrero.peke.kids.gate.GrownUpSessions
+import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.signInAnswer
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
@@ -137,6 +139,25 @@ class KidsOnTvViewModelTest {
             verify { setupNavigationManager.navigateTo(SetupDestination.AddKids(server)) }
         }
 
+    private fun setupFlow(kidSignIn: KidSignIn): SetupFlowViewModel {
+        val adminSessions = AdminSessions(http.jellyfin, http.deviceInfo, http.api(dispatcher), dispatcher)
+        val parentLockService = mockk<ParentLockService>(relaxed = true)
+        return SetupFlowViewModel(
+            tvSetupRepository,
+            serverRepository,
+            mockk(),
+            mockk<KidsPluginService>(relaxed = true),
+            http.api(dispatcher),
+            adminSessions,
+            kidSignIn,
+            launcher,
+            http.jellyfin,
+            parentLockService,
+            GrownUpSessions(parentLockService, adminSessions, CoroutineScope(dispatcher)),
+            CoroutineScope(dispatcher),
+        )
+    }
+
     @Test
     fun `adding signs the administrator in, lists only kids not on this TV and closes the session`() =
         runTest(dispatcher) {
@@ -150,22 +171,9 @@ class KidsOnTvViewModelTest {
                 200,
                 """[{"Id":"${manuel.id}","Name":"Manuel"},{"Id":"${lucia.id}","Name":"Lucía"},{"Id":"$adminId","Name":"Admin"}]""",
             )
-            val serverDao = mockk<JellyfinServerDao> { every { getServer(server.id) } returns JellyfinServerUsers(server, listOf(manuel)) }
+            tvState.value = TvState.SetUp(server, listOf(manuel))
             val kidSignIn = mockk<KidSignIn> { coEvery { withQuickConnect(any(), lucia.id) } returns KidSignInResult.SignedIn(lucia) }
-            val setup =
-                SetupFlowViewModel(
-                    tvSetupRepository,
-                    serverRepository,
-                    serverDao,
-                    mockk(),
-                    mockk<KidsPluginService>(relaxed = true),
-                    http.api(dispatcher),
-                    AdminSessions(http.jellyfin, http.deviceInfo, dispatcher),
-                    kidSignIn,
-                    launcher,
-                    http.jellyfin,
-                    CoroutineScope(dispatcher),
-                )
+            val setup = setupFlow(kidSignIn)
 
             setup.addKids(server).join()
             assertEquals(SetupScreen.Admin(server), setup.screen.value)
@@ -194,21 +202,8 @@ class KidsOnTvViewModelTest {
             http.on("POST", "/Users/AuthenticateByName", 200, signInAnswer(true, "admin-token", adminId))
             http.on("GET", "/Kids/Profiles", 200, "[]")
             http.on("GET", "/Users", 200, "[]")
-            val serverDao = mockk<JellyfinServerDao> { every { getServer(server.id) } returns JellyfinServerUsers(server, listOf(manuel)) }
-            val setup =
-                SetupFlowViewModel(
-                    tvSetupRepository,
-                    serverRepository,
-                    serverDao,
-                    mockk(),
-                    mockk<KidsPluginService>(relaxed = true),
-                    http.api(dispatcher),
-                    AdminSessions(http.jellyfin, http.deviceInfo, dispatcher),
-                    mockk(),
-                    launcher,
-                    http.jellyfin,
-                    CoroutineScope(dispatcher),
-                )
+            tvState.value = TvState.SetUp(server, listOf(manuel))
+            val setup = setupFlow(mockk())
             setup.addKids(server).join()
             setup.signIn("admin", "pw").join()
             assertTrue((setup.screen.value as SetupScreen.Kids).adding)
@@ -233,7 +228,17 @@ class KidsOnTvViewModelTest {
         runTest(dispatcher) {
             val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, manuel))
             every { serverRepository.current } returns current
-            val tvLauncher = TvLauncher(tvSetupRepository, serverRepository, setupNavigationManager, mockk(relaxed = true), backgroundScope)
+            val serverDao = mockk<JellyfinServerDao> { every { getServer(server.id) } returns JellyfinServerUsers(server, listOf(manuel)) }
+            val tvLauncher =
+                TvLauncher(
+                    tvSetupRepository,
+                    serverRepository,
+                    serverDao,
+                    mockk(relaxed = true),
+                    setupNavigationManager,
+                    mockk(relaxed = true),
+                    backgroundScope,
+                )
 
             tvLauncher.resume()
             verify(exactly = 1) { setupNavigationManager.navigateTo(SetupDestination.AppContent(CurrentUser(server, manuel))) }

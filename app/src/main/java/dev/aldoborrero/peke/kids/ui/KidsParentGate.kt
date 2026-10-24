@@ -4,9 +4,11 @@ import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -42,6 +44,11 @@ fun KidsParentGate(
 ) {
     viewModel.withKid = withKid
     DisposableEffect(Unit) { onDispose { viewModel.reset() } }
+    // The app went to the background since the gate opened: it closes, so the kid who comes back finds neither the
+    // menu nor a code being set
+    val epoch by viewModel.epoch.collectAsState()
+    val openedAt = remember { epoch }
+    LaunchedEffect(epoch) { if (epoch != openedAt) onDismissRequest() }
     val context = LocalContext.current
     val stage by viewModel.stage.collectAsState()
     val limits by viewModel.timeLimits.state.collectAsState()

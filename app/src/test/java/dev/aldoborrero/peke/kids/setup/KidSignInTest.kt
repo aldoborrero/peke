@@ -41,9 +41,13 @@ class KidSignInTest {
     private val savedKid = JellyfinUser(rowId = 7, id = kidId, name = "Manuel", serverId = server.id, accessToken = "kid-token")
     private val serverRepository =
         mockk<ServerRepository> {
-            coEvery { changeUser(any<String>(), any<AuthenticationResult>(), any()) } returns CurrentUser(server, savedKid)
+            coEvery { saveUser(any<String>(), any<AuthenticationResult>(), any()) } returns CurrentUser(server, savedKid)
         }
-    private val kidProfileRepository = mockk<KidProfileRepository> { coEvery { refresh(any(), any()) } returns true }
+    private val kidProfileRepository =
+        mockk<KidProfileRepository> {
+            coEvery { refresh(any(), any()) } returns true
+            coEvery { isKid(any()) } returns true
+        }
 
     /**
      * Everything the app logs while a test runs, to check that no secret, token or password reaches the log
@@ -80,7 +84,8 @@ class KidSignInTest {
 
     private suspend fun TestScope.admin(): AdminSession {
         http.on("POST", "/Users/AuthenticateByName", 200, signInAnswer(true, "admin-token", adminId))
-        val opened = AdminSessions(http.jellyfin, http.deviceInfo, UnconfinedTestDispatcher(testScheduler)).open(server, "admin", "pw")
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val opened = AdminSessions(http.jellyfin, http.deviceInfo, http.api(dispatcher), dispatcher).open(server, "admin", "pw")
         http.requests.clear()
         return (opened as AdminSignIn.Opened).session
     }
@@ -139,7 +144,10 @@ class KidSignInTest {
             val me = request("/Users/Me")
             assertEquals("kid-token", tokenOf(me))
             assertEquals(kidDevice, deviceIdOf(me))
-            coVerify(exactly = 1) { serverRepository.changeUser(server.url, match { it.accessToken == "kid-token" }, null) }
+            coVerify(exactly = 1) { serverRepository.saveUser(server.url, match { it.accessToken == "kid-token" }, null) }
+            // Saved, not made current: the pages on screen stay whoever's they were
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any<AuthenticationResult>(), any()) }
+            coVerify(exactly = 0) { serverRepository.changeUser(any<JellyfinServer>(), any<JellyfinUser>()) }
             coVerify { kidProfileRepository.refresh(server, savedKid) }
             // The administrator session stays open for the next kid
             assertFalse(admin.isClosed)
@@ -155,7 +163,7 @@ class KidSignInTest {
 
             signIn().withQuickConnect(admin(), kidId)
 
-            coVerify { serverRepository.changeUser(server.url, any(), existing) }
+            coVerify { serverRepository.saveUser(server.url, any(), existing) }
         }
 
     @Test
@@ -163,12 +171,12 @@ class KidSignInTest {
         runTest(UnconfinedTestDispatcher()) {
             quickConnectOn()
             http.on("POST", "/QuickConnect/Authorize", 403)
-            http.on("GET", "/Users/$kidId", 200, userJson(kidId, name = "Manuel", enableAllDevices = false))
+            http.on("GET", "/Users/$kidId", 200, userJson(kidId, name = "Manuel", enableAllDevices = false, maxActiveSessions = 2))
 
             assertEquals(KidSignInResult.DeviceNotAllowed, signIn().withQuickConnect(admin(), kidId))
             assertEquals("admin-token", tokenOf(request("/Users/$kidId")))
             assertTrue(requests("/Users/AuthenticateWithQuickConnect").isEmpty())
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any<AuthenticationResult>(), any()) }
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
         }
 
     @Test
@@ -179,7 +187,7 @@ class KidSignInTest {
             http.on("GET", "/Users/$kidId", 200, userJson(kidId, enableAllDevices = true, maxActiveSessions = 2))
 
             assertEquals(KidSignInResult.TooManySessions, signIn().withQuickConnect(admin(), kidId))
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any<AuthenticationResult>(), any()) }
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
         }
 
     @Test
@@ -220,7 +228,7 @@ class KidSignInTest {
             http.on("POST", "/QuickConnect/Authorize", 400)
 
             assertEquals(KidSignInResult.UnknownUser, signIn().withQuickConnect(admin(), kidId))
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any<AuthenticationResult>(), any()) }
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
         }
 
     @Test
@@ -230,7 +238,7 @@ class KidSignInTest {
             http.on("GET", "/Users/Me", 403)
 
             assertEquals(KidSignInResult.AccountRefused, signIn().withQuickConnect(admin(), kidId))
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any<AuthenticationResult>(), any()) }
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
             val logout = requests("/Sessions/Logout").single()
             assertEquals("kid-token", tokenOf(logout))
             assertEquals(kidDevice, deviceIdOf(logout))
@@ -261,7 +269,7 @@ class KidSignInTest {
             assertEquals(kidDevice, deviceIdOf(signIn))
             assertEquals(1, http.requests.count { it.body?.contains("kid-password") == true })
             assertEquals(kidDevice, deviceIdOf(request("/Users/Me")))
-            coVerify(exactly = 1) { serverRepository.changeUser(server.url, match { it.accessToken == "kid-token" }, null) }
+            coVerify(exactly = 1) { serverRepository.saveUser(server.url, match { it.accessToken == "kid-token" }, null) }
         }
 
     @Test
@@ -270,7 +278,7 @@ class KidSignInTest {
             http.on("POST", "/Users/AuthenticateByName", 401)
 
             assertEquals(KidSignInResult.WrongPassword, signIn().withPassword(server, kidId, "Manuel", "nope"))
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any<AuthenticationResult>(), any()) }
+            coVerify(exactly = 0) { serverRepository.saveUser(any<String>(), any<AuthenticationResult>(), any()) }
         }
 
     @Test
@@ -281,6 +289,63 @@ class KidSignInTest {
             http.offline = true
 
             assertEquals(KidSignInResult.Unreachable, signIn().withQuickConnect(admin, kidId))
+        }
+
+    @Test
+    fun `a kid limited to devices that include this TV is told about their sessions`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            http.on("POST", "/QuickConnect/Authorize", 403)
+            http.on(
+                "GET",
+                "/Users/$kidId",
+                200,
+                userJson(
+                    kidId,
+                    enableAllDevices = false,
+                    maxActiveSessions = 1,
+                ).replace("\"Policy\":{", "\"Policy\":{\"EnabledDevices\":[\"$kidDevice\"],"),
+            )
+
+            assertEquals(KidSignInResult.TooManySessions, signIn().withQuickConnect(admin(), kidId))
+        }
+
+    @Test
+    fun `a refusal the kid's policy doesn't explain is a plain failure`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            http.on("POST", "/QuickConnect/Authorize", 403)
+            http.on("GET", "/Users/$kidId", 200, userJson(kidId, enableAllDevices = true, maxActiveSessions = 0))
+            assertEquals(KidSignInResult.Failed(403), signIn().withQuickConnect(admin(), kidId))
+
+            http.on("GET", "/Users/$kidId", 500)
+            assertEquals(KidSignInResult.Failed(403), signIn().withQuickConnect(admin(), kidId))
+        }
+
+    @Test
+    fun `a 401 with quick connect on means the administrator signs in again`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            // The administrator's session ended on the server, for example after a restart
+            http.on("POST", "/QuickConnect/Authorize", 401)
+
+            assertEquals(KidSignInResult.AdminExpired, signIn().withQuickConnect(admin(), kidId))
+
+            // Turned off since the first check: that is what to fix
+            http.onRequest = { recorded ->
+                if (recorded.path == "/QuickConnect/Authorize") http.on("GET", "/QuickConnect/Enabled", 200, "false")
+            }
+            assertEquals(KidSignInResult.QuickConnectOff, signIn().withQuickConnect(admin(), kidId))
+            coVerify(exactly = 0) { serverRepository.saveUser(any(), any(), any()) }
+        }
+
+    @Test
+    fun `a kid unmarked while signing in isn't reported as signed in`() =
+        runTest(UnconfinedTestDispatcher()) {
+            quickConnectOn()
+            coEvery { kidProfileRepository.isKid(any()) } returns false
+
+            assertEquals(KidSignInResult.UnknownUser, signIn().withQuickConnect(admin(), kidId))
         }
 
     @Test
@@ -297,7 +362,7 @@ class KidSignInTest {
             )
             // Only the redeem request carries it, and nothing that is saved does
             assertEquals(1, http.requests.count { it.body?.contains("s3cret-kid") == true })
-            coVerify { serverRepository.changeUser(any<String>(), match { !it.toString().contains("s3cret-kid") }, any()) }
+            coVerify { serverRepository.saveUser(any<String>(), match { !it.toString().contains("s3cret-kid") }, any()) }
             assertFalse(result.toString().contains("s3cret-kid"))
         }
 }

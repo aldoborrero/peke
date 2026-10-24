@@ -5,6 +5,7 @@ import dev.aldoborrero.peke.kids.server.KidsJson
 import dev.aldoborrero.peke.kids.server.KidsStatus
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KidsCountdown
+import dev.aldoborrero.peke.kids.timer.KidsFetchClock
 import dev.aldoborrero.peke.kids.timer.KidsInterruptedPlayback
 import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsWarnings
@@ -15,8 +16,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.Instant
 import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -304,13 +307,15 @@ class KidsTimeLimitsTest {
         assertTrue(KidsAllowanceService.isNewer(null, fresh, ticket = 1, lastApplied = 5))
     }
 
-    private val now = Instant.parse("2026-10-23T18:00:00Z")
+    // Statuses the server sent at 18:00
+    private val serverTime = "2026-10-23T18:00:00Z"
 
     @Test
     fun `time's up stops the kid until the next day starts`() {
-        val timeUp = status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "2026-10-24T05:00:00.0000000Z")
-        assertTrue(isStopped(timeUp, now))
-        assertFalse(isStopped(timeUp, Instant.parse("2026-10-24T05:00:01Z")))
+        val timeUp = status(remaining = 0, timeUp = true).copy(serverTime = serverTime, nextDayStartsAt = "2026-10-24T05:00:00.0000000Z")
+        assertTrue(isStopped(timeUp, Duration.ZERO))
+        assertTrue(isStopped(timeUp, 11.hours - 1.seconds))
+        assertFalse(isStopped(timeUp, 11.hours))
     }
 
     @Test
@@ -318,9 +323,9 @@ class KidsTimeLimitsTest {
         val onBreak =
             status(remaining = 600)
                 .sitting(remaining = 0, breakRemaining = 300)
-                .copy(deniedReason = "sessionLimit", enforced = true, serverTime = "2026-10-23T17:58:00Z")
-        assertTrue(isStopped(onBreak, now))
-        assertFalse(isStopped(onBreak, Instant.parse("2026-10-23T18:03:01Z")))
+                .copy(deniedReason = "sessionLimit", enforced = true, serverTime = serverTime)
+        assertTrue(isStopped(onBreak, 299.seconds))
+        assertFalse(isStopped(onBreak, 300.seconds))
     }
 
     @Test
@@ -328,24 +333,64 @@ class KidsTimeLimitsTest {
         val bedtime =
             status(
                 remaining = 600,
-            ).copy(deniedReason = "outsideSchedule", enforced = true, deniedUntil = "2026-10-24T07:00:00+02:00")
-        assertTrue(isStopped(bedtime, now))
-        assertFalse(isStopped(bedtime, Instant.parse("2026-10-24T05:00:01Z")))
+            ).copy(deniedReason = "outsideSchedule", enforced = true, serverTime = serverTime, deniedUntil = "2026-10-24T07:00:00+02:00")
+        assertTrue(isStopped(bedtime, 10.hours))
+        assertFalse(isStopped(bedtime, 11.hours + 1.seconds))
     }
 
     @Test
     fun `a denial past its end no longer stops the kid`() {
-        val yesterday = status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "2026-10-23T05:00:00Z")
-        assertFalse(isStopped(yesterday, now))
-        assertFalse(isStopped(status(remaining = 600), now))
-        assertFalse(isStopped(null, now))
+        val yesterday = status(remaining = 0, timeUp = true).copy(serverTime = serverTime, nextDayStartsAt = "2026-10-23T05:00:00Z")
+        assertFalse(isStopped(yesterday, Duration.ZERO))
+        assertFalse(isStopped(status(remaining = 600), Duration.ZERO))
+        assertFalse(isStopped(null, Duration.ZERO))
     }
 
     @Test
     fun `a denial whose end can't be told stops the kid`() {
-        assertTrue(isStopped(KidsStatus(enforced = true, deniedReason = "somethingNew"), now))
-        assertTrue(isStopped(status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "not a date"), now))
-        assertTrue(isStopped(status(remaining = 0, timeUp = true), now))
-        assertTrue(isStopped(status(remaining = 600).copy(deniedReason = "outsideSchedule"), now))
+        assertTrue(isStopped(KidsStatus(enforced = true, deniedReason = "somethingNew"), 1.days))
+        assertTrue(isStopped(status(remaining = 0, timeUp = true).copy(serverTime = serverTime, nextDayStartsAt = "not a date"), 1.days))
+        assertTrue(isStopped(status(remaining = 0, timeUp = true).copy(serverTime = serverTime), 1.days))
+        assertTrue(isStopped(status(remaining = 600).copy(serverTime = serverTime, deniedReason = "outsideSchedule"), 1.days))
+        // Without the server's time the stop left can't be counted
+        assertTrue(isStopped(status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "2026-10-24T05:00:00Z"), 1.days))
+    }
+
+    @Test
+    fun `moving the wall clock forward doesn't end a cached stop`() {
+        val timeUp = status(remaining = 0, timeUp = true).copy(serverTime = serverTime, nextDayStartsAt = "2026-10-24T05:00:00Z")
+        // Fetched at 1_000_000 on the monotonic clock; the wall clock moved a day forward since, the monotonic one a minute
+        val fetched = KidsFetchClock(elapsedMillis = 1_000_000, bootCount = 7)
+        assertTrue(isStopped(timeUp, KidsAllowanceService.sinceFetch(fetched, elapsedNow = 1_060_000, bootNow = 7)))
+        // The monotonic clock past the stop left
+        val later = 1_000_000 + 11.hours.inWholeMilliseconds
+        assertFalse(isStopped(timeUp, KidsAllowanceService.sinceFetch(fetched, elapsedNow = later, bootNow = 7)))
+    }
+
+    @Test
+    fun `the time since a fetch can't be told after a reboot or from an old cache`() {
+        val fetched = KidsFetchClock(elapsedMillis = 1_000_000, bootCount = 7)
+        assertEquals(1.minutes, KidsAllowanceService.sinceFetch(fetched, elapsedNow = 1_060_000, bootNow = 7))
+        // Rebooted: a new boot count, even with the monotonic clock past the fetch again
+        assertNull(KidsAllowanceService.sinceFetch(fetched, elapsedNow = 50_000_000, bootNow = 8))
+        // Without boot counts, the monotonic clock going back tells a reboot
+        val noBoot = KidsFetchClock(elapsedMillis = 1_000_000)
+        assertEquals(1.minutes, KidsAllowanceService.sinceFetch(noBoot, elapsedNow = 1_060_000, bootNow = null))
+        assertNull(KidsAllowanceService.sinceFetch(noBoot, elapsedNow = 10_000, bootNow = null))
+        // A status cached before the fetch time was kept
+        assertNull(KidsAllowanceService.sinceFetch(null, elapsedNow = 1_060_000, bootNow = 7))
+
+        val timeUp = status(remaining = 0, timeUp = true).copy(serverTime = serverTime, nextDayStartsAt = "2026-10-24T05:00:00Z")
+        assertTrue(isStopped(timeUp, KidsAllowanceService.sinceFetch(fetched, elapsedNow = 50_000_000, bootNow = 8)))
+        assertTrue(isStopped(timeUp, KidsAllowanceService.sinceFetch(null, elapsedNow = 50_000_000, bootNow = 7)))
+    }
+
+    @Test
+    fun `a status cached in the old format still reads`() {
+        // The cache keeps the server's JSON as it was; the fetch time sits under its own key
+        val json = """{"Date":"2026-10-23","TimeUp":true,"RemainingSeconds":0,"NextDayStartsAt":"2026-10-24T05:00:00Z"}"""
+        val cached = KidsJson.decodeFromString<KidsStatus>(json)
+        assertEquals(KidsDenial.TIME_UP, cached.denial)
+        assertTrue(isStopped(cached, null))
     }
 }

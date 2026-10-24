@@ -1,8 +1,11 @@
 package dev.aldoborrero.peke.kids.timer
 
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.data.model.JellyfinServer
+import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.gate.ParentLockService
@@ -30,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.Serializable
 import timber.log.Timber
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -37,6 +41,7 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 enum class BonusResult {
@@ -52,6 +57,26 @@ enum class BonusResult {
 data class KidsSnapshot(
     val status: KidsStatus,
     val receivedAt: Long,
+)
+
+/**
+ * When a cached status was fetched, by [MonotonicClock], so the picker counts a stop down without the wall clock.
+ * Cached next to the status; a status cached before it was has none.
+ */
+@Serializable
+data class KidsFetchClock(
+    val elapsedMillis: Long,
+    val bootCount: Int? = null,
+)
+
+/**
+ * A kid's last known status, whether it came from the server just now, and the time since it was fetched by
+ * [MonotonicClock], null if that can't be told
+ */
+data class KnownKidsStatus(
+    val status: KidsStatus,
+    val fresh: Boolean,
+    val sinceFetch: Duration?,
 )
 
 /**
@@ -223,16 +248,36 @@ class KidsAllowanceService
                 if (ticket > refusalTicket) _refusal.value = null
                 _snapshot.value = KidsSnapshot(new, clock.elapsedMillis())
             }
-            keyValueService.save(key(rowId), new)
+            cache(rowId, new)
+        }
+
+        /**
+         * Cache [status] for the kid of users row [rowId], with when it was fetched, in one write so the two match
+         */
+        private suspend fun cache(
+            rowId: Int,
+            status: KidsStatus,
+        ) {
+            val fetched = KidsFetchClock(clock.elapsedMillis(), clock.bootCount())
+            val json = keyValueService.json
+            keyValueService.dataStore.updateData { preferences ->
+                preferences.toMutablePreferences().apply {
+                    set(stringPreferencesKey(key(rowId)), json.encodeToString(status))
+                    set(stringPreferencesKey(clockKey(rowId)), json.encodeToString(fetched))
+                }
+            }
         }
 
         /**
          * The last status cached for the kid of users row [rowId], current or not, or null if there is none or it
          * can't be read
          */
-        suspend fun cachedStatus(rowId: Int): KidsStatus? =
+        private suspend fun cachedStatus(rowId: Int): KnownKidsStatus? =
             try {
-                keyValueService.get<KidsStatus>(key(rowId)).first()
+                keyValueService.get<KidsStatus>(key(rowId)).first()?.let { status ->
+                    val fetched = keyValueService.get<KidsFetchClock>(clockKey(rowId)).first()
+                    KnownKidsStatus(status, fresh = false, sinceFetch(fetched, clock.elapsedMillis(), clock.bootCount()))
+                }
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
@@ -241,11 +286,41 @@ class KidsAllowanceService
             }
 
         /**
+         * [kid]'s status for the picker's rule on a stopped kid (spec FR-012a, research R6): asked with their own token
+         * when the server answers within [timeoutMillis], and then cached, or else the last one cached. Null when
+         * neither can tell, which the rule counts as stopped.
+         *
+         * @return the status, whether it came from the server just now, and the time since it was fetched
+         */
+        suspend fun lastKnownStatus(
+            server: JellyfinServer,
+            kid: JellyfinUser,
+            timeoutMillis: Long = FRESH_STATUS_TIMEOUT_MILLIS,
+        ): KnownKidsStatus? {
+            val token = kid.accessToken
+            if (token != null && pluginService.state(server.id).status == KidsServerStatus.AVAILABLE) {
+                val result = withTimeoutOrNull(timeoutMillis) { kidsApi.status(server.url, KidsCaller(token, kid.id), kid.id) }
+                if (result is KidsResult.Ok) {
+                    try {
+                        cache(kid.rowId, result.value)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w("Could not cache the kids status: %s", ex.javaClass.simpleName)
+                    }
+                    return KnownKidsStatus(result.value, fresh = true, sinceFetch = Duration.ZERO)
+                }
+                Timber.d("No fresh kids status for %s: %s", kid.rowId, result)
+            }
+            return cachedStatus(kid.rowId)
+        }
+
+        /**
          * Forget the cached status of the kids of users rows [rowIds], removed from this TV
          */
         suspend fun forget(rowIds: Collection<Int>) {
             try {
-                keyValueService.remove(rowIds.map { key(it) })
+                keyValueService.remove(rowIds.flatMap { listOf(key(it), clockKey(it)) })
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
@@ -283,10 +358,31 @@ class KidsAllowanceService
 
         companion object {
             val POLL_INTERVAL = 60.seconds
+
+            /**
+             * How long the picker waits for the last kid's status from the server before it decides from the cache
+             */
+            const val FRESH_STATUS_TIMEOUT_MILLIS = 3_000L
             val SHORT_POLL_INTERVAL = 10.seconds
             private val SHORT_POLL_BELOW = 120.seconds
 
             private fun key(rowId: Int) = "kids_status_$rowId"
+
+            private fun clockKey(rowId: Int) = "kids_status_${rowId}_clock"
+
+            /**
+             * The time since a status was fetched at [fetched], by [MonotonicClock] now at [elapsedNow] in boot
+             * [bootNow], or null if it can't be told: no fetch time, as cached before it was kept, or a reboot since,
+             * which restarts the clock
+             */
+            fun sinceFetch(
+                fetched: KidsFetchClock?,
+                elapsedNow: Long,
+                bootNow: Int?,
+            ): Duration? {
+                if (fetched == null || fetched.bootCount != bootNow || elapsedNow < fetched.elapsedMillis) return null
+                return (elapsedNow - fetched.elapsedMillis).milliseconds
+            }
 
             /**
              * Poll more often when a warning or the end is close, or while denied, so the screens come and go on

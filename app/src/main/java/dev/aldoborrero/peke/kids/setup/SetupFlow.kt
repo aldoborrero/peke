@@ -57,10 +57,10 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.gate.PasscodeHasher
@@ -79,17 +79,16 @@ import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
 import dev.aldoborrero.peke.ui.preferences.SetPinFlow
 import dev.aldoborrero.peke.ui.tryRequestFocus
-import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.discovery.RecommendedServerInfoScore
@@ -159,6 +158,11 @@ enum class SetupError {
     QUICK_CONNECT_OFF,
     UNREACHABLE,
     CODE_INVALID,
+
+    /**
+     * The administrator's session ended on the server, for example after a restart: sign in again
+     */
+    ADMIN_EXPIRED,
     FAILED,
 }
 
@@ -256,7 +260,6 @@ class SetupFlowViewModel
     constructor(
         private val tvSetupRepository: TvSetupRepository,
         private val serverRepository: ServerRepository,
-        private val serverDao: JellyfinServerDao,
         private val serverLookup: SetupServerLookup,
         private val pluginService: KidsPluginService,
         private val kidsApi: KidsApi,
@@ -264,10 +267,17 @@ class SetupFlowViewModel
         private val kidSignIn: KidSignIn,
         private val launcher: TvLauncher,
         private val jellyfin: Jellyfin,
+        private val parentLockService: ParentLockService,
+        private val grownUpSessions: GrownUpSessions,
         @param:DefaultCoroutineScope private val appScope: CoroutineScope,
     ) : ViewModel() {
         private val _screen = MutableStateFlow<SetupScreen>(SetupScreen.Starting)
         val screen: StateFlow<SetupScreen> = _screen
+
+        /**
+         * Moves on when the app went to the background, which ended the administrator session and any sign-in
+         */
+        val epoch: StateFlow<Int> = grownUpSessions.epoch
 
         private var admin: AdminSession? = null
         private var closing: Job? = null
@@ -277,6 +287,25 @@ class SetupFlowViewModel
         private var started = false
         private var discovery: Job? = null
         private var quickConnect: Job? = null
+
+        init {
+            // The app went to the background: the administrator session was ended, so the steps that need it start over
+            // from a fresh sign-in, and a sign-in on its way is dropped when it answers
+            viewModelScope.launch { grownUpSessions.epoch.drop(1).collect { backgrounded() } }
+        }
+
+        private fun backgrounded() {
+            quickConnect?.cancel()
+            quickConnect = null
+            admin = null
+            _screen.update { s ->
+                when (s) {
+                    is SetupScreen.Admin -> SetupScreen.Admin(s.server)
+                    is SetupScreen.Code, is SetupScreen.Kids, is SetupScreen.SignIn -> SetupScreen.Admin(serverOf(s))
+                    SetupScreen.Starting, is SetupScreen.Server -> s
+                }
+            }
+        }
 
         /**
          * Start setup at [step]. Past the server step the administrator signs in first, since that session isn't stored.
@@ -397,7 +426,8 @@ class SetupFlowViewModel
                 val current = _screen.value as? SetupScreen.Admin ?: return@launch
                 if (current.checking) return@launch
                 _screen.value = current.copy(checking = true, error = null, quickConnectCode = null)
-                opened(current.server, adminSessions.open(current.server, username, password))
+                val epoch = grownUpSessions.epoch.value
+                opened(current.server, adminSessions.open(current.server, username, password), epoch)
             }
 
         /**
@@ -409,13 +439,14 @@ class SetupFlowViewModel
                 .launch {
                     val current = _screen.value as? SetupScreen.Admin ?: return@launch
                     _screen.value = current.copy(checking = true, error = null, quickConnectCode = null)
+                    val epoch = grownUpSessions.epoch.value
                     val result =
                         adminSessions.openWithQuickConnect(current.server) { code ->
                             _screen.update { s -> if (s is SetupScreen.Admin) s.copy(quickConnectCode = code) else s }
                         }
                     // Signed in: leaving the administrator step must no longer cancel the steps that follow
                     quickConnect = null
-                    opened(current.server, result)
+                    opened(current.server, result, epoch)
                 }.also { quickConnect = it }
         }
 
@@ -425,11 +456,21 @@ class SetupFlowViewModel
             _screen.update { s -> if (s is SetupScreen.Admin) s.copy(checking = false, quickConnectCode = null) else s }
         }
 
+        /**
+         * @param epoch [GrownUpSessions.epoch] when the sign-in started
+         */
         private suspend fun opened(
             server: JellyfinServer,
             result: AdminSignIn,
+            epoch: Int,
         ) {
             val session = (result as? AdminSignIn.Opened)?.session
+            // The grown-up left the step, or the app went to the background, while it was signing in: the session isn't
+            // used, so it ends right away
+            if (grownUpSessions.epoch.value != epoch || _screen.value !is SetupScreen.Admin) {
+                session?.close()
+                return
+            }
             if (session == null) {
                 _screen.value = SetupScreen.Admin(server, error = adminError(result))
                 return
@@ -518,9 +559,12 @@ class SetupFlowViewModel
             _screen.value = SetupScreen.Kids(server, previous, selected, loading = true, adding = adding)
             when (val result = kidsApi.householdKids(server.url, session.caller)) {
                 is KidsResult.Ok -> {
+                    // This TV's kids, signed in with a token: a kid unmarked and marked again in the dashboard, or one
+                    // whose session stopped working, can be signed in again
                     val onTv =
-                        withContext(PekeDispatchers.IO) { serverDao.getServer(server.id) }
-                            ?.users
+                        (tvSetupRepository.state.value as? TvState.SetUp)
+                            ?.takeIf { it.server.id == server.id }
+                            ?.kids
                             .orEmpty()
                             .filter { it.accessToken != null }
                             .map { it.id }
@@ -572,7 +616,16 @@ class SetupFlowViewModel
         private suspend fun signInKid(kidId: UUID) {
             val session = admin ?: return
             setRow(kidId, KidRowState.Working)
-            setRow(kidId, rowState(kidSignIn.withQuickConnect(session, kidId)))
+            val result = kidSignIn.withQuickConnect(session, kidId)
+            if (result == KidSignInResult.AdminExpired) {
+                // The administrator's session no longer works: nothing else can be signed in with it
+                setRow(kidId, KidRowState.Waiting)
+                val server = serverOf(_screen.value)
+                closeAdmin()
+                _screen.value = SetupScreen.Admin(server, error = SetupError.ADMIN_EXPIRED)
+                return
+            }
+            setRow(kidId, rowState(result))
         }
 
         /**
@@ -634,6 +687,9 @@ class SetupFlowViewModel
                 }
 
                 is SetupScreen.Admin -> {
+                    // A sign-in on its way is waited for: its answer would come to a step that is gone. Quick Connect
+                    // waits for another device, so Back stops it.
+                    if (s.checking && quickConnect == null) return true
                     cancelQuickConnect()
                     if (againKid != null || adding) {
                         appScope.launch { leave() }
@@ -670,6 +726,8 @@ class SetupFlowViewModel
          * screen the launch rule picks
          */
         private suspend fun leave() {
+            // The grant of the gate passed to get here ends with the steps
+            parentLockService.forgetGrants()
             if (adding && addingFromKid) launcher.resume() else launcher.launch()
         }
 
@@ -811,6 +869,7 @@ private fun setupErrorMessage(error: SetupError): Int =
         SetupError.QUICK_CONNECT_OFF -> R.string.peke_setup_quick_connect_off
         SetupError.UNREACHABLE -> R.string.kids_cant_reach_server
         SetupError.CODE_INVALID -> R.string.peke_setup_code_invalid
+        SetupError.ADMIN_EXPIRED -> R.string.peke_setup_admin_expired
         SetupError.FAILED -> R.string.kids_admin_failed
     }
 
@@ -919,10 +978,10 @@ private fun ColumnScope.AdminStep(
     StepError(screen.error)
     if (useQuickConnect) {
         val focusRequester = remember { FocusRequester() }
-        LaunchedEffect(Unit) {
-            viewModel.signInWithQuickConnect()
-            focusRequester.tryRequestFocus()
-        }
+        LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+        // A new code, and again when the app comes back from the background, which ended the last one
+        val epoch by viewModel.epoch.collectAsState()
+        LaunchedEffect(epoch) { viewModel.signInWithQuickConnect() }
         DisposableEffect(Unit) { onDispose { viewModel.cancelQuickConnect() } }
         val code = screen.quickConnectCode
         if (code == null) {
@@ -1205,6 +1264,7 @@ private fun kidProblem(
         KidSignInResult.UnknownUser -> stringResource(R.string.peke_setup_kid_unknown, name)
         KidSignInResult.WrongPassword -> stringResource(R.string.peke_setup_kid_wrong_password, name)
         KidSignInResult.Unreachable -> stringResource(R.string.kids_cant_reach_server)
+        KidSignInResult.AdminExpired -> stringResource(R.string.peke_setup_admin_expired)
         is KidSignInResult.Failed, is KidSignInResult.SignedIn -> stringResource(R.string.peke_setup_kid_failed, name)
     }
 

@@ -1,7 +1,9 @@
 package dev.aldoborrero.peke.kids.setup
 
 import dev.aldoborrero.peke.data.model.JellyfinServer
+import dev.aldoborrero.peke.kids.server.KidsApi
 import dev.aldoborrero.peke.kids.server.KidsCaller
+import dev.aldoborrero.peke.kids.server.KidsResult
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,8 +26,10 @@ import org.jellyfin.sdk.model.api.QuickConnectDto
 import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * The outcome of an administrator sign-in
@@ -73,6 +77,7 @@ class AdminSession internal constructor(
      */
     val api: ApiClient,
     private val dispatcher: CoroutineDispatcher,
+    private val onClosed: (AdminSession) -> Unit = {},
 ) {
     val deviceId: String = api.deviceInfo.id
 
@@ -90,6 +95,7 @@ class AdminSession internal constructor(
      */
     suspend fun close() {
         if (!closed.compareAndSet(false, true)) return
+        onClosed(this)
         withContext(NonCancellable + dispatcher) {
             endSession(api)
             api.update(accessToken = null)
@@ -111,14 +117,33 @@ suspend fun <T> AdminSession.use(block: suspend (AdminSession) -> T): T =
 
 /**
  * Signs a server administrator in for an [AdminSession]. The password goes only into the sign-in request.
+ *
+ * It knows every session it opened that isn't closed yet, so [closeAll] can end them when the app goes to the
+ * background: a grown-up who leaves the TV mid-action doesn't leave an administrator session for a kid to find.
  */
+@Singleton
 class AdminSessions
     @Inject
     constructor(
         private val jellyfin: Jellyfin,
         private val deviceInfo: DeviceInfo,
+        private val kidsApi: KidsApi,
         @param:IoDispatcher private val dispatcher: CoroutineDispatcher,
     ) {
+        private val open = ConcurrentHashMap.newKeySet<AdminSession>()
+
+        /**
+         * Whether a session is open, for tests and checks
+         */
+        val anyOpen: Boolean get() = open.isNotEmpty()
+
+        /**
+         * Close every open session, best effort, as [AdminSession.close] does
+         */
+        suspend fun closeAll() {
+            open.toList().forEach { it.close() }
+        }
+
         suspend fun open(
             server: JellyfinServer,
             username: String,
@@ -147,13 +172,22 @@ class AdminSessions
             val api = newApi(server)
             val result =
                 try {
-                    var status = api.quickConnectApi.initiateQuickConnect().content
-                    onCode(status.code)
-                    while (!status.authenticated) {
+                    val request = api.quickConnectApi.initiateQuickConnect().content
+                    onCode(request.code)
+                    // Polled through KidsApi, which never logs the secret in the URL as the SDK does
+                    var approved = false
+                    while (!approved) {
                         delay(QUICK_CONNECT_POLL_MILLIS)
-                        status = api.quickConnectApi.getQuickConnectState(secret = status.secret).content
+                        approved =
+                            when (val state = kidsApi.quickConnectApproved(server.url, request.secret)) {
+                                is KidsResult.Ok -> state.value
+                                KidsResult.Forbidden -> return AdminSignIn.QuickConnectOff
+                                KidsResult.Unreachable -> return AdminSignIn.Unreachable
+                                is KidsResult.Failed -> return AdminSignIn.Failed(state.status)
+                                else -> return AdminSignIn.Failed(0)
+                            }
                     }
-                    api.userApi.authenticateWithQuickConnect(QuickConnectDto(secret = status.secret)).content
+                    api.userApi.authenticateWithQuickConnect(QuickConnectDto(secret = request.secret)).content
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
@@ -173,7 +207,8 @@ class AdminSessions
             val token = result.accessToken ?: return AdminSignIn.Failed(0)
             val user = result.user ?: return AdminSignIn.Failed(0)
             api.update(accessToken = token)
-            val session = AdminSession(server, user.id, user.name, api, dispatcher)
+            val session = AdminSession(server, user.id, user.name, api, dispatcher) { open -= it }
+            open += session
             if (user.policy?.isAdministrator != true) {
                 session.close()
                 return AdminSignIn.NotAdmin

@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.RestoredSession
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.data.UserConfigCache
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
@@ -123,6 +124,9 @@ class ServerRepositoryTest {
         PekeDispatchers.reset()
     }
 
+    private val userConfigCache = mockk<UserConfigCache>(relaxed = true).also { coEvery { it.get(any()) } returns null }
+    private val appVisibility = AppVisibility()
+
     private fun create() =
         ServerRepository(
             mockContext,
@@ -133,6 +137,8 @@ class ServerRepositoryTest {
             testDispatcher,
             tvSetupRepository,
             mockk(relaxed = true),
+            userConfigCache,
+            appVisibility,
         )
 
     private val serverId = UUID.randomUUID()
@@ -616,5 +622,97 @@ class ServerRepositoryTest {
                     deviceInfo = installDevice,
                 )
             }
+        }
+
+    private fun authenticationResult(token: String) =
+        AuthenticationResult(user = userDto, accessToken = token, serverId = serverId.toServerString())
+
+    @Test
+    fun `saving a signed-in kid doesn't make them current`() =
+        runTest(testDispatcher) {
+            val other = JellyfinUser(rowId = 2, id = UUID.randomUUID(), name = "other", serverId = serverId, accessToken = "other")
+            every { mockJellyfinServerDao.addOrUpdateUser(any()) } answers { firstArg<JellyfinUser>().copy(rowId = 1) }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository, currentUser = other)
+
+            val saved = serverRepository.saveUser(server.url, authenticationResult("new-token"), null)
+
+            assertEquals("new-token", saved.user.accessToken)
+            assertEquals(server, saved.server)
+            // The kid on screen stays current, with their own token on the app's client
+            assertEquals(other, serverRepository.currentUser)
+            verify(exactly = 0) { mockApiClient.update(any(), any(), any(), any()) }
+            coVerify { userConfigCache.save(userDto) }
+            // The stored server keeps its name and version
+            verify(exactly = 0) { mockJellyfinServerDao.addOrUpdateServer(any()) }
+        }
+
+    @Test
+    fun `saving the current kid signed in again moves their session to the new token`() =
+        runTest(testDispatcher) {
+            every { mockJellyfinServerDao.addOrUpdateUser(any()) } answers { firstArg() }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository, currentUser = user)
+
+            serverRepository.saveUser(server.url, authenticationResult("new-token"), user)
+
+            assertEquals("new-token", serverRepository.currentUser?.accessToken)
+            // An old PIN is dropped with the new sign-in
+            assertEquals(null, serverRepository.currentUser?.pin)
+            verify { mockApiClient.update(baseUrl = server.url, accessToken = "new-token", clientInfo = any(), deviceInfo = any()) }
+        }
+
+    @Test
+    fun `a kid opened from the stored row starts with their cached configuration`() =
+        runTest(testDispatcher) {
+            coEvery { userConfigCache.get(userId) } returns userDto
+            val serverRepository = create()
+
+            serverRepository.restoreUser(server, user)
+
+            assertEquals(serverUserConfig, serverRepository.currentUserDto)
+            // Nothing asked the server
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
+        }
+
+    @Test
+    fun `a refreshed configuration is cached for the next start`() =
+        runTest(testDispatcher) {
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            serverRepository.updateUserDto()
+
+            assertEquals(serverUserConfig, serverRepository.currentUserDto)
+            coVerify { userConfigCache.save(userDto) }
+        }
+
+    @Test
+    fun `background work doesn't switch user while the app's pages are on screen`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.SetUp(server, listOf(user), lastKidRowId = user.rowId)
+            appVisibility.started = true
+            val serverRepository = create()
+
+            assertEquals(RestoredSession.None, serverRepository.restoreLastSession())
+            Assert.assertNull(serverRepository.currentUser)
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
+        }
+
+    @Test
+    fun `a refused token leaves its row without a token, and nobody current`() =
+        runTest(testDispatcher) {
+            every { mockJellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(user)))
+            every { mockJellyfinServerDao.addOrUpdateUser(any()) } answers { firstArg() }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            assertTrue(serverRepository.forgetToken("token"))
+
+            verify { mockJellyfinServerDao.addOrUpdateUser(user.copy(accessToken = null)) }
+            Assert.assertNull(serverRepository.current.value)
+            Assert.assertNull(serverRepository.currentUserDto)
+            // Some other token: nothing to forget
+            assertEquals(false, serverRepository.forgetToken("someone-else"))
         }
 }

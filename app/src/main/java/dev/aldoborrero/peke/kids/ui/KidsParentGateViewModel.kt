@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.kids.gate.AdminCheck
+import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.gate.LockChange
 import dev.aldoborrero.peke.kids.gate.LockState
 import dev.aldoborrero.peke.kids.gate.ParentLockService
@@ -25,6 +26,7 @@ import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -121,10 +123,17 @@ class KidsParentGateViewModel
         private val navigationManager: NavigationManager,
         private val setupNavigationManager: SetupNavigationManager,
         private val adminSessions: AdminSessions,
+        grownUpSessions: GrownUpSessions,
         @param:DefaultCoroutineScope private val appScope: CoroutineScope,
     ) : ViewModel() {
         private val _stage = MutableStateFlow<GateStage>(GateStage.Passcode())
         val stage: StateFlow<GateStage> = _stage
+
+        /**
+         * Moves on when the app went to the background: the gate then closes ([KidsParentGate]) and starts over, so the
+         * kid who comes back finds neither the menu nor a recovery in progress
+         */
+        val epoch: StateFlow<Int> = grownUpSessions.epoch
 
         /**
          * Whether the gate opened inside a kid's session, so the menu offers that kid's items. From the picker or the
@@ -146,6 +155,7 @@ class KidsParentGateViewModel
 
         init {
             loadLock()
+            viewModelScope.launch { epoch.drop(1).collect { reset() } }
         }
 
         private fun loadLock() {
@@ -327,8 +337,8 @@ class KidsParentGateViewModel
         }
 
         /**
-         * Set the recovered code, entered twice, with the administrator, whose session then ends. The gate then asks
-         * for the new code.
+         * Set the recovered code, entered twice, with the administrator, whose session then ends. The parent menu then
+         * opens; if the code couldn't be set, the gate asks for a code again.
          */
         fun setRecoveredCode(
             code: String,
@@ -342,8 +352,13 @@ class KidsParentGateViewModel
             viewModelScope.launch {
                 val result = parentLockService.recover(session, current.type, code)
                 onResult(result)
-                _stage.value = GateStage.Passcode()
-                loadLock()
+                if (result == LockChange.Done) {
+                    // The administrator passed the gate: the parent menu opens, with Kids on this TV and Reset this TV
+                    _stage.value = GateStage.Menu
+                } else {
+                    _stage.value = GateStage.Passcode()
+                    loadLock()
+                }
             }
         }
 

@@ -165,4 +165,40 @@ class KidsApiTest {
             assertTrue(headers[3], headers[3].contains(siblingDevice))
             assertFalse(headers.any { it.contains("DeviceId=\"${FakeKidsServer.DEVICE_ID}\"") })
         }
+
+    @Test
+    fun `an answer that can't be read isn't quoted in the log`() =
+        runTest {
+            val server = FakeKidsServer()
+            val api = server.api(StandardTestDispatcher(testScheduler))
+            // A verifier the parser chokes on: its error message would quote it
+            server.on("GET", "/Kids/Parent/Verifier", 200, """{"LockType":"NUMERIC","Verifier":"v3rifier-secret",""")
+
+            LogCapture().use { log ->
+                assertEquals(KidsResult.Failed(200), api.verifier("http://jf.local", KidsCaller("tok", userId), "g-1"))
+                assertTrue("Logged: ${log.lines}", log.lines.any { it.contains("Unreadable answer") })
+                assertTrue("Logged: ${log.lines}", log.none("v3rifier-secret"))
+            }
+        }
+
+    @Test
+    fun `a quick connect request is asked about without the sdk`() =
+        runTest {
+            val server = FakeKidsServer()
+            val api = server.api(StandardTestDispatcher(testScheduler))
+            server.on("GET", "/QuickConnect/Connect", 200, """{"Authenticated":false,"Secret":"s3cret","Code":"123456"}""")
+
+            LogCapture().use { log ->
+                assertEquals(KidsResult.Ok(false), api.quickConnectApproved("http://jf.local", "s3cret"))
+                server.on("GET", "/QuickConnect/Connect", 200, """{"Authenticated":true,"Secret":"s3cret","Code":"123456"}""")
+                assertEquals(KidsResult.Ok(true), api.quickConnectApproved("http://jf.local", "s3cret"))
+                server.on("GET", "/QuickConnect/Connect", 401)
+                assertEquals(KidsResult.Forbidden, api.quickConnectApproved("http://jf.local", "s3cret"))
+                assertTrue("Logged: ${log.lines}", log.none("s3cret"))
+            }
+            val request = server.requests.first()
+            assertEquals("secret=s3cret", request.query)
+            // Anonymous: no token goes with it
+            assertNull(request.headers["Authorization"])
+        }
 }

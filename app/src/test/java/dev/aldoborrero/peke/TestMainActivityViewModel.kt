@@ -4,7 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import dev.aldoborrero.peke.data.CurrentUser
+import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.data.model.JellyfinServerUsers
+import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.TvSetupStep
@@ -42,6 +46,7 @@ import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.model.UUID
 import org.junit.After
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -55,14 +60,24 @@ class TestMainActivityViewModel {
     private val serverRepository: ServerRepository = mockk()
     private val setupNavigationManager: SetupNavigationManager = mockk(relaxed = true)
     private val navigationManager: NavigationManager = mockk(relaxed = true)
-    private val deviceProfileService: DeviceProfileService = mockk()
+    private val deviceProfileService: DeviceProfileService = mockk(relaxed = true)
     private val backdropService: BackdropService = mockk(relaxed = true)
     private val appUpgradeHandler: AppUpgradeHandler = mockk()
     private val intentService: IntentService = mockk()
     private val tvState = MutableStateFlow<TvState>(TvState.Loading)
     private val tvSetupRepository: TvSetupRepository = mockk { every { state } returns tvState }
+    private val rows = MutableStateFlow<List<JellyfinUser>>(emptyList())
+    private val serverDao = mockk<JellyfinServerDao> { every { getServer(any()) } answers { JellyfinServerUsers(server, rows.value) } }
     private val tvLauncher =
-        TvLauncher(tvSetupRepository, serverRepository, setupNavigationManager, navigationManager, CoroutineScope(testDispatcher))
+        TvLauncher(
+            tvSetupRepository,
+            serverRepository,
+            serverDao,
+            mockk(relaxed = true),
+            setupNavigationManager,
+            navigationManager,
+            CoroutineScope(testDispatcher),
+        )
 
     val viewModel =
         MainActivityViewModel(
@@ -99,6 +114,11 @@ class TestMainActivityViewModel {
         every { serverRepository.current } returns MutableStateFlow(null)
         coEvery { serverRepository.restoreUser(any(), any()) } answers { CurrentUser(firstArg(), secondArg()) }
         coEvery { serverRepository.updateUserDto() } just Runs
+        coEvery { serverRepository.clearCurrent() } just Runs
+        // A cached configuration: the kid opens without waiting for the server
+        every { serverRepository.currentUserDto } returns ServerUserConfig(id = userId)
+        every { navigationManager.backStack } returns mutableListOf()
+        rows.value = listOf(kid, sibling, grownUp)
         every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.Loading)
     }
 
@@ -199,17 +219,6 @@ class TestMainActivityViewModel {
         }
 
     @Test
-    fun `the only kid without a usable session shows on the picker as needing a grown-up`() =
-        runTest(testDispatcher) {
-            tvState.value = TvState.SetUp(server, listOf(kid.copy(accessToken = null)))
-
-            viewModel.handleAppStart()
-
-            Assert.assertEquals(SetupDestination.KidsPicker, navigatedTo())
-            coVerify(exactly = 0) { serverRepository.restoreUser(any(), any()) }
-        }
-
-    @Test
     fun `several kids go to the picker, also on a warm start`() =
         runTest(testDispatcher) {
             every { serverRepository.current } returns MutableStateFlow(CurrentUser(server, kid))
@@ -295,6 +304,50 @@ class TestMainActivityViewModel {
             Assert.assertEquals(SetupDestination.AppContent(current), navigatedTo())
             verify(exactly = 0) { navigationManager.reloadHome() }
             Assert.assertEquals(listOf(Destination.Favorites), backstack)
+        }
+
+    @Test
+    fun `an intent on a cold start runs once the launch rule opened the only kid`() =
+        runTest(testDispatcher) {
+            val current = MutableStateFlow<CurrentUser?>(null)
+            every { serverRepository.current } returns current
+            coEvery { serverRepository.restoreUser(any(), any()) } answers
+                { CurrentUser(firstArg(), secondArg()).also { current.value = it } }
+            tvState.value = TvState.SetUp(server, listOf(kid))
+            val backstack = mutableListOf<Destination>()
+            every { navigationManager.backStack } returns backstack
+            // The intent needs a kid: with none current yet it is dropped, as IntentService does
+            coEvery { intentService.parseIntent(any()) } answers {
+                if (current.value == null) {
+                    IntentResult.Error("No kid is current")
+                } else {
+                    IntentResult.Target(listOf(Destination.Favorites), addHomeToBackStack = false)
+                }
+            }
+
+            viewModel.appStart(Intent("view"))
+            advanceUntilIdle()
+
+            assertEquals(CurrentUser(server, kid), current.value)
+            Assert.assertEquals(listOf(Destination.Favorites), backstack)
+            // Parsed only after the kid opened
+            coVerify(exactly = 1) { intentService.parseIntent(any()) }
+        }
+
+    @Test
+    fun `an intent on a cold start with several kids is dropped on the picker`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.SetUp(server, listOf(kid, sibling))
+            coEvery { intentService.parseIntent(any()) } returns IntentResult.Target(listOf(Destination.Favorites))
+            val backstack = mutableListOf<Destination>()
+            every { navigationManager.backStack } returns backstack
+
+            viewModel.appStart(Intent("view"))
+            advanceUntilIdle()
+
+            Assert.assertEquals(SetupDestination.KidsPicker, navigatedTo())
+            coVerify(exactly = 0) { intentService.parseIntent(any()) }
+            assertTrue(backstack.isEmpty())
         }
 
     @Test

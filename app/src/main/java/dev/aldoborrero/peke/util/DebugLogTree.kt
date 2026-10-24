@@ -20,7 +20,7 @@ class DebugLogTree private constructor() : Timber.Tree() {
         message: String,
         t: Throwable?,
     ) {
-        Log.println(priority, tag ?: "Peke", message)
+        Log.println(priority, tag ?: "Peke", LogRedaction.redact(message))
     }
 
     var enabled: Boolean

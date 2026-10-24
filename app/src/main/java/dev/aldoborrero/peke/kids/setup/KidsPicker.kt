@@ -41,6 +41,7 @@ import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
+import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.kids.timer.isStopped
 import dev.aldoborrero.peke.kids.ui.KidsParentGate
 import dev.aldoborrero.peke.services.SetupDestination
@@ -56,7 +57,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.extensions.imageApi
-import java.time.Instant
 import javax.inject.Inject
 
 /**
@@ -80,9 +80,30 @@ enum class PickAction {
 }
 
 /**
- * Whether [kid]'s session can't be used without a grown-up: they have no token
+ * Whether [kid]'s session can't be used without a grown-up: they have no token, because the server refused it
+ * ([dev.aldoborrero.peke.data.ServerRepository.forgetToken])
  */
 fun needsGrownUp(kid: JellyfinUser): Boolean = kid.accessToken == null
+
+/**
+ * Whether the last kid on this TV stops a sibling from being picked (spec FR-012a), failing closed: with no last kid,
+ * as on a TV just set up, nobody is stopped; a last kid whose status is unknown or unreadable is. A status the server
+ * sent just now is the server's word; a cached one is counted down by this TV's monotonic clock ([isStopped]), so a
+ * wall clock moved forward doesn't end a stop.
+ *
+ * @param lastKid whether a last kid of this TV is known
+ * @param status that kid's last known status, or null if none could be read
+ */
+fun lastKidStopped(
+    lastKid: Boolean,
+    status: KnownKidsStatus?,
+): Boolean =
+    when {
+        !lastKid -> false
+        status == null -> true
+        status.fresh -> status.status.denial != null
+        else -> isStopped(status.status, status.sinceFetch)
+    }
 
 /**
  * The picker's rule: picking is free, except for a kid who needs a grown-up, and for a kid other than the last one
@@ -127,91 +148,85 @@ data class PickerState(
  * gate when switching kids (spec FR-012, FR-012a), and the kid picked must not open grown-up pages with that grant.
  */
 @HiltViewModel
-class KidsPickerViewModel internal constructor(
-    private val tvSetupRepository: TvSetupRepository,
-    private val allowanceService: KidsAllowanceService,
-    private val launcher: TvLauncher,
-    private val setupNavigationManager: SetupNavigationManager,
-    private val parentLockService: ParentLockService,
-    private val jellyfin: Jellyfin,
-    private val now: () -> Instant,
-) : ViewModel() {
+class KidsPickerViewModel
     @Inject
     constructor(
-        tvSetupRepository: TvSetupRepository,
-        allowanceService: KidsAllowanceService,
-        launcher: TvLauncher,
-        setupNavigationManager: SetupNavigationManager,
-        parentLockService: ParentLockService,
-        jellyfin: Jellyfin,
-    ) : this(tvSetupRepository, allowanceService, launcher, setupNavigationManager, parentLockService, jellyfin, Instant::now)
+        private val tvSetupRepository: TvSetupRepository,
+        private val allowanceService: KidsAllowanceService,
+        private val launcher: TvLauncher,
+        private val setupNavigationManager: SetupNavigationManager,
+        private val parentLockService: ParentLockService,
+        private val jellyfin: Jellyfin,
+    ) : ViewModel() {
+        private val gate = MutableStateFlow<PickerGate?>(null)
 
-    private val gate = MutableStateFlow<PickerGate?>(null)
+        val state: StateFlow<PickerState> =
+            combine(tvSetupRepository.state, gate, ::pickerState)
+                .stateIn(viewModelScope, SharingStarted.Eagerly, pickerState(tvSetupRepository.state.value, null))
 
-    val state: StateFlow<PickerState> =
-        combine(tvSetupRepository.state, gate, ::pickerState)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, pickerState(tvSetupRepository.state.value, null))
-
-    private fun pickerState(
-        tv: TvState,
-        gate: PickerGate?,
-    ): PickerState {
-        val setUp = tv as? TvState.SetUp ?: return PickerState(gate = gate)
-        val api = jellyfin.createApi(baseUrl = setUp.server.url)
-        return PickerState(
-            server = setUp.server,
-            kids = setUp.kids.map { PickerKid(it, api.imageApi.getUserImageUrl(it.id), needsGrownUp(it)) },
-            gate = gate,
-        )
-    }
-
-    fun pick(kid: JellyfinUser): Job =
-        viewModelScope.launch {
-            val tv = tvSetupRepository.state.value as? TvState.SetUp ?: return@launch
-            val last = tv.lastKidRowId
-            val lastStopped = last != null && last != kid.rowId && isStopped(allowanceService.cachedStatus(last), now())
-            when (val action = pickAction(kid, last, lastStopped)) {
-                PickAction.OPEN -> open(tv, kid)
-                else -> gate.value = PickerGate(kid, action)
-            }
+        private fun pickerState(
+            tv: TvState,
+            gate: PickerGate?,
+        ): PickerState {
+            val setUp = tv as? TvState.SetUp ?: return PickerState(gate = gate)
+            val api = jellyfin.createApi(baseUrl = setUp.server.url)
+            return PickerState(
+                server = setUp.server,
+                kids = setUp.kids.map { PickerKid(it, api.imageApi.getUserImageUrl(it.id), needsGrownUp(it)) },
+                gate = gate,
+            )
         }
 
-    /**
-     * The parent gate passed for the waiting pick
-     */
-    fun gatePassed(): Job =
-        viewModelScope.launch {
-            val pending = gate.value ?: return@launch
+        fun pick(kid: JellyfinUser): Job =
+            viewModelScope.launch {
+                val tv = tvSetupRepository.state.value as? TvState.SetUp ?: return@launch
+                val last = tv.lastKidRowId
+                // A last kid no longer on this TV was removed by a grown-up, through the gate: there's nobody to carry on as
+                val lastKid = tv.kids.firstOrNull { it.rowId == last }
+                val lastStopped =
+                    last != kid.rowId &&
+                        lastKidStopped(lastKid != null, lastKid?.let { allowanceService.lastKnownStatus(tv.server, it) })
+                when (val action = pickAction(kid, last, lastStopped)) {
+                    PickAction.OPEN -> open(tv, kid)
+                    else -> gate.value = PickerGate(kid, action)
+                }
+            }
+
+        /**
+         * The parent gate passed for the waiting pick
+         */
+        fun gatePassed(): Job =
+            viewModelScope.launch {
+                val pending = gate.value ?: return@launch
+                gate.value = null
+                val tv = tvSetupRepository.state.value as? TvState.SetUp ?: return@launch
+                when (pending.action) {
+                    PickAction.OPEN, PickAction.GATE_THEN_OPEN -> {
+                        open(tv, pending.kid)
+                    }
+
+                    PickAction.GATE_THEN_SIGN_IN -> {
+                        // The grant lets the sign-in page show; it ends when the sign-in is done or left
+                        setupNavigationManager.navigateTo(SetupDestination.SignInAgain(tv.server, pending.kid))
+                    }
+                }
+            }
+
+        /**
+         * [kid] is chosen: the grant of a gate passed to get here ends first, then their home opens
+         */
+        private suspend fun open(
+            tv: TvState.SetUp,
+            kid: JellyfinUser,
+        ) {
+            parentLockService.forgetGrants()
+            launcher.openKid(tv.server, kid)
+        }
+
+        fun gateDismissed() {
             gate.value = null
-            val tv = tvSetupRepository.state.value as? TvState.SetUp ?: return@launch
-            when (pending.action) {
-                PickAction.OPEN, PickAction.GATE_THEN_OPEN -> {
-                    open(tv, pending.kid)
-                }
-
-                PickAction.GATE_THEN_SIGN_IN -> {
-                    // The administrator signs them in; the grant isn't needed for that
-                    parentLockService.forgetGrants()
-                    setupNavigationManager.navigateTo(SetupDestination.SignInAgain(tv.server, pending.kid))
-                }
-            }
         }
-
-    /**
-     * [kid] is chosen: the grant of a gate passed to get here ends first, then their home opens
-     */
-    private suspend fun open(
-        tv: TvState.SetUp,
-        kid: JellyfinUser,
-    ) {
-        parentLockService.forgetGrants()
-        launcher.openKid(tv.server, kid)
     }
-
-    fun gateDismissed() {
-        gate.value = null
-    }
-}
 
 /**
  * The kids picker (spec FR-009): only this TV's kids, then Grown-ups. Focus starts on the first kid, never on

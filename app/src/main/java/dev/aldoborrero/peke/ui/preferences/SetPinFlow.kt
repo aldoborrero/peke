@@ -24,12 +24,6 @@ enum class PinFlowState {
     CONFIRM_PIN,
 }
 
-enum class ProfileProtection {
-    NONE,
-    PIN,
-    LOGIN,
-}
-
 /**
  * @param isValid whether a new PIN can be used
  * @param symbolFor which keys are part of the PIN, see [PinEntryCreate]

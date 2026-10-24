@@ -62,17 +62,20 @@ data class JellyfinUser(
     @ColumnInfo(index = true)
     val serverId: UUID,
     val accessToken: String?,
+    /**
+     * Wholphin's per-profile PIN, no longer set: Peke has no user list to protect, and the upgrade to spec 004 clears
+     * one left by an older version, which was kept in plaintext
+     */
     val pin: String? = null,
+    /**
+     * Wholphin's "require login", no longer set, see [pin]
+     */
     @ColumnInfo(defaultValue = "false")
     val requireLogin: Boolean = false,
     val lastUsed: ZonedDateTime? = null,
     val uiLanguage: String? = null,
     @Embedded val appPreferences: JellyfinUserPreferences = JellyfinUserPreferences(),
 ) {
-    val hasPin: Boolean get() = pin.isNotNullOrBlank()
-
-    val isProtected: Boolean get() = hasPin || requireLogin
-
     override fun toString(): String =
         "JellyfinUser(rowId=$rowId, id=$id, name=$name, serverId=$serverId, lastUsed=$lastUsed, " +
             "accessToken?=${accessToken.isNotNullOrBlank()}, pin?=${pin.isNotNullOrBlank()}), " +
