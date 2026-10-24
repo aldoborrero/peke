@@ -148,6 +148,7 @@ class FakeKidsServer {
         val path: String,
         val headers: Map<String, String>,
         val body: String?,
+        val query: String? = null,
     )
 
     val requests = mutableListOf<Recorded>()
@@ -178,7 +179,14 @@ class FakeKidsServer {
             val request = chain.request()
             if (offline) throw IOException("offline")
             val path = request.url.encodedPath
-            val recorded = Recorded(request.method, path, request.headers.associate { it.first to it.second }, request.bodyText())
+            val recorded =
+                Recorded(
+                    request.method,
+                    path,
+                    request.headers.associate { it.first to it.second },
+                    request.bodyText(),
+                    request.url.encodedQuery,
+                )
             requests += recorded
             onRequest(recorded)
             val answer = answers["${request.method} $path"] ?: Answer(404)
@@ -257,6 +265,17 @@ fun signInAnswer(
     isAdministrator: Boolean,
     token: String,
     userId: UUID = UUID.randomUUID(),
+): String = """{"User":${userJson(userId, isAdministrator)},"AccessToken":"$token"}"""
+
+/**
+ * A Jellyfin `UserDto` with the fields the SDK requires, as `Users/Me` and `Users/{id}` answer it
+ */
+fun userJson(
+    userId: UUID,
+    isAdministrator: Boolean = false,
+    name: String? = null,
+    enableAllDevices: Boolean = false,
+    maxActiveSessions: Int = 0,
 ): String {
     val flags =
         listOf(
@@ -280,17 +299,17 @@ fun signInAnswer(
             "EnableContentDownloading",
             "EnableSyncTranscoding",
             "EnableMediaConversion",
-            "EnableAllDevices",
             "EnableAllChannels",
             "EnableAllFolders",
             "EnablePublicSharing",
         ).joinToString(",") { "\"$it\":false" }
     val counts =
-        listOf("InvalidLoginAttemptCount", "LoginAttemptsBeforeLockout", "MaxActiveSessions", "RemoteClientBitrateLimit")
+        listOf("InvalidLoginAttemptCount", "LoginAttemptsBeforeLockout", "RemoteClientBitrateLimit")
             .joinToString(",") { "\"$it\":0" }
     val policy =
-        """{"IsAdministrator":$isAdministrator,$flags,$counts,"AuthenticationProviderId":"a","PasswordResetProviderId":"p","SyncPlayAccess":"None"}"""
-    val user =
-        """{"Id":"$userId","HasPassword":true,"HasConfiguredPassword":true,"HasConfiguredEasyPassword":false,"Policy":$policy}"""
-    return """{"User":$user,"AccessToken":"$token"}"""
+        """{"IsAdministrator":$isAdministrator,"EnableAllDevices":$enableAllDevices,"MaxActiveSessions":$maxActiveSessions,""" +
+            """$flags,$counts,"AuthenticationProviderId":"a","PasswordResetProviderId":"p","SyncPlayAccess":"None"}"""
+    val nameField = name?.let { ""","Name":"$it"""" }.orEmpty()
+    return """{"Id":"$userId"$nameField,"HasPassword":true,"HasConfiguredPassword":true,""" +
+        """"HasConfiguredEasyPassword":false,"Policy":$policy}"""
 }

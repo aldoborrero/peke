@@ -14,13 +14,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
  *
  * @param title the nav drawer entry's text
  * @param icon the nav drawer entry's icon
- * @param content shows the check
+ * @param content shows the check; once it passes it goes to `onPassed` when given, or else to the profile's own menu
  */
 @Immutable
 class ProfileGate(
     @param:StringRes val title: Int,
     val icon: ImageVector,
-    val content: @Composable (onDismissRequest: () -> Unit) -> Unit,
+    val content: @Composable (onDismissRequest: () -> Unit, onPassed: (() -> Unit)?) -> Unit,
 )
 
 /**

@@ -16,6 +16,7 @@ import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.server.KidsStatus
 import dev.aldoborrero.peke.services.KeyValueService
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -224,6 +225,20 @@ class KidsAllowanceService
             }
             keyValueService.save(key(rowId), new)
         }
+
+        /**
+         * The last status cached for the kid of users row [rowId], current or not, or null if there is none or it
+         * can't be read
+         */
+        suspend fun cachedStatus(rowId: Int): KidsStatus? =
+            try {
+                keyValueService.get<KidsStatus>(key(rowId)).first()
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Could not read the cached kids status of %s", rowId)
+                null
+            }
 
         /**
          * Add [minutes] to the current kid's allowance for today. Needs the parent grant.

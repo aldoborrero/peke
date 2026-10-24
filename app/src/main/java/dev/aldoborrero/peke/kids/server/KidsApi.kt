@@ -31,6 +31,7 @@ import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.util.AuthorizationHeaderBuilder
 import org.jellyfin.sdk.model.ClientInfo
 import org.jellyfin.sdk.model.DeviceInfo
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
@@ -92,11 +93,13 @@ sealed interface KidsResult<out T> {
 
 /**
  * The token a kids call runs as and the user it belongs to, whose own device id goes with it
- * ([dev.aldoborrero.peke.services.hilt.pekeKidDeviceId])
+ * ([dev.aldoborrero.peke.services.hilt.pekeKidDeviceId]), or [deviceId] when the session has one of its own, as an
+ * administrator's does
  */
 class KidsCaller(
     val token: String,
     val userId: UUID,
+    val deviceId: String? = null,
 ) {
     override fun toString(): String = "KidsCaller(userId=$userId)"
 }
@@ -120,6 +123,65 @@ class KidsApi
     ) {
         suspend fun info(baseUrl: String): KidsResult<KidsInfo> =
             call(baseUrl, "Kids/Info", null, timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) { decode(KidsInfo.serializer(), it) }
+
+        /**
+         * Whether [baseUrl] can be set up: `GET /Kids/Info` names the plugin [MIN_PLUGIN_VERSION] or later, with the
+         * API and features kids mode needs (spec FR-002, research R9)
+         */
+        suspend fun pluginSupport(baseUrl: String): PluginSupport =
+            when (val result = info(baseUrl)) {
+                is KidsResult.Ok -> {
+                    val info = result.value
+                    val usable =
+                        info.apiVersion == KIDS_API_VERSION &&
+                            info.features.containsAll(KidsFeatures.REQUIRED) &&
+                            pluginVersionSupported(info.pluginVersion)
+                    if (usable) PluginSupport.SUPPORTED else PluginSupport.NEEDED
+                }
+
+                KidsResult.NotFound, KidsResult.NotAKid, KidsResult.Forbidden -> {
+                    PluginSupport.NEEDED
+                }
+
+                else -> {
+                    PluginSupport.UNREACHABLE
+                }
+            }
+
+        /**
+         * The household's kids, for setup: the plugin's kid profiles (`GET /Kids/Profiles`, ids only) joined with
+         * Jellyfin's users (`GET /Users`, which with an administrator's [caller] lists hidden users too) for their
+         * names and pictures (research R5). Ordered by name; users that are no kid are left out.
+         */
+        suspend fun householdKids(
+            baseUrl: String,
+            caller: KidsCaller,
+        ): KidsResult<List<HouseholdKid>> {
+            val refs =
+                when (val result = profiles(baseUrl, caller)) {
+                    is KidsResult.Ok -> result.value.mapNotNull { it.userId.toUUIDOrNull() }.toSet()
+                    else -> return result.notOk()
+                }
+            val users =
+                when (
+                    val result =
+                        call(baseUrl, "Users", caller, timeoutSeconds = LOOKUP_TIMEOUT_SECONDS) {
+                            decode(ListSerializer(HouseholdUserDto.serializer()), it)
+                        }
+                ) {
+                    is KidsResult.Ok -> result.value
+                    else -> return result.notOk()
+                }
+            return KidsResult.Ok(
+                users
+                    .mapNotNull { user ->
+                        user.id
+                            .toUUIDOrNull()
+                            ?.takeIf { it in refs }
+                            ?.let { HouseholdKid(it, user.name, user.primaryImageTag) }
+                    }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name.orEmpty() }),
+            )
+        }
 
         suspend fun profiles(
             baseUrl: String,
@@ -348,7 +410,7 @@ class KidsApi
             AuthorizationHeaderBuilder.buildHeader(
                 clientName = clientInfo.name,
                 clientVersion = clientInfo.version,
-                deviceId = pekeKidDeviceId(deviceInfo.id, caller.userId),
+                deviceId = caller.deviceId ?: pekeKidDeviceId(deviceInfo.id, caller.userId),
                 deviceName = deviceInfo.name,
                 accessToken = caller.token,
             )
@@ -421,4 +483,20 @@ class KidsApi
                     else -> KidsResult.Failed(0)
                 }
         }
+    }
+
+/**
+ * Any answer but [KidsResult.Ok], to pass on as the answer of a call of another type
+ */
+private fun KidsResult<*>.notOk(): KidsResult<Nothing> =
+    when (this) {
+        is KidsResult.Ok -> KidsResult.Failed(0)
+        KidsResult.NotFound -> KidsResult.NotFound
+        KidsResult.NotAKid -> KidsResult.NotAKid
+        is KidsResult.Conflict -> this
+        KidsResult.Forbidden -> KidsResult.Forbidden
+        is KidsResult.Throttled -> this
+        is KidsResult.Invalid -> this
+        is KidsResult.Failed -> this
+        KidsResult.Unreachable -> KidsResult.Unreachable
     }

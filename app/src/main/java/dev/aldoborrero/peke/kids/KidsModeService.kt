@@ -10,6 +10,7 @@ import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.data.KidProfileRepository
 import dev.aldoborrero.peke.kids.server.KidsPluginService
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
 import dev.aldoborrero.peke.services.KeyValueService
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
@@ -103,6 +104,7 @@ class KidsModeService
         private val kidProfileRepository: KidProfileRepository,
         private val pluginService: KidsPluginService,
         private val clock: MonotonicClock,
+        private val tvSetupRepository: TvSetupRepository,
         @param:DefaultCoroutineScope private val scope: CoroutineScope,
     ) : DefaultLifecycleObserver {
         val state: StateFlow<KidsModeState> =
@@ -179,8 +181,10 @@ class KidsModeService
                 .map { (it as? KidsModeState.Active)?.user?.rowId }
                 .distinctUntilChanged()
                 .filterNotNull()
-                .onEach { lock() }
-                .launchIn(scope)
+                .onEach { rowId ->
+                    lock()
+                    rememberLastKid(rowId)
+                }.launchIn(scope)
 
             // Read the profile of each user who becomes current
             serverRepository.current
@@ -272,6 +276,21 @@ class KidsModeService
 
         private suspend fun lock() {
             keyValueService.save(LOCK_KEY, true)
+        }
+
+        /**
+         * Remember the kid of users row [rowId], who just became current, as this TV's last kid, for the picker's rule
+         * on a stopped kid (spec FR-012a)
+         */
+        private suspend fun rememberLastKid(rowId: Int) {
+            val server = serverRepository.current.value?.server ?: return
+            try {
+                tvSetupRepository.setLastKid(server, rowId)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.e(ex, "Could not remember the last kid")
+            }
         }
 
         /**

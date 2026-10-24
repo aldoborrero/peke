@@ -50,7 +50,7 @@ private val KidsProfileGate =
     ProfileGate(
         title = R.string.kids_grown_ups,
         icon = Icons.Default.Lock,
-        content = { onDismissRequest -> KidsParentGate(onDismissRequest = onDismissRequest) },
+        content = { onDismissRequest, onPassed -> KidsParentGate(onDismissRequest = onDismissRequest, onPassed = onPassed) },
     )
 
 /**

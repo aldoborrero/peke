@@ -12,11 +12,10 @@ import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.gate.VerifyOutcome
 import dev.aldoborrero.peke.kids.server.KidsDenial
 import dev.aldoborrero.peke.kids.server.KidsPluginService
+import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SetupDestination
-import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.nav.Destination
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -93,7 +92,7 @@ class KidsParentGateViewModel
         private val parentLockService: ParentLockService,
         private val serverRepository: ServerRepository,
         private val navigationManager: NavigationManager,
-        private val setupNavigationManager: SetupNavigationManager,
+        private val tvLauncher: TvLauncher,
     ) : ViewModel() {
         private val _stage = MutableStateFlow<GateStage>(GateStage.Passcode())
         val stage: StateFlow<GateStage> = _stage
@@ -143,11 +142,13 @@ class KidsParentGateViewModel
          * Check the household code
          *
          * @param onDone called when the gate should close
+         * @param onPassed called instead of opening the menu when the code is right, before [onDone]
          * @param onRefused called when the code was not accepted
          */
         fun submit(
             input: String,
             onDone: () -> Unit,
+            onPassed: (() -> Unit)? = null,
             onRefused: (GateRefusal) -> Unit,
         ) {
             val current = _stage.value as? GateStage.Passcode ?: return
@@ -163,6 +164,9 @@ class KidsParentGateViewModel
                 if (refusal == null) {
                     if (unlockOnly) {
                         kidsModeService.unlock()
+                        onDone.invoke()
+                    } else if (onPassed != null) {
+                        onPassed.invoke()
                         onDone.invoke()
                     } else {
                         // The menu shows the time left: read it from the server now, since a grown-up may have just
@@ -204,24 +208,26 @@ class KidsParentGateViewModel
             navigationManager.navigateTo(Destination.KidsSettings)
         }
 
+        /**
+         * Leave kids mode. A set-up TV has no unlocked state any more (spec 004), so this goes back to the kids side's
+         * first screen, never to a list of users; the menu item goes with the parent menu's rebuild (US3).
+         */
         fun leave() {
             viewModelScope.launch {
                 kidsModeService.unlock()
-                serverRepository.currentServer?.let {
-                    setupNavigationManager.navigateTo(SetupDestination.UserList(it))
-                }
+                tvLauncher.launch()
             }
         }
 
         /**
-         * Turn kids mode off for the current server, or the one the gate checked, whose plugin went away, and leave
-         * kids mode
+         * Turn kids mode off for the current server, or the one the gate checked, whose plugin went away, and go back to
+         * the kids side's first screen
          */
         fun turnOffHere() {
             viewModelScope.launch {
                 val server = serverRepository.currentServer ?: parentLockService.target()?.first ?: return@launch
                 kidsModeService.turnOffForServer(server.id)
-                setupNavigationManager.navigateTo(SetupDestination.UserList(server))
+                tvLauncher.launch()
             }
         }
 

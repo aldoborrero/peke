@@ -80,12 +80,12 @@ Every task description below uses these prefixes literally.
 
 ### Tests
 
-- [ ] T013 [P] [US1] Write `KidSignInTest` in `test/kids/setup/KidSignInTest.kt`. Cover each case in `contracts/server-calls.md`:
+- [x] T013 [P] [US1] Write `KidSignInTest` in `test/kids/setup/KidSignInTest.kt`. Cover each case in `contracts/server-calls.md`:
   - **Calls:** Initiate goes out with the kid's device id; Authorize goes out with the admin token and `userId`; the secret is redeemed; `Users/Me` is checked.
   - **Errors:** 403 for device access, 403 for sessions, 404 retries with a new code, 400, and `Users/Me` refused.
   - **Quick Connect off:** the password fallback.
   - **Secret:** never logged or stored.
-- [ ] T014 [P] [US1] Write `SetupFlowViewModelTest` in `test/kids/setup/SetupFlowViewModelTest.kt`. Cover:
+- [x] T014 [P] [US1] Write `SetupFlowViewModelTest` in `test/kids/setup/SetupFlowViewModelTest.kt`. Cover:
   - the step order;
   - the `CODE` step skipped when a code exists;
   - a non-admin refused;
@@ -96,8 +96,8 @@ Every task description below uses these prefixes literally.
 
 ### Implementation
 
-- [ ] T015 [US1] Add `kidsInfo` version gating (0.0.7.0 or later) and `householdKids(adminToken)` to `main/kids/server/KidsApi.kt`. `householdKids` joins `GET /Kids/Profiles` with `GET /Users` for names and image tags.
-- [ ] T016 [US1] Implement `KidSignIn` in `main/kids/setup/KidSignIn.kt`, following research R1 and `contracts/server-calls.md`:
+- [x] T015 [US1] Add `kidsInfo` version gating (0.0.7.0 or later) and `householdKids(adminToken)` to `main/kids/server/KidsApi.kt`. `householdKids` joins `GET /Kids/Profiles` with `GET /Users` for names and image tags.
+- [x] T016 [US1] Implement `KidSignIn` in `main/kids/setup/KidSignIn.kt`, following research R1 and `contracts/server-calls.md`:
   - check `QuickConnect/Enabled`;
   - `initiateQuickConnect` with the kid's device id;
   - `authorizeQuickConnect(code, userId)` with `AdminSession`;
@@ -106,9 +106,9 @@ Every task description below uses these prefixes literally.
   - save through `ServerRepository.changeUser`.
 
   Also add the password fallback, with the password never stored. Keep the secret in memory only.
-- [ ] T017 [US1] Implement the setup view model and step screens (`SERVER`, `ADMIN`, `CODE`, `KIDS`, `SIGN_IN`) in `main/kids/setup/SetupFlow.kt`. Reuse the server discovery and address entry from `main/ui/setup/` where it's only UI, the Quick Connect code display for the admin sign-in, and the existing code entry from `main/kids/ui/` for `CODE`.
-- [ ] T018 [US1] Route `NotSetUp` and `InSetup` to the setup flow. Add the destinations in `main/ui/nav/Destination.kt`; route them in `main/ui/nav/ApplicationContent.kt` and `main/services/SetupNavigationManager.kt`.
-- [ ] T019 [P] [US1] Add the setup strings (step titles, hints and every error message in `contracts/server-calls.md`) to `res/values/strings.xml` and `res/values-es/strings.xml`.
+- [x] T017 [US1] Implement the setup view model and step screens (`SERVER`, `ADMIN`, `CODE`, `KIDS`, `SIGN_IN`) in `main/kids/setup/SetupFlow.kt`. Reuse the server discovery and address entry from `main/ui/setup/` where it's only UI, the Quick Connect code display for the admin sign-in, and the existing code entry from `main/kids/ui/` for `CODE`.
+- [x] T018 [US1] Route `NotSetUp` and `InSetup` to the setup flow. Add the destinations in `main/ui/nav/Destination.kt`; route them in `main/ui/nav/ApplicationContent.kt` and `main/services/SetupNavigationManager.kt`.
+- [x] T019 [P] [US1] Add the setup strings (step titles, hints and every error message in `contracts/server-calls.md`) to `res/values/strings.xml` and `res/values-es/strings.xml`.
 
 **Checkpoint**: a fresh install can be set up and opens the kids' side; no administrator data is stored.
 
@@ -122,21 +122,21 @@ Every task description below uses these prefixes literally.
 
 ### Tests
 
-- [ ] T020 [P] [US2] Write `KidsPickerTest` in `test/kids/setup/KidsPickerTest.kt`. It must cover:
+- [x] T020 [P] [US2] Write `KidsPickerTest` in `test/kids/setup/KidsPickerTest.kt`. It must cover:
   - only this TV's kids are listed;
   - picking the last kid opens their home or stop screen;
   - picking a sibling while the last kid is `Stopped` requires the gate first;
   - a sibling is free otherwise;
   - a kid marked `NeedsGrownUp` requires the gate and then the admin;
   - an unknown or unparseable denial counts as stopped (research R6).
-- [ ] T021 [P] [US2] Extend `test/kids/KidsTimeLimitsTest.kt` with `isStopped(status, now)`: time's up, break, outside allowed hours, a denial past its end, and an unknown denial.
+- [x] T021 [P] [US2] Extend `test/kids/KidsTimeLimitsTest.kt` with `isStopped(status, now)`: time's up, break, outside allowed hours, a denial past its end, and an unknown denial.
 
 ### Implementation
 
-- [ ] T022 [US2] Add `isStopped(status, now)` to `main/kids/timer/KidsTimeLimits.kt`. It reads the cached `kids_status_<rowId>` (`main/kids/timer/KidsAllowanceService.kt`).
-- [ ] T023 [US2] Implement the picker and the "This TV has no kids" state in `main/kids/setup/KidsPicker.kt`: avatars from Jellyfin images or initials, and Grown-ups last, which is never focused by default. Call `TvSetupRepository.setLastKid` when a kid becomes current, from `main/kids/KidsModeService.kt`.
-- [ ] T024 [US2] Make the sidebar avatar open the parent gate and then the picker (FR-012), in `main/ui/nav/NavDrawer.kt`.
-- [ ] T025 [P] [US2] Add the picker and no-kids strings to `res/values/strings.xml` and `res/values-es/strings.xml`.
+- [x] T022 [US2] Add `isStopped(status, now)` to `main/kids/timer/KidsTimeLimits.kt`. It reads the cached `kids_status_<rowId>` (`main/kids/timer/KidsAllowanceService.kt`).
+- [x] T023 [US2] Implement the picker and the "This TV has no kids" state in `main/kids/setup/KidsPicker.kt`: avatars from Jellyfin images or initials, and Grown-ups last, which is never focused by default. Call `TvSetupRepository.setLastKid` when a kid becomes current, from `main/kids/KidsModeService.kt`.
+- [x] T024 [US2] Make the sidebar avatar open the parent gate and then the picker (FR-012), in `main/ui/nav/NavDrawer.kt`.
+- [x] T025 [P] [US2] Add the picker and no-kids strings to `res/values/strings.xml` and `res/values-es/strings.xml`.
 
 **Checkpoint**: every launch lands on a kid's home or the picker (SC-003).
 

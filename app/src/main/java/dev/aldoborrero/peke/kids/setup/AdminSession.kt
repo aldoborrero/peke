@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.kids.setup
 
 import dev.aldoborrero.peke.data.model.JellyfinServer
+import dev.aldoborrero.peke.kids.server.KidsCaller
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -78,6 +79,11 @@ class AdminSession internal constructor(
     private val closed = AtomicBoolean(false)
 
     val isClosed: Boolean get() = closed.get()
+
+    /**
+     * This session for the Kids plugin's calls, from its own device
+     */
+    val caller: KidsCaller get() = KidsCaller(api.accessToken.orEmpty(), userId, deviceId)
 
     /**
      * End the session on the server, best effort, and drop the token. Only the first call does anything.

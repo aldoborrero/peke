@@ -14,6 +14,7 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.gate.mostRecentKidServer
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
+import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.time.Instant
 import java.util.UUID
@@ -213,6 +215,17 @@ class TvSetupRepository
                         completedAt = Instant.now(),
                     ),
             )
+        }
+
+        /**
+         * The server this TV's setup is for, to resume a setup in progress: the stored server, or else the one the row
+         * names. Null without a readable row.
+         */
+        suspend fun server(): JellyfinServer? {
+            val row = existingRow() ?: return null
+            val stored = withContext(PekeDispatchers.IO) { serverDao.getServer(row.serverId) }?.server
+            return stored
+                ?: JellyfinServer(id = row.serverId, name = null, url = row.serverUrl, version = null).takeIf { row.serverUrl.isNotBlank() }
         }
 
         /**

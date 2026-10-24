@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -275,4 +278,46 @@ class KidsInterruptedPlayback {
             point = null
             timeAdded = false
         }
+}
+
+/**
+ * Whether [status], the last one cached for a kid, still stops them at [now]: time's up until the next day starts,
+ * a break until it ends and outside allowed hours until they start, by the wall clock (research R6). A denial whose
+ * end can't be told counts as stopped (fail closed); no status, or one without a denial, doesn't stop.
+ */
+fun isStopped(
+    status: KidsStatus?,
+    now: Instant,
+): Boolean {
+    val denial = status?.denial ?: return false
+    val end =
+        when (denial) {
+            KidsDenial.TIME_UP -> {
+                instantOrNull(status.deniedUntil) ?: instantOrNull(status.nextDayStartsAt)
+            }
+
+            KidsDenial.BEDTIME -> {
+                instantOrNull(status.deniedUntil)
+            }
+
+            KidsDenial.SITTING_OVER -> {
+                val serverTime = instantOrNull(status.serverTime)
+                val breakLeft = status.breakRemainingSeconds
+                if (serverTime != null && breakLeft != null) serverTime.plusSeconds(breakLeft) else instantOrNull(status.deniedUntil)
+            }
+        } ?: return true
+    return now.isBefore(end)
+}
+
+private fun instantOrNull(value: String?): Instant? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        OffsetDateTime.parse(value).toInstant()
+    } catch (_: DateTimeParseException) {
+        try {
+            Instant.parse(value)
+        } catch (_: DateTimeParseException) {
+            null
+        }
+    }
 }

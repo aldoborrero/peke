@@ -23,6 +23,7 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.ui.GrownUpRoute
 import dev.aldoborrero.peke.kids.ui.GrownUpShell
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
@@ -32,8 +33,6 @@ import dev.aldoborrero.peke.kids.ui.unknownUserRoute
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SetupDestination
-import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchIO
@@ -49,7 +48,7 @@ class ApplicationContentViewModel
     constructor(
         val backdropService: BackdropService,
         private val kidsModeService: KidsModeService,
-        private val setupNavigationManager: SetupNavigationManager,
+        private val tvLauncher: TvLauncher,
     ) : ViewModel() {
         val lockEngaged = kidsModeService.lockEngaged
 
@@ -60,8 +59,12 @@ class ApplicationContentViewModel
 
         fun retry() = kidsModeService.retry()
 
-        fun toKidsUserList(server: JellyfinServer) {
-            setupNavigationManager.navigateTo(SetupDestination.UserList(server))
+        /**
+         * A user who isn't one of this TV's kids while the TV is locked: back to the kids side's first screen, the
+         * picker or the only kid, never a list of users (spec 004)
+         */
+        fun toKidsSide() {
+            viewModelScope.launchIO { tvLauncher.launch() }
         }
 
         fun clearBackdrop() {
@@ -123,7 +126,7 @@ fun ApplicationContent(
                             }
 
                             GrownUpRoute.KidsUserList -> {
-                                LaunchedEffect(Unit) { viewModel.toKidsUserList(server) }
+                                LaunchedEffect(Unit) { viewModel.toKidsSide() }
                                 LoadingPage(Modifier.fillMaxSize())
                             }
 

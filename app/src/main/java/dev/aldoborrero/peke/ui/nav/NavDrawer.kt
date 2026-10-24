@@ -294,6 +294,8 @@ fun NavDrawer(
     val profileGate = LocalProfileGate.current
     // The gate stays open until dismissed, even if the profile stops needing it meanwhile
     var shownProfileGate by remember { mutableStateOf<ProfileGate?>(null) }
+    // Where the gate goes once passed: the kids picker from the profile icon, the menu (null) from the drawer entry
+    var afterProfileGate by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
     BackHandler(enabled = backOpensNavDrawer(drawerState.currentValue, destination)) {
@@ -348,12 +350,11 @@ fun NavDrawer(
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
                         onClick = {
+                            // Switching profile needs the gate first, then the kids picker (spec FR-012); without a gate there
+                            // is nowhere to switch to
                             if (profileGate != null) {
+                                afterProfileGate = { viewModel.navigateToSetup(SetupDestination.KidsPicker) }
                                 shownProfileGate = profileGate
-                            } else {
-                                viewModel.navigateToSetup(
-                                    SetupDestination.UserList(server),
-                                )
                             }
                         },
                         modifier = Modifier,
@@ -496,7 +497,10 @@ fun NavDrawer(
                                     selected = false,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
-                                    onClick = { shownProfileGate = profileGate },
+                                    onClick = {
+                                        afterProfileGate = null
+                                        shownProfileGate = profileGate
+                                    },
                                     modifier = Modifier,
                                 )
                             }
@@ -524,7 +528,7 @@ fun NavDrawer(
             if (preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()
             }
-            shownProfileGate?.content?.invoke { shownProfileGate = null }
+            shownProfileGate?.content?.invoke({ shownProfileGate = null }, afterProfileGate)
         }
     }
 }

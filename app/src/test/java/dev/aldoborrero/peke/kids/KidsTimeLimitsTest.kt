@@ -9,11 +9,13 @@ import dev.aldoborrero.peke.kids.timer.KidsInterruptedPlayback
 import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsWarnings
 import dev.aldoborrero.peke.kids.timer.ResumePoint
+import dev.aldoborrero.peke.kids.timer.isStopped
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -300,5 +302,50 @@ class KidsTimeLimitsTest {
         val fresh = status(remaining = 600).copy(serverTime = "2026-10-18T08:00:00Z")
         assertTrue(KidsAllowanceService.isNewer(cached, fresh, ticket = 1, lastApplied = 0))
         assertTrue(KidsAllowanceService.isNewer(null, fresh, ticket = 1, lastApplied = 5))
+    }
+
+    private val now = Instant.parse("2026-10-23T18:00:00Z")
+
+    @Test
+    fun `time's up stops the kid until the next day starts`() {
+        val timeUp = status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "2026-10-24T05:00:00.0000000Z")
+        assertTrue(isStopped(timeUp, now))
+        assertFalse(isStopped(timeUp, Instant.parse("2026-10-24T05:00:01Z")))
+    }
+
+    @Test
+    fun `a break stops the kid until it ends, by the server's clock`() {
+        val onBreak =
+            status(remaining = 600)
+                .sitting(remaining = 0, breakRemaining = 300)
+                .copy(deniedReason = "sessionLimit", enforced = true, serverTime = "2026-10-23T17:58:00Z")
+        assertTrue(isStopped(onBreak, now))
+        assertFalse(isStopped(onBreak, Instant.parse("2026-10-23T18:03:01Z")))
+    }
+
+    @Test
+    fun `outside allowed hours stops the kid until they start`() {
+        val bedtime =
+            status(
+                remaining = 600,
+            ).copy(deniedReason = "outsideSchedule", enforced = true, deniedUntil = "2026-10-24T07:00:00+02:00")
+        assertTrue(isStopped(bedtime, now))
+        assertFalse(isStopped(bedtime, Instant.parse("2026-10-24T05:00:01Z")))
+    }
+
+    @Test
+    fun `a denial past its end no longer stops the kid`() {
+        val yesterday = status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "2026-10-23T05:00:00Z")
+        assertFalse(isStopped(yesterday, now))
+        assertFalse(isStopped(status(remaining = 600), now))
+        assertFalse(isStopped(null, now))
+    }
+
+    @Test
+    fun `a denial whose end can't be told stops the kid`() {
+        assertTrue(isStopped(KidsStatus(enforced = true, deniedReason = "somethingNew"), now))
+        assertTrue(isStopped(status(remaining = 0, timeUp = true).copy(nextDayStartsAt = "not a date"), now))
+        assertTrue(isStopped(status(remaining = 0, timeUp = true), now))
+        assertTrue(isStopped(status(remaining = 600).copy(deniedReason = "outsideSchedule"), now))
     }
 }

@@ -9,6 +9,7 @@ import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.data.KidProfileRepository
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsServerState
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.services.KeyValueService
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -48,6 +49,7 @@ class KidsModeServiceTest {
             every { notKids } returns this@KidsModeServiceTest.notKids
         }
     private val pluginService = mockk<KidsPluginService>(relaxed = true)
+    private val tvSetupRepository = mockk<TvSetupRepository>(relaxed = true)
 
     /**
      * The server answers that [user] isn't a kid
@@ -80,9 +82,30 @@ class KidsModeServiceTest {
             repository,
             pluginService,
             FakeClock(),
+            tvSetupRepository,
             backgroundScope,
         )
     }
+
+    @Test
+    fun `each kid who becomes current is remembered as the last kid`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val sibling = kid.copy(rowId = 3, id = UUID.randomUUID(), name = "sibling")
+            val dao = FakeKidProfileDao { server.id }
+            dao.upsert(KidProfile(userId = kid.rowId))
+            dao.upsert(KidProfile(userId = sibling.rowId))
+            val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
+            createService(current, dao)
+
+            current.value = CurrentUser(server, kid)
+            advanceUntilIdle()
+            coVerify(exactly = 1) { tvSetupRepository.setLastKid(server, kid.rowId) }
+            coVerify(exactly = 0) { tvSetupRepository.setLastKid(any(), adult.rowId) }
+
+            current.value = CurrentUser(server, sibling)
+            advanceUntilIdle()
+            coVerify(exactly = 1) { tvSetupRepository.setLastKid(server, sibling.rowId) }
+        }
 
     @Test
     fun `inactive for users the server says aren't kids`() =
@@ -300,6 +323,7 @@ class KidsModeServiceTest {
                     repository,
                     pluginService,
                     FakeClock(),
+                    tvSetupRepository,
                     notStarted.backgroundScope,
                 )
             assertEquals(KidsModeState.Loading, service.state.value)

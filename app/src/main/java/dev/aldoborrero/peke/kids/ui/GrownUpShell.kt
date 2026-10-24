@@ -24,21 +24,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
+import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SetupDestination
-import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.tryRequestFocus
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,16 +46,18 @@ class GrownUpShellViewModel
     @Inject
     constructor(
         private val navigationManager: NavigationManager,
-        private val setupNavigationManager: SetupNavigationManager,
-        private val serverRepository: ServerRepository,
+        private val tvLauncher: TvLauncher,
         pluginService: KidsPluginService,
     ) : ViewModel() {
         val pluginState = pluginService.current
 
         fun open(destination: Destination) = navigationManager.navigateTo(destination)
 
+        /**
+         * Back to the kids side's first screen, the picker or the only kid, never a list of users (spec 004)
+         */
         fun switchUser() {
-            serverRepository.currentServer?.let { setupNavigationManager.navigateTo(SetupDestination.UserList(it)) }
+            viewModelScope.launch { tvLauncher.launch() }
         }
     }
 

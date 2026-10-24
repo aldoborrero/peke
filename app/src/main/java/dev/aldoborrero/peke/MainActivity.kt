@@ -35,8 +35,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.data.model.JellyfinServer
-import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsLiveTv
 import dev.aldoborrero.peke.kids.LocalKidsLocked
@@ -44,8 +42,8 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
 import dev.aldoborrero.peke.kids.server.KidsPluginService
-import dev.aldoborrero.peke.kids.setup.LaunchDestination
 import dev.aldoborrero.peke.kids.setup.LaunchRule
+import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
@@ -85,7 +83,6 @@ import dev.aldoborrero.peke.util.DebugLogTree
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.requestSerializersModule
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterNotNull
@@ -96,7 +93,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -462,6 +458,7 @@ class MainActivityViewModel
         private val intentService: IntentService,
         private val kidsModeService: KidsModeService,
         private val tvSetupRepository: TvSetupRepository,
+        private val tvLauncher: TvLauncher,
     ) : ViewModel() {
         private val mutex = Mutex()
 
@@ -495,7 +492,7 @@ class MainActivityViewModel
                         // Fail closed: setup only for a TV that isn't set up
                         val state = tvSetupRepository.state.value
                         val notSetUp = state == TvState.NotSetUp || state is TvState.InSetup
-                        setupNavigationManager.navigateTo(if (notSetUp) SetupDestination.ServerList else SetupDestination.Loading)
+                        setupNavigationManager.navigateTo(if (notSetUp) SetupDestination.Setup() else SetupDestination.Loading)
                     }
                 }
             }
@@ -599,87 +596,7 @@ class MainActivityViewModel
          */
         @VisibleForTesting
         internal suspend fun handleAppStart() {
-            val state =
-                withTimeoutOrNull(TV_STATE_TIMEOUT_MILLIS) { tvSetupRepository.state.first { it != TvState.Loading } }
-                    ?: TvState.Loading
-            val destination = LaunchRule.destination(state)
-            Timber.d("Launch destination: %s", destination)
-            setupNavigationManager.navigateTo(existingScreen(destination))
-        }
-
-        /**
-         * The existing screen for [destination], until the setup steps and the kids picker replace them (spec 004
-         * US1 and US2)
-         */
-        private suspend fun existingScreen(destination: LaunchDestination): SetupDestination =
-            when (destination) {
-                LaunchDestination.Starting -> {
-                    SetupDestination.Loading
-                }
-
-                // For now the server setup, also to resume a setup in progress
-                is LaunchDestination.Setup -> {
-                    SetupDestination.ServerList
-                }
-
-                // For now the server's user list, where a kid is signed in
-                is LaunchDestination.NoKids -> {
-                    SetupDestination.UserList(destination.server)
-                }
-
-                is LaunchDestination.Kid -> {
-                    openKid(destination.server, destination.kid)
-                }
-
-                // For now the user list, locked so it lists only this TV's kids
-                is LaunchDestination.Picker -> {
-                    lockedKidsList(destination.server, destination.kids.first())
-                }
-            }
-
-        /**
-         * The only kid, from the stored row so it opens without the server; the user is refreshed in the background.
-         * On a warm start the kid's session is kept as it is.
-         */
-        private suspend fun openKid(
-            server: JellyfinServer,
-            kid: JellyfinUser,
-        ): SetupDestination {
-            // A kid who has to sign in again does so on the locked list
-            if (kid.accessToken == null || kid.isProtected) return lockedKidsList(server, kid)
-            val current =
-                serverRepository.current.value?.takeIf {
-                    it.server.id == server.id && it.user.rowId == kid.rowId && it.user.accessToken == kid.accessToken
-                } ?: serverRepository.restoreUser(server, kid).also { refreshUser() }
-            return SetupDestination.AppContent(current)
-        }
-
-        private suspend fun lockedKidsList(
-            server: JellyfinServer,
-            kid: JellyfinUser,
-        ): SetupDestination {
-            kidsModeService.lockIfKid(kid)
-            return SetupDestination.UserList(server)
-        }
-
-        private fun refreshUser() {
-            viewModelScope.launchDefault {
-                try {
-                    serverRepository.updateUserDto()
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    // Offline: the kid stays with their last known rules
-                    Timber.w(ex, "Could not refresh the user")
-                }
-            }
-        }
-
-        companion object {
-            /**
-             * How long a launch waits for the TV's state, from local data only, before showing the starting page
-             */
-            private const val TV_STATE_TIMEOUT_MILLIS = 5_000L
+            tvLauncher.launch()
         }
     }
 

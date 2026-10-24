@@ -22,11 +22,15 @@ import dev.aldoborrero.peke.ui.components.DialogPopup
 /**
  * The single way out of kids mode: the household parent code, then a menu for grown-ups. On a server whose plugin
  * went away before this TV cached the code, a server administrator's sign-in only allows turning kids mode off there.
+ *
+ * @param onPassed where to go once the code is right, instead of the menu, such as a kid picked while another is
+ * stopped
  */
 @Composable
 fun KidsParentGate(
     onDismissRequest: () -> Unit,
     unlockOnly: Boolean = false,
+    onPassed: (() -> Unit)? = null,
     viewModel: KidsParentGateViewModel = hiltViewModel(),
 ) {
     viewModel.unlockOnly = unlockOnly
@@ -48,7 +52,7 @@ fun KidsParentGate(
                 attempt = s.attempt,
                 onDismissRequest = onDismissRequest,
                 onConfirm = {
-                    viewModel.submit(it, onDone = onDismissRequest) { refusal ->
+                    viewModel.submit(it, onDone = onDismissRequest, onPassed = onPassed) { refusal ->
                         val message =
                             when (refusal) {
                                 GateRefusal.Wrong -> {

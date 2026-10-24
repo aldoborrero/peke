@@ -8,6 +8,7 @@ import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.RestoredSession
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.kids.KidsModeService
+import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.TvSetupStep
 import dev.aldoborrero.peke.kids.setup.TvState
@@ -38,6 +39,7 @@ import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -72,6 +74,8 @@ class TestMainActivityViewModel {
         }
     private val tvState = MutableStateFlow<TvState>(TvState.Loading)
     private val tvSetupRepository: TvSetupRepository = mockk { every { state } returns tvState }
+    private val tvLauncher =
+        TvLauncher(tvSetupRepository, serverRepository, setupNavigationManager, navigationManager, CoroutineScope(testDispatcher))
 
     val viewModel =
         MainActivityViewModel(
@@ -85,6 +89,7 @@ class TestMainActivityViewModel {
             intentService,
             kidsModeService,
             tvSetupRepository,
+            tvLauncher,
         )
 
     private val serverId = UUID.randomUUID()
@@ -108,6 +113,7 @@ class TestMainActivityViewModel {
         every { serverRepository.current } returns MutableStateFlow(null)
         coEvery { serverRepository.restoreUser(any(), any()) } answers { CurrentUser(firstArg(), secondArg()) }
         coEvery { serverRepository.updateUserDto() } just Runs
+        every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.Loading)
     }
 
     @After
@@ -139,17 +145,28 @@ class TestMainActivityViewModel {
 
             viewModel.handleAppStart()
 
-            Assert.assertEquals(SetupDestination.ServerList, navigatedTo())
+            Assert.assertEquals(SetupDestination.Setup(TvSetupStep.SERVER), navigatedTo())
         }
 
     @Test
-    fun `a TV in setup goes back to server setup for now`() =
+    fun `a TV in setup resumes setup at its step`() =
         runTest(testDispatcher) {
             tvState.value = TvState.InSetup(TvSetupStep.KIDS)
 
             viewModel.handleAppStart()
 
-            Assert.assertEquals(SetupDestination.ServerList, navigatedTo())
+            Assert.assertEquals(SetupDestination.Setup(TvSetupStep.KIDS), navigatedTo())
+        }
+
+    @Test
+    fun `a setup in progress keeps its screen on a warm start`() =
+        runTest(testDispatcher) {
+            every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.Setup(TvSetupStep.SERVER))
+            tvState.value = TvState.InSetup(TvSetupStep.KIDS)
+
+            viewModel.handleAppStart()
+
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
         }
 
     @Test
@@ -205,37 +222,36 @@ class TestMainActivityViewModel {
         }
 
     @Test
-    fun `the only kid without a usable session goes to the locked kids list`() =
+    fun `the only kid without a usable session shows on the picker as needing a grown-up`() =
         runTest(testDispatcher) {
             tvState.value = TvState.SetUp(server, listOf(kid.copy(accessToken = null)))
 
             viewModel.handleAppStart()
 
-            Assert.assertEquals(SetupDestination.UserList(server), navigatedTo())
-            coVerify { kidsModeService.lockIfKid(kid.copy(accessToken = null)) }
+            Assert.assertEquals(SetupDestination.KidsPicker, navigatedTo())
+            coVerify(exactly = 0) { serverRepository.restoreUser(any(), any()) }
         }
 
     @Test
-    fun `several kids go to the locked kids list for now`() =
+    fun `several kids go to the picker, also on a warm start`() =
         runTest(testDispatcher) {
             every { serverRepository.current } returns MutableStateFlow(CurrentUser(server, kid))
             tvState.value = TvState.SetUp(server, listOf(kid, sibling), lastKidRowId = kid.rowId)
 
             viewModel.handleAppStart()
 
-            Assert.assertEquals(SetupDestination.UserList(server), navigatedTo())
-            coVerify { kidsModeService.lockIfKid(kid) }
+            Assert.assertEquals(SetupDestination.KidsPicker, navigatedTo())
             coVerify(exactly = 0) { serverRepository.restoreUser(any(), any()) }
         }
 
     @Test
-    fun `a TV with a server and no kids goes to its user list`() =
+    fun `a TV with a server and no kids says so`() =
         runTest(testDispatcher) {
             tvState.value = TvState.SetUp(server, emptyList())
 
             viewModel.handleAppStart()
 
-            Assert.assertEquals(SetupDestination.UserList(server), navigatedTo())
+            Assert.assertEquals(SetupDestination.NoKids, navigatedTo())
         }
 
     @Test

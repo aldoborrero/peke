@@ -28,6 +28,10 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import dev.aldoborrero.peke.kids.setup.KidsPicker
+import dev.aldoborrero.peke.kids.setup.NoKidsPage
+import dev.aldoborrero.peke.kids.setup.SetupFlow
+import dev.aldoborrero.peke.kids.setup.TvSetupStep
 import dev.aldoborrero.peke.kids.ui.KidsLockGuard
 import dev.aldoborrero.peke.kids.ui.ProvideKidsUi
 import dev.aldoborrero.peke.preferences.UserPreferences
@@ -99,6 +103,27 @@ fun MainContent(
                                         server = key.server,
                                         Modifier.fillMaxSize(),
                                     )
+                                }
+
+                                is SetupDestination.Setup -> {
+                                    SetupFlow(step = key.step, modifier = Modifier.fillMaxSize())
+                                }
+
+                                is SetupDestination.SignInAgain -> {
+                                    SetupFlow(
+                                        step = TvSetupStep.SIGN_IN,
+                                        againServer = key.server,
+                                        againKid = key.kid,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
+
+                                SetupDestination.KidsPicker -> {
+                                    KidsPicker(Modifier.fillMaxSize())
+                                }
+
+                                SetupDestination.NoKids -> {
+                                    NoKidsPage(Modifier.fillMaxSize())
                                 }
 
                                 is SetupDestination.AppContent -> {
