@@ -56,17 +56,23 @@ import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.rememberDrawerState
+import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
  * This is a re-implementation of [androidx.tv.material3.ModalNavigationDrawer].
  *
  * It changes padding, sizing, and animations that couldn't be changed in the Androidx implementation.
+ *
+ * Peke keeps one drawer per nav entry, all sharing [drawerState]: only the [activeEntry] (the page on top) takes focus
+ * or opens and closes the drawer, and when it opens, focus goes to [initialFocus], the selected item.
  */
 @Composable
 fun ModalNavigationDrawer(
     drawerContent: @Composable NavigationDrawerScope.(DrawerValue) -> Unit,
     modifier: Modifier = Modifier,
     drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed),
+    activeEntry: Boolean = true,
+    initialFocus: FocusRequester? = null,
     content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier) {
@@ -76,6 +82,8 @@ fun ModalNavigationDrawer(
                     .align(Alignment.CenterStart),
             drawerState = drawerState,
             content = drawerContent,
+            activeEntry = activeEntry,
+            initialFocus = initialFocus,
         )
 
         content()
@@ -86,6 +94,8 @@ fun ModalNavigationDrawer(
 private fun DrawerSheet(
     modifier: Modifier = Modifier,
     drawerState: DrawerState = remember { DrawerState() },
+    activeEntry: Boolean = true,
+    initialFocus: FocusRequester? = null,
     content: @Composable NavigationDrawerScope.(DrawerValue) -> Unit,
 ) {
     // indicates that the drawer has been set to its initial state and has grabbed focus if
@@ -93,10 +103,11 @@ private fun DrawerSheet(
     var initializationComplete: Boolean by remember { mutableStateOf(false) }
     var focusState by remember { mutableStateOf<FocusState?>(null) }
     val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(key1 = drawerState.currentValue) {
-        if (drawerState.currentValue == DrawerValue.Open && focusState?.hasFocus == false) {
-            // used to grab focus if the drawer state is set to Open on start.
-            focusRequester.requestFocus()
+    LaunchedEffect(drawerState.currentValue, activeEntry) {
+        if (activeEntry && drawerState.currentValue == DrawerValue.Open && focusState?.hasFocus == false) {
+            // used to grab focus if the drawer state is set to Open on start. Peke: on the selected item, never the
+            // sheet's first item, which is the kid's profile and leads to the parent gate (spec 005 FR-013)
+            if (initialFocus != null) initialFocus.tryRequestFocus() else focusRequester.requestFocus()
         }
         initializationComplete = true
     }
@@ -117,7 +128,8 @@ private fun DrawerSheet(
             .onFocusChanged {
                 focusState = it
 
-                if (initializationComplete) {
+                // Peke: only the entry on screen drives the drawer state it shares with the other entries
+                if (initializationComplete && activeEntry) {
                     drawerState.setValue(if (it.hasFocus) DrawerValue.Open else DrawerValue.Closed)
                 }
             }.focusGroup()

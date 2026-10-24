@@ -297,10 +297,14 @@ fun NavDrawer(
     // Where the gate goes once passed: the kids picker from the profile icon, the menu (null) from the drawer entry
     var afterProfileGate by remember { mutableStateOf<(() -> Unit)?>(null) }
 
+    // Every nav entry has its own drawer, sharing [drawerState]. While a page comes in, such as when the home reloads,
+    // the one leaving is still composed: only the page on top may take focus or handle Back (spec 005 FR-013)
+    val activeEntry = viewModel.navigationManager.backStack.lastOrNull() == destination
+
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
-    BackHandler(enabled = backOpensNavDrawer(drawerState.currentValue, destination)) {
+    BackHandler(enabled = activeEntry && backOpensNavDrawer(drawerState.currentValue, destination)) {
         drawerState.setValue(DrawerValue.Open)
-        focusRequester.requestFocus()
+        focusRequester.tryRequestFocus()
     }
     val serviceState by viewModel.serviceState.collectAsState()
     val drawerItems = if (showLibraries) serviceState.items else customization.navDrawerItems
@@ -329,6 +333,9 @@ fun NavDrawer(
     ModalNavigationDrawer(
         modifier = modifier,
         drawerState = drawerState,
+        activeEntry = activeEntry,
+        // Opening focuses the selected item, never the profile icon above it, which leads to the parent gate
+        initialFocus = focusRequester,
         drawerContent = { drawerValue ->
             val isOpen = drawerValue.isOpen
             val spacedBy = 4.dp
