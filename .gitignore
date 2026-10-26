@@ -55,7 +55,9 @@ app/release/
 app/debug/
 .vscode
 .kotlin
-docs/
+# Upstream keeps its gh-pages site under docs/; ignore it here but track the README assets
+/docs/*
+!/docs/assets/
 
 # mpv
 app/src/main/obj/
