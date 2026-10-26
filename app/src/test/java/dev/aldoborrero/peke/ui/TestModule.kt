@@ -22,14 +22,12 @@ import dev.aldoborrero.peke.data.AppDatabase
 import dev.aldoborrero.peke.data.ItemPlaybackDao
 import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.LibraryDisplayInfoDao
-import dev.aldoborrero.peke.data.MostRecentServerProvider
 import dev.aldoborrero.peke.data.PlaybackEffectDao
 import dev.aldoborrero.peke.data.RememberedTabDao
 import dev.aldoborrero.peke.data.SeriesTrackChoiceDao
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppPreferencesSerializer
-import dev.aldoborrero.peke.services.TestMostRecentServerProvider
 import dev.aldoborrero.peke.services.hilt.AppModule
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
 import dev.aldoborrero.peke.services.hilt.DatabaseModule
@@ -193,10 +191,6 @@ object TestModule {
     fun workManager(
         @ApplicationContext context: Context,
     ): WorkManager = mockk()
-
-    @Provides
-    @Singleton
-    fun mostRecentServerProvider(): MostRecentServerProvider = TestMostRecentServerProvider()
 }
 
 @Module

@@ -71,6 +71,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.setup.KidAvatar
 import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
@@ -84,7 +85,6 @@ import dev.aldoborrero.peke.ui.components.TimeDisplay
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
-import dev.aldoborrero.peke.ui.setup.UserIconCardImage
 import dev.aldoborrero.peke.ui.spacedByWithFooter
 import dev.aldoborrero.peke.ui.theme.LocalTheme
 import dev.aldoborrero.peke.ui.toServerString
@@ -294,6 +294,8 @@ fun NavDrawer(
     val profileGate = LocalProfileGate.current
     // The gate stays open until dismissed, even if the profile stops needing it meanwhile
     var shownProfileGate by remember { mutableStateOf<ProfileGate?>(null) }
+    // Where the gate goes once passed: the kids picker from the profile icon, the menu (null) from the drawer entry
+    var afterProfileGate by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
     BackHandler(enabled = backOpensNavDrawer(drawerState.currentValue, destination)) {
@@ -348,12 +350,11 @@ fun NavDrawer(
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
                         onClick = {
+                            // Switching profile needs the gate first, then the kids picker (spec FR-012); without a gate there
+                            // is nowhere to switch to
                             if (profileGate != null) {
+                                afterProfileGate = { viewModel.navigateToSetup(SetupDestination.KidsPicker) }
                                 shownProfileGate = profileGate
-                            } else {
-                                viewModel.navigateToSetup(
-                                    SetupDestination.UserList(server),
-                                )
                             }
                         },
                         modifier = Modifier,
@@ -496,7 +497,10 @@ fun NavDrawer(
                                     selected = false,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
-                                    onClick = { shownProfileGate = profileGate },
+                                    onClick = {
+                                        afterProfileGate = null
+                                        shownProfileGate = profileGate
+                                    },
                                     modifier = Modifier,
                                 )
                             }
@@ -524,7 +528,7 @@ fun NavDrawer(
             if (preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()
             }
-            shownProfileGate?.content?.invoke { shownProfileGate = null }
+            shownProfileGate?.content?.invoke({ shownProfileGate = null }, afterProfileGate)
         }
     }
 }
@@ -544,11 +548,12 @@ fun NavigationDrawerScope.ProfileIcon(
         selected = false,
         onClick = onClick,
         leadingContent = {
-            UserIconCardImage(
+            KidAvatar(
                 id = user.id,
                 name = user.name,
                 imageUrl = imageUrl,
                 alpha = if (drawerOpen) 1f else .5f,
+                initialStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                 modifier = Modifier.size(DrawerIconSize),
             )
         },

@@ -2,9 +2,12 @@ package dev.aldoborrero.peke.util
 
 import android.content.Context
 import com.google.auto.service.AutoService
-import dev.aldoborrero.peke.data.MostRecentServer
+import dev.aldoborrero.peke.data.CurrentUser
+import dev.aldoborrero.peke.kids.KidsDatabaseModule
 import dev.aldoborrero.peke.services.hilt.AppModule
+import dev.aldoborrero.peke.services.hilt.DatabaseModule
 import dev.aldoborrero.peke.services.hilt.DeviceModule
+import dev.aldoborrero.peke.services.hilt.forKid
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.acra.config.CoreConfiguration
@@ -41,8 +44,7 @@ class CrashReportSender : ReportSender {
     ) {
         Timber.v("Attempting to send crash report")
         try {
-            val recentServer = AppModule.mostRecentServerProvider(context).get()
-            val api = recentServer.createApi(context)
+            val api = lastKid(context)?.createApi(context)
             if (api != null) {
                 val obj = JSONObject()
                 for ((key, value) in errorContent.toMap()) {
@@ -71,8 +73,31 @@ class CrashReportSender : ReportSender {
     }
 }
 
-private fun MostRecentServer.createApi(context: Context): ApiClient? =
-    (this as? MostRecentServer.ServerAndUser)?.let {
+/**
+ * This TV's last kid with a session, or else its most recently signed-in one, read from the databases: a crash report
+ * is sent from another process. Never a user without a kid profile.
+ */
+private fun lastKid(context: Context): CurrentUser? {
+    val db = DatabaseModule.database(context)
+    val kidsDb = KidsDatabaseModule.kidsDatabase(context)
+    return try {
+        val (kidIds, lastKidRowId) =
+            runBlocking { kidsDb.kidProfileDao().allUserIds().toSet() to kidsDb.tvSetupDao().get()?.lastKidRowId }
+        val kids =
+            db
+                .serverDao()
+                .getServers()
+                .flatMap { s -> s.users.filter { it.rowId in kidIds && it.accessToken != null }.map { CurrentUser(s.server, it) } }
+        kids.firstOrNull { it.user.rowId == lastKidRowId }
+            ?: kids.maxByOrNull { it.user.lastUsed?.toEpochSecond() ?: Long.MIN_VALUE }
+    } finally {
+        kidsDb.close()
+        db.close()
+    }
+}
+
+private fun CurrentUser.createApi(context: Context): ApiClient =
+    run {
         val okHttpClient =
             OkHttpClient
                 .Builder()
@@ -82,10 +107,11 @@ private fun MostRecentServer.createApi(context: Context): ApiClient? =
             createJellyfin {
                 this.context = context
                 clientInfo = AppModule.clientInfo(context)
-                deviceInfo = DeviceModule.deviceInfo(context)
+                // The id the saved user's other calls go out with
+                deviceInfo = DeviceModule.deviceInfo(context).forKid(user.id)
                 apiClientFactory = okHttpFactory
                 socketConnectionFactory = okHttpFactory
                 minimumServerVersion = Jellyfin.minimumVersion
-            }.createApi(baseUrl = serverUrl, accessToken = accessToken)
+            }.createApi(baseUrl = server.url, accessToken = user.accessToken)
         api
     }

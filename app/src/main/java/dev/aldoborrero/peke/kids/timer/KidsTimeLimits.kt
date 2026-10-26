@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -275,4 +278,53 @@ class KidsInterruptedPlayback {
             point = null
             timeAdded = false
         }
+}
+
+/**
+ * Whether [status], the last one cached for a kid, still stops them [sinceFetch] after it was fetched, by this TV's
+ * monotonic clock, so moving the wall clock forward doesn't end a stop (research R6). The stop left is counted by the
+ * server's own times, from `ServerTime` to its end: time's up until the next day starts, a break until it ends and
+ * outside allowed hours until they start. A denial whose end can't be told, or a time since the fetch that can't, as
+ * after a reboot, counts as stopped (fail closed); no status, or one without a denial, doesn't stop.
+ */
+fun isStopped(
+    status: KidsStatus?,
+    sinceFetch: Duration?,
+): Boolean {
+    val denial = status?.denial ?: return false
+    val left = stopLeft(status, denial) ?: return true
+    return sinceFetch == null || sinceFetch < left
+}
+
+/**
+ * The stop left by [status]'s own clock when it was sent, or null if it can't be told
+ */
+private fun stopLeft(
+    status: KidsStatus,
+    denial: KidsDenial,
+): Duration? {
+    if (denial == KidsDenial.SITTING_OVER) status.breakRemainingSeconds?.let { return it.seconds }
+    val serverTime = instantOrNull(status.serverTime) ?: return null
+    val end =
+        when (denial) {
+            KidsDenial.TIME_UP -> instantOrNull(status.deniedUntil) ?: instantOrNull(status.nextDayStartsAt)
+            KidsDenial.BEDTIME, KidsDenial.SITTING_OVER -> instantOrNull(status.deniedUntil)
+        } ?: return null
+    return java.time.Duration
+        .between(serverTime, end)
+        .toMillis()
+        .milliseconds
+}
+
+private fun instantOrNull(value: String?): Instant? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        OffsetDateTime.parse(value).toInstant()
+    } catch (_: DateTimeParseException) {
+        try {
+            Instant.parse(value)
+        } catch (_: DateTimeParseException) {
+            null
+        }
+    }
 }

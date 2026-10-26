@@ -12,6 +12,8 @@ import dev.aldoborrero.peke.kids.data.SaveResult
 import dev.aldoborrero.peke.kids.gate.KidsAuth
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.server.KidsPluginService
+import dev.aldoborrero.peke.kids.setup.KidSignOut
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -35,6 +37,7 @@ class KidProfileRepositoryTest {
     private val http = FakeKidsServer()
     private val profileDao = FakeKidProfileDao { server.id }
     private val lock = mockk<ParentLockService>(relaxed = true)
+    private val serverRepository = mockk<ServerRepository>(relaxed = true)
 
     private fun profile(revision: Int) =
         """{"UserId":"${kid.id}","Revision":$revision,"SearchAllowed":false,"AutoplayEnabled":false,"AutoplayCap":3,""" +
@@ -44,19 +47,28 @@ class KidProfileRepositoryTest {
         available: Boolean = true,
         reachable: Boolean = true,
     ): KidProfileRepository {
-        val serverRepository = mockk<ServerRepository>()
         every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(CurrentUser(server, adult))
         val jellyfinServerDao = mockk<JellyfinServerDao>()
         every { jellyfinServerDao.getServer(server.id) } returns JellyfinServerUsers(server, listOf(adult, kid))
         every { jellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(adult, kid)))
         every { lock.auth() } returns KidsAuth(server, adult, "a", "g-1")
-        val api = http.api(UnconfinedTestDispatcher(testScheduler))
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val api = http.api(dispatcher)
         http.offline = !reachable
         val plugin = KidsPluginService(serverRepository, api, FakeKidsServerDao(), profileDao, FakeClock(), backgroundScope)
         if (available) http.on("GET", "/Kids/Info", 200, """{"ApiVersion":1,"Features":[$KIDS_FEATURES_JSON]}""")
         plugin.check(server)
         http.offline = false
-        return KidProfileRepository(api, profileDao, jellyfinServerDao, plugin, lock)
+        http.on("POST", "/Sessions/Logout", 204)
+        return KidProfileRepository(
+            api,
+            profileDao,
+            jellyfinServerDao,
+            plugin,
+            lock,
+            serverRepository,
+            KidSignOut(http.jellyfin, http.deviceInfo, dispatcher),
+        )
     }
 
     @Test
@@ -81,11 +93,21 @@ class KidProfileRepositoryTest {
             repository.refresh(server, kid)
             assertEquals(3L, profileDao.get(kid.rowId)?.revision)
 
-            // Only the plugin's own answer that the user is not a kid removes the profile
+            coVerify(exactly = 0) { serverRepository.removeUser(any()) }
+
+            // Only the plugin's own answer that the user is not a kid removes the profile, and the user with it: signed
+            // out and forgotten on this TV
             http.offline = false
             http.on("GET", "/Kids/Users/${kid.id}/Profile", 404, NOT_A_KID)
             repository.refresh(server, kid)
             assertNull(profileDao.get(kid.rowId))
+            coVerify { serverRepository.removeUser(kid) }
+            assertTrue(
+                http.requests
+                    .single { it.path == "/Sessions/Logout" }
+                    .headers["Authorization"]!!
+                    .contains("Token=\"k\""),
+            )
         }
 
     @Test
@@ -195,14 +217,41 @@ class KidProfileRepositoryTest {
             http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(4))
             repository.refreshServer(server)
             assertNull(profileDao.get(adult.rowId))
-            // Left out of the list: the server said the adult isn't a kid
+            // Left out of the list: the server said the adult isn't a kid, so they are signed out and forgotten
             assertEquals(setOf(adult.rowId), repository.notKids.value)
+            coVerify { serverRepository.removeUser(adult) }
+            assertTrue(
+                http.requests
+                    .single { it.path == "/Sessions/Logout" }
+                    .headers["Authorization"]!!
+                    .contains("Token=\"a\""),
+            )
+            coVerify(exactly = 0) { serverRepository.removeUser(kid) }
             assertEquals(4L, profileDao.get(kid.rowId)?.revision)
 
             // A failed list changes nothing
             http.on("GET", "/Kids/Profiles", 500)
             repository.refreshServer(server)
             assertEquals(4L, profileDao.get(kid.rowId)?.revision)
+        }
+
+    @Test
+    fun `server refresh asks only with a kid's token`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = repository()
+            http.on("GET", "/Kids/Profiles", 200, """[{"UserId":"${kid.id}","Revision":4}]""")
+            http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(4))
+
+            // No kid on this TV yet: the adult's token isn't used
+            repository.refreshServer(server, preferred = adult)
+            assertTrue(http.requests.none { it.path == "/Kids/Profiles" })
+
+            profileDao.upsert(KidProfile(userId = kid.rowId, revision = 1))
+            repository.refreshServer(server, preferred = adult)
+            val list = http.requests.single { it.path == "/Kids/Profiles" }
+            assertTrue(list.headers["Authorization"]!!.contains("Token=\"k\""))
+            // The adult, no kid, goes
+            coVerify { serverRepository.removeUser(adult) }
         }
 
     @Test

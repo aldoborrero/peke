@@ -128,13 +128,29 @@ Decided while testing the app:
   Favourites, Live TV (if the kid has channels) and Grown-ups at the bottom. Libraries never show for kids.
 - **Back:** on the home, the first Back opens the sidebar and a second Back quits the app, as in Wholphin. The parent
   gate opens only on purpose: Grown-ups in the sidebar or on a stop screen. Inner screens go back step by step.
-- **After the parent code:** the parent menu (add time, the kid's settings, leave kids mode), never the user list.
+- **Launch:** a set-up TV always opens on the kids' side, from what the TV stores, without waiting for the server.
+  With one kid, their home opens (or their stop screen); with several, the kids picker ("Who's watching?") shows this
+  TV's kids only, then Grown-ups, which is never focused first. A TV with no kids says so, with only Grown-ups. There
+  is no list of servers or users.
+- **The picker and a stopped kid:** picking is free, except that while the last kid is stopped (time's up, a break,
+  outside allowed hours, or a stop the TV can't read) picking a sibling asks for the parent code first, so a kid can't
+  carry on as a sibling. Picking the stopped kid again just shows their stop screen. A kid whose session no longer
+  works shows "Needs a grown-up" and goes through the gate and the administrator.
+- **Switching kids:** the avatar in the sidebar asks for the parent code, then opens the picker. Once a kid is
+  chosen, the grown-up's code stops counting, so the new kid can't open grown-up pages with it.
+- **Kids never type a code:** codes are for grown-ups only. A kid picks a picture; the parent code is asked only when
+  a grown-up has to decide.
+- **After the parent code:** the parent menu (add time, this kid's settings, kids on this TV, This TV, license, Reset
+  this TV), never the user list. Leaving the menu ends the code's grant.
+- **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
+  can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
 - **Opening videos:** items in "Continue watching" play straight away, resuming. Everywhere else a kid gets the
   details page first: a series shows its seasons and episodes, a film shows Play.
 - **Details pages for kids:** no More button, delete, playlists, remote trailers (they open another app) or people
   rows (cast & crew, guest stars).
-- **Relaunch:** while the TV is locked to kids mode, opening the app always returns to the kid (or the kids list),
-  never to server selection.
+- **Relaunch:** on a set-up TV, opening the app, coming back to it or leaving the screensaver always follows the
+  launch rule above, never server selection. A link or search from outside Peke opens as the current kid, with their
+  rules, or is dropped; it never switches kid.
 
 ## Words
 

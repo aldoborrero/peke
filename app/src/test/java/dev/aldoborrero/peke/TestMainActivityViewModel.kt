@@ -3,14 +3,16 @@ package dev.aldoborrero.peke
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import androidx.datastore.core.DataStore
 import dev.aldoborrero.peke.data.CurrentUser
-import dev.aldoborrero.peke.data.RestoredSession
+import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.kids.KidsLockedLaunch
-import dev.aldoborrero.peke.kids.KidsModeService
-import dev.aldoborrero.peke.preferences.AppPreferences
-import dev.aldoborrero.peke.preferences.update
+import dev.aldoborrero.peke.data.model.JellyfinServerUsers
+import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.data.model.ServerUserConfig
+import dev.aldoborrero.peke.kids.setup.TvLauncher
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvSetupStep
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.services.AppUpgradeHandler
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.DeviceProfileService
@@ -26,22 +28,25 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.configure
 import dev.aldoborrero.peke.util.reset
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.model.UUID
 import org.junit.After
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -52,21 +57,31 @@ class TestMainActivityViewModel {
     private val testDispatcher = StandardTestDispatcher()
 
     private val context: Context = mockk()
-    private val preferences: DataStore<AppPreferences> = mockk()
     private val serverRepository: ServerRepository = mockk()
     private val setupNavigationManager: SetupNavigationManager = mockk(relaxed = true)
     private val navigationManager: NavigationManager = mockk(relaxed = true)
-    private val deviceProfileService: DeviceProfileService = mockk()
+    private val deviceProfileService: DeviceProfileService = mockk(relaxed = true)
     private val backdropService: BackdropService = mockk(relaxed = true)
     private val appUpgradeHandler: AppUpgradeHandler = mockk()
     private val intentService: IntentService = mockk()
-    private val kidsModeService: KidsModeService = mockk { coEvery { isLockedNow() } returns false }
-    private val kidsLockedLaunch: KidsLockedLaunch = mockk { coEvery { destination(any(), any()) } returns null }
+    private val tvState = MutableStateFlow<TvState>(TvState.Loading)
+    private val tvSetupRepository: TvSetupRepository = mockk { every { state } returns tvState }
+    private val rows = MutableStateFlow<List<JellyfinUser>>(emptyList())
+    private val serverDao = mockk<JellyfinServerDao> { every { getServer(any()) } answers { JellyfinServerUsers(server, rows.value) } }
+    private val tvLauncher =
+        TvLauncher(
+            tvSetupRepository,
+            serverRepository,
+            serverDao,
+            mockk(relaxed = true),
+            setupNavigationManager,
+            navigationManager,
+            CoroutineScope(testDispatcher),
+        )
 
     val viewModel =
         MainActivityViewModel(
             context,
-            preferences,
             serverRepository,
             setupNavigationManager,
             navigationManager,
@@ -74,8 +89,8 @@ class TestMainActivityViewModel {
             backdropService,
             appUpgradeHandler,
             intentService,
-            kidsModeService,
-            kidsLockedLaunch,
+            tvSetupRepository,
+            tvLauncher,
         )
 
     private val serverId = UUID.randomUUID()
@@ -83,11 +98,9 @@ class TestMainActivityViewModel {
     private val userId = UUID.randomUUID()
     private val currentUser = currentUser(serverId, userId)
 
-    private val protectedCurrentUser =
-        CurrentUser(
-            server(serverId),
-            user(serverId, userId).copy(pin = "1234"),
-        )
+    private val kid = user(serverId).copy(rowId = 1, name = "kid")
+    private val sibling = user(serverId).copy(rowId = 2, name = "sibling")
+    private val grownUp = user(serverId).copy(rowId = 3, name = "grown-up")
 
     @Before
     fun setUp() {
@@ -98,6 +111,15 @@ class TestMainActivityViewModel {
         val mockToast = mockk<Toast>()
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns mockToast
         every { mockToast.show() } returns Unit
+        every { serverRepository.current } returns MutableStateFlow(null)
+        coEvery { serverRepository.restoreUser(any(), any()) } answers { CurrentUser(firstArg(), secondArg()) }
+        coEvery { serverRepository.updateUserDto() } just Runs
+        coEvery { serverRepository.clearCurrent() } just Runs
+        // A cached configuration: the kid opens without waiting for the server
+        every { serverRepository.currentUserDto } returns ServerUserConfig(id = userId)
+        every { navigationManager.backStack } returns mutableListOf()
+        rows.value = listOf(kid, sibling, grownUp)
+        every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.Loading)
     }
 
     @After
@@ -106,266 +128,148 @@ class TestMainActivityViewModel {
         unmockkStatic(Toast::class)
     }
 
-    private fun setupPreferences(block: AppPreferences.Builder.() -> Unit) {
-        every { preferences.data } returns
-            flow {
-                emit(
-                    AppPreferences.getDefaultInstance().update(block),
-                )
-            }
+    private fun navigatedTo(): SetupDestination {
+        val args = mutableListOf<SetupDestination>()
+        verify { setupNavigationManager.navigateTo(capture(args)) }
+        Assert.assertEquals(1, args.size)
+        return args[0]
     }
 
     @Test
-    fun `Test auto sign in with unprotected profile`() =
+    fun `a TV with no server starts at server setup`() =
         runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow(currentUser)
-//            coEvery { serverRepository.tryRestoreSession(serverId, userId) } returns currentUser
-//            coEvery { serverRepository.restoreLastSession() } returns
-//                RestoredSession.Success(currentUser)
+            tvState.value = TvState.NotSetUp
 
             viewModel.handleAppStart()
 
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.AppContent,
-                )
-                destination as SetupDestination.AppContent
-                Assert.assertEquals(currentUser, destination.current)
-            }
-            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
-            coVerify(exactly = 0) { serverRepository.getMostRecentServer() }
+            Assert.assertEquals(SetupDestination.Setup(TvSetupStep.SERVER), navigatedTo())
         }
 
     @Test
-    fun `Test auto sign disabled in with current server`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = false
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
-//            coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
-            coEvery { serverRepository.getMostRecentServer() } returns
-                RestoredSession.ServerOnly(server)
+    fun `a TV in setup resumes setup at its step`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.InSetup(TvSetupStep.KIDS)
 
             viewModel.handleAppStart()
 
+            Assert.assertEquals(SetupDestination.Setup(TvSetupStep.KIDS), navigatedTo())
+        }
+
+    @Test
+    fun `a setup in progress keeps its screen on a warm start`() =
+        runTest(testDispatcher) {
+            every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.Setup(TvSetupStep.SERVER))
+            tvState.value = TvState.InSetup(TvSetupStep.KIDS)
+
+            viewModel.handleAppStart()
+
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
+        }
+
+    @Test
+    fun `the only kid opens from the stored row, refreshed in the background`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.SetUp(server, listOf(kid))
+
+            viewModel.handleAppStart()
+
+            Assert.assertEquals(SetupDestination.AppContent(CurrentUser(server, kid)), navigatedTo())
+            // No network before the kid shows: the saved session isn't restored through the server
+            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
             coVerify(exactly = 0) { serverRepository.tryChangeUser(any(), any()) }
-            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
-            coVerify(exactly = 1) { serverRepository.getMostRecentServer() }
-            val args = mutableListOf<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(args)) }
-            Assert.assertEquals(1, args.size)
-            args[0].let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.UserList,
-                )
-                destination as SetupDestination.UserList
-                Assert.assertEquals(currentUser.server, destination.server)
-            }
+            coVerify(exactly = 0) { serverRepository.changeUser(any(), any()) }
+            advanceUntilIdle()
+            coVerify(exactly = 1) { serverRepository.updateUserDto() }
         }
 
     @Test
-    fun `Test auto sign in, hot load, with protected profile`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns
-                MutableStateFlow<CurrentUser?>(
-                    protectedCurrentUser,
-                )
-            coEvery {
-                serverRepository.tryChangeUser(serverId, userId)
-            } returns null
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.ServerOnly(server)
-
-            viewModel.handleAppStart()
-
-            coVerify(exactly = 0) { serverRepository.tryChangeUser(serverId, userId) }
-            val args = mutableListOf<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(args)) }
-            Assert.assertEquals(1, args.size)
-            args[0].let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.UserList,
-                )
-                destination as SetupDestination.UserList
-                Assert.assertEquals(currentUser.server, destination.server)
-            }
-        }
-
-    @Test
-    fun `Test auto sign in, cold load, with protected profile`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.ServerOnly(server)
-            coEvery {
-                serverRepository.tryChangeUser(serverId, userId)
-            } returns null
-
-            viewModel.handleAppStart()
-
-            coVerify(exactly = 1) { serverRepository.restoreLastSession() }
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.UserList,
-                )
-                destination as SetupDestination.UserList
-                Assert.assertEquals(currentUser.server, destination.server)
-            }
-        }
-
-    @Test
-    fun `Test auto sign in, no current user`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.restoreLastSession() } returns RestoredSession.None
-
-            viewModel.handleAppStart()
-
-            coVerify(exactly = 1) { serverRepository.restoreLastSession() }
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.ServerList,
-                )
-            }
-        }
-
-    @Test
-    fun `a locked launch with no saved session goes to the kids side`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.restoreLastSession() } returns RestoredSession.None
-            coEvery { kidsLockedLaunch.destination(RestoredSession.None, true) } returns SetupDestination.UserList(server)
-
-            viewModel.handleAppStart()
-
-            verify(exactly = 1) { setupNavigationManager.navigateTo(SetupDestination.UserList(server)) }
-            verify(exactly = 0) { setupNavigationManager.navigateTo(SetupDestination.ServerList) }
-        }
-
-    @Test
-    fun `a locked launch whose restore fails goes to the kids side`() =
-        runTest {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
-            coEvery { serverRepository.restoreLastSession() } throws IllegalStateException("offline")
-            coEvery { kidsLockedLaunch.destination(null, true) } returns SetupDestination.AppContent(currentUser)
-
-            viewModel.handleAppStart()
-
-            verify(exactly = 1) { setupNavigationManager.navigateTo(SetupDestination.AppContent(currentUser)) }
-        }
-
-    @Test
-    fun `Test intent result is noop, hot reload`() =
+    fun `a refresh that fails leaves the kid open`() =
         runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
-            }
+            tvState.value = TvState.SetUp(server, listOf(kid))
+            coEvery { serverRepository.updateUserDto() } throws IllegalStateException("offline")
+
+            viewModel.handleAppStart()
+            advanceUntilIdle()
+
+            Assert.assertEquals(SetupDestination.AppContent(CurrentUser(server, kid)), navigatedTo())
+        }
+
+    @Test
+    fun `a warm start with the only kid current keeps their session`() =
+        runTest(testDispatcher) {
+            val current = CurrentUser(server, kid)
+            every { serverRepository.current } returns MutableStateFlow(current)
+            tvState.value = TvState.SetUp(server, listOf(kid))
+
+            viewModel.handleAppStart()
+
+            Assert.assertEquals(SetupDestination.AppContent(current), navigatedTo())
+            coVerify(exactly = 0) { serverRepository.restoreUser(any(), any()) }
+        }
+
+    @Test
+    fun `a warm start as a grown-up goes back to the only kid`() =
+        runTest(testDispatcher) {
+            every { serverRepository.current } returns MutableStateFlow(CurrentUser(server, grownUp))
+            tvState.value = TvState.SetUp(server, listOf(kid))
+
+            viewModel.handleAppStart()
+
+            Assert.assertEquals(SetupDestination.AppContent(CurrentUser(server, kid)), navigatedTo())
+        }
+
+    @Test
+    fun `several kids go to the picker, also on a warm start`() =
+        runTest(testDispatcher) {
+            every { serverRepository.current } returns MutableStateFlow(CurrentUser(server, kid))
+            tvState.value = TvState.SetUp(server, listOf(kid, sibling), lastKidRowId = kid.rowId)
+
+            viewModel.handleAppStart()
+
+            Assert.assertEquals(SetupDestination.KidsPicker, navigatedTo())
+            coVerify(exactly = 0) { serverRepository.restoreUser(any(), any()) }
+        }
+
+    @Test
+    fun `a TV with a server and no kids says so`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.SetUp(server, emptyList())
+
+            viewModel.handleAppStart()
+
+            Assert.assertEquals(SetupDestination.NoKids, navigatedTo())
+        }
+
+    @Test
+    fun `a normal launch isn't handled as an intent`() =
+        runTest(testDispatcher) {
             every { serverRepository.current } returns MutableStateFlow(currentUser)
-            coEvery { serverRepository.restoreLastSession() } returns
-                RestoredSession.Success(currentUser)
             coEvery { intentService.parseIntent(any()) } returns IntentResult.NoOp
 
-            val result = viewModel.handleIntent(Intent())
-            assertFalse(result)
-
-//            val slot = slot<SetupDestination>()
-//            verify { setupNavigationManager.navigateTo(capture(slot)) }
-//            slot.captured.let { destination ->
-//                Assert.assertTrue(
-//                    "destination is ${destination::class}",
-//                    destination is SetupDestination.AppContent,
-//                )
-//                destination as SetupDestination.AppContent
-//                Assert.assertEquals(currentUser, destination.current)
-//            }
-            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
-            coVerify(exactly = 0) { serverRepository.getMostRecentServer() }
+            assertFalse(viewModel.handleIntent(Intent()))
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
         }
 
     @Test
-    fun `Test intent result is error, has server`() =
+    fun `an intent that fails is dropped and the launch rule runs, never a user or server list`() =
         runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
-            }
             every { serverRepository.current } returns MutableStateFlow(currentUser)
             coEvery { intentService.parseIntent(any()) } returns IntentResult.Error("Error")
 
-            val result = viewModel.handleIntent(Intent())
-            assertTrue(result)
+            // Not handled, so the app starts as usual
+            assertFalse(viewModel.handleIntent(Intent()))
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
 
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.UserList,
-                )
-                destination as SetupDestination.UserList
-                Assert.assertEquals(currentUser.server, destination.server)
-            }
-        }
-
-    @Test
-    fun `Test intent result is error, does not have server`() =
-        runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
-            }
             every { serverRepository.current } returns MutableStateFlow(null)
-            coEvery { intentService.parseIntent(any()) } returns IntentResult.Error("Error")
-
-            val result = viewModel.handleIntent(Intent())
-            assertTrue(result)
-
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.ServerList,
-                )
-            }
+            assertFalse(viewModel.handleIntent(Intent()))
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
         }
 
     @Test
-    fun `Test intent result is target, has server`() =
+    fun `an intent opens its pages as the current kid`() =
         runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow(currentUser)
-//            coEvery { serverRepository.tryRestoreSession(serverId, userId) } returns currentUser
+            val current = CurrentUser(server, kid)
+            every { serverRepository.current } returns MutableStateFlow(current)
             coEvery { intentService.parseIntent(any()) } returns
                 IntentResult.Target(
                     destinations = listOf(Destination.Favorites),
@@ -374,38 +278,19 @@ class TestMainActivityViewModel {
             val backstack = mutableListOf<Destination>()
             every { navigationManager.backStack } returns backstack
 
-            val result = viewModel.handleIntent(Intent())
-            assertTrue(result)
+            assertTrue(viewModel.handleIntent(Intent()))
 
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
+            Assert.assertEquals(SetupDestination.AppContent(current), navigatedTo())
             verify { navigationManager.reloadHome() }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.AppContent,
-                )
-                destination as SetupDestination.AppContent
-                Assert.assertEquals(currentUser, destination.current)
-            }
             // Note: navigation manager internally handles Home destination, so it won't be in this list
-            Assert.assertEquals(1, backstack.size)
-            backstack[0].let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is Destination.Favorites,
-                )
-            }
+            Assert.assertEquals(listOf(Destination.Favorites), backstack)
         }
 
     @Test
-    fun `Test intent result is target, has server, no home backstack`() =
+    fun `an intent without home on the back stack opens only its pages`() =
         runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
-            }
-            every { serverRepository.current } returns MutableStateFlow(currentUser)
-//            coEvery { serverRepository.tryRestoreSession(serverId, userId) } returns currentUser
+            val current = CurrentUser(server, kid)
+            every { serverRepository.current } returns MutableStateFlow(current)
             coEvery { intentService.parseIntent(any()) } returns
                 IntentResult.Target(
                     destinations = listOf(Destination.Favorites),
@@ -414,37 +299,61 @@ class TestMainActivityViewModel {
             val backstack = mutableListOf<Destination>()
             every { navigationManager.backStack } returns backstack
 
-            val result = viewModel.handleIntent(Intent())
-            assertTrue(result)
+            assertTrue(viewModel.handleIntent(Intent()))
 
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
+            Assert.assertEquals(SetupDestination.AppContent(current), navigatedTo())
             verify(exactly = 0) { navigationManager.reloadHome() }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.AppContent,
-                )
-                destination as SetupDestination.AppContent
-                Assert.assertEquals(currentUser, destination.current)
-            }
-            Assert.assertEquals(1, backstack.size)
-            backstack[0].let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is Destination.Favorites,
-                )
-            }
+            Assert.assertEquals(listOf(Destination.Favorites), backstack)
         }
 
     @Test
-    fun `Test intent result is target, has no server`() =
+    fun `an intent on a cold start runs once the launch rule opened the only kid`() =
         runTest(testDispatcher) {
-            setupPreferences {
-                signInAutomatically = true
+            val current = MutableStateFlow<CurrentUser?>(null)
+            every { serverRepository.current } returns current
+            coEvery { serverRepository.restoreUser(any(), any()) } answers
+                { CurrentUser(firstArg(), secondArg()).also { current.value = it } }
+            tvState.value = TvState.SetUp(server, listOf(kid))
+            val backstack = mutableListOf<Destination>()
+            every { navigationManager.backStack } returns backstack
+            // The intent needs a kid: with none current yet it is dropped, as IntentService does
+            coEvery { intentService.parseIntent(any()) } answers {
+                if (current.value == null) {
+                    IntentResult.Error("No kid is current")
+                } else {
+                    IntentResult.Target(listOf(Destination.Favorites), addHomeToBackStack = false)
+                }
             }
+
+            viewModel.appStart(Intent("view"))
+            advanceUntilIdle()
+
+            assertEquals(CurrentUser(server, kid), current.value)
+            Assert.assertEquals(listOf(Destination.Favorites), backstack)
+            // Parsed only after the kid opened
+            coVerify(exactly = 1) { intentService.parseIntent(any()) }
+        }
+
+    @Test
+    fun `an intent on a cold start with several kids is dropped on the picker`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.SetUp(server, listOf(kid, sibling))
+            coEvery { intentService.parseIntent(any()) } returns IntentResult.Target(listOf(Destination.Favorites))
+            val backstack = mutableListOf<Destination>()
+            every { navigationManager.backStack } returns backstack
+
+            viewModel.appStart(Intent("view"))
+            advanceUntilIdle()
+
+            Assert.assertEquals(SetupDestination.KidsPicker, navigatedTo())
+            coVerify(exactly = 0) { intentService.parseIntent(any()) }
+            assertTrue(backstack.isEmpty())
+        }
+
+    @Test
+    fun `an intent with no current kid is dropped`() =
+        runTest(testDispatcher) {
             every { serverRepository.current } returns MutableStateFlow(null)
-//            coEvery { serverRepository.tryRestoreSession(serverId, userId) } returns currentUser
             coEvery { intentService.parseIntent(any()) } returns
                 IntentResult.Target(
                     destinations = listOf(Destination.Favorites),
@@ -453,17 +362,10 @@ class TestMainActivityViewModel {
             val backstack = mutableListOf<Destination>()
             every { navigationManager.backStack } returns backstack
 
-            val result = viewModel.handleIntent(Intent())
-            assertTrue(result)
+            assertFalse(viewModel.handleIntent(Intent()))
 
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
             verify(exactly = 0) { navigationManager.reloadHome() }
-            slot.captured.let { destination ->
-                Assert.assertTrue(
-                    "destination is ${destination::class}",
-                    destination is SetupDestination.ServerList,
-                )
-            }
+            assertTrue(backstack.isEmpty())
         }
 }

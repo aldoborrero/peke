@@ -10,6 +10,7 @@ import dagger.hilt.testing.TestInstallIn
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.data.KidsDatabase
 import dev.aldoborrero.peke.kids.server.KidsServerDao
+import dev.aldoborrero.peke.kids.setup.TvSetupDao
 import javax.inject.Singleton
 
 @Module
@@ -35,4 +36,8 @@ object TestKidsDatabaseModule {
     @Provides
     @Singleton
     fun kidsServerDao(db: KidsDatabase): KidsServerDao = db.kidsServerDao()
+
+    @Provides
+    @Singleton
+    fun tvSetupDao(db: KidsDatabase): TvSetupDao = db.tvSetupDao()
 }

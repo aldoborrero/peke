@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
@@ -18,11 +17,8 @@ import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.ui.launchIO
 import dev.aldoborrero.peke.util.DataLoadingState
-import dev.aldoborrero.peke.util.ExceptionHandler
-import dev.aldoborrero.peke.util.LoadingState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
@@ -62,9 +58,6 @@ class PreferencesViewModel
                 null,
             )
 
-        private val _quickConnectStatus = MutableStateFlow<LoadingState>(LoadingState.Pending)
-        val quickConnectStatus: StateFlow<LoadingState> = _quickConnectStatus
-
         val releaseNotes = MutableStateFlow<DataLoadingState<Release>>(DataLoadingState.Pending)
 
         fun sendAppLogs() {
@@ -74,48 +67,6 @@ class PreferencesViewModel
         fun resetSubtitleSettings() {
             viewModelScope.launchIO {
                 resetSubtitleSettings(preferenceDataStore)
-            }
-        }
-
-        fun setPin(
-            user: JellyfinUser,
-            pin: String?,
-        ) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, pin, false)
-            }
-        }
-
-        fun setRequireLogin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, true)
-            }
-        }
-
-        fun removeLoginAndPin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, false)
-            }
-        }
-
-        fun resetQuickConnectStatus() {
-            _quickConnectStatus.value = LoadingState.Pending
-        }
-
-        fun authorizeQuickConnect(code: String) {
-            viewModelScope.launchIO {
-                _quickConnectStatus.value = LoadingState.Loading
-                try {
-                    val success = serverRepository.authorizeQuickConnect(code)
-                    _quickConnectStatus.value =
-                        if (success) {
-                            LoadingState.Success
-                        } else {
-                            LoadingState.Error("Authorization failed")
-                        }
-                } catch (e: Exception) {
-                    _quickConnectStatus.value = LoadingState.Error(e)
-                }
             }
         }
 

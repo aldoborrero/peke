@@ -7,6 +7,8 @@ import dev.aldoborrero.peke.kids.server.KidsApi
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsServer
 import dev.aldoborrero.peke.kids.server.KidsServerDao
+import dev.aldoborrero.peke.kids.setup.TvSetupDao
+import dev.aldoborrero.peke.kids.setup.TvSetupEntity
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineDispatcher
@@ -21,6 +23,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
+import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
@@ -31,7 +34,7 @@ import java.util.UUID
 /**
  * A [KidProfileDao] in memory. A profile's server is its [KidProfile.serverId], or else [serverOf] of its user row.
  */
-class FakeKidProfileDao(
+open class FakeKidProfileDao(
     private val serverOf: (Int) -> UUID? = { null },
 ) : KidProfileDao {
     val profiles = MutableStateFlow<Map<Int, KidProfile>>(emptyMap())
@@ -145,6 +148,7 @@ class FakeKidsServer {
         val path: String,
         val headers: Map<String, String>,
         val body: String?,
+        val query: String? = null,
     )
 
     val requests = mutableListOf<Recorded>()
@@ -175,7 +179,14 @@ class FakeKidsServer {
             val request = chain.request()
             if (offline) throw IOException("offline")
             val path = request.url.encodedPath
-            val recorded = Recorded(request.method, path, request.headers.associate { it.first to it.second }, request.bodyText())
+            val recorded =
+                Recorded(
+                    request.method,
+                    path,
+                    request.headers.associate { it.first to it.second },
+                    request.bodyText(),
+                    request.url.encodedQuery,
+                )
             requests += recorded
             onRequest(recorded)
             val answer = answers["${request.method} $path"] ?: Answer(404)
@@ -190,21 +201,189 @@ class FakeKidsServer {
                 .build()
         }
 
-    fun api(dispatcher: CoroutineDispatcher): KidsApi {
-        val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
-        val clientInfo = ClientInfo("Peke", "test")
-        val deviceInfo = DeviceInfo("device-1", "TV")
+    /**
+     * Interceptors the app's own client has, such as [dev.aldoborrero.peke.kids.setup.RefusedTokenInterceptor]; add them
+     * before the first call. They run before the fake, which answers in place of the network.
+     */
+    val interceptors = mutableListOf<Interceptor>()
+
+    val client by lazy {
+        OkHttpClient
+            .Builder()
+            .apply { interceptors.forEach { addInterceptor(it) } }
+            .addInterceptor(interceptor)
+            .build()
+    }
+    val clientInfo = ClientInfo("Peke", "test")
+    val deviceInfo = DeviceInfo(DEVICE_ID, "TV")
+
+    /**
+     * A Jellyfin SDK instance whose calls this fake answers
+     */
+    val jellyfin: Jellyfin by lazy {
         val factory = OkHttpFactory(client)
-        val jellyfin =
-            createJellyfin {
-                context = mockk<Context>(relaxed = true)
-                this.clientInfo = clientInfo
-                this.deviceInfo = deviceInfo
-                apiClientFactory = factory
-                socketConnectionFactory = factory
-            }
-        return KidsApi(client, jellyfin, clientInfo, deviceInfo, dispatcher)
+        createJellyfin {
+            context = mockk<Context>(relaxed = true)
+            this.clientInfo = this@FakeKidsServer.clientInfo
+            this.deviceInfo = this@FakeKidsServer.deviceInfo
+            apiClientFactory = factory
+            socketConnectionFactory = factory
+        }
     }
 
+    fun api(dispatcher: CoroutineDispatcher): KidsApi = KidsApi(client, clientInfo, deviceInfo, dispatcher)
+
     private fun Request.bodyText(): String? = body?.let { b -> Buffer().also { b.writeTo(it) }.readUtf8() }
+
+    companion object {
+        const val DEVICE_ID = "device-1"
+    }
+}
+
+/**
+ * Everything logged while it is open: the app's Timber lines, the Jellyfin SDK's (its slf4j logging goes to Timber)
+ * and OkHttp's (java.util.logging), as logcat, the crash reports and "Send app logs" would get them
+ */
+class LogCapture : AutoCloseable {
+    val lines = java.util.concurrent.CopyOnWriteArrayList<String>()
+
+    private val tree =
+        object : timber.log.Timber.Tree() {
+            override fun log(
+                priority: Int,
+                tag: String?,
+                message: String,
+                t: Throwable?,
+            ) {
+                // MockK logs the mocked calls with their arguments through the same tree; only the app's own lines count
+                if (!message.startsWith("Answering ")) lines += "$tag: $message"
+            }
+        }
+
+    private val okHttpLogger =
+        java.util.logging.Logger
+            .getLogger("okhttp3")
+    private val handler =
+        object : java.util.logging.Handler() {
+            override fun publish(record: java.util.logging.LogRecord) {
+                lines += "${record.loggerName}: ${record.message} ${record.thrown ?: ""}"
+            }
+
+            override fun flush() = Unit
+
+            override fun close() = Unit
+        }
+    private val previousLevel = okHttpLogger.level
+
+    init {
+        timber.log.Timber.plant(tree)
+        okHttpLogger.level = java.util.logging.Level.ALL
+        okHttpLogger.addHandler(handler)
+    }
+
+    fun none(text: String): Boolean = lines.none { it.contains(text) }
+
+    override fun close() {
+        timber.log.Timber.uproot(tree)
+        okHttpLogger.removeHandler(handler)
+        okHttpLogger.level = previousLevel
+    }
+}
+
+/**
+ * A [TvSetupDao] in memory. With [unreadable] set, reading the row fails as a corrupt row would.
+ */
+class FakeTvSetupDao(
+    initial: TvSetupEntity? = null,
+) : TvSetupDao {
+    val row = MutableStateFlow(initial)
+    var unreadable = false
+
+    override fun observe(): Flow<TvSetupEntity?> =
+        row.map {
+            if (unreadable) throw IllegalArgumentException("unreadable row")
+            it
+        }
+
+    /**
+     * Each write emits, as Room's invalidation does, also one that writes the same row, and so does setting [row]
+     */
+    private val writes = MutableStateFlow(0)
+
+    override fun observeChanges(): Flow<Int> = kotlinx.coroutines.flow.combine(row, writes) { _, count -> count }
+
+    override suspend fun get(): TvSetupEntity? {
+        if (unreadable) throw IllegalArgumentException("unreadable row")
+        return row.value
+    }
+
+    override suspend fun upsert(setup: TvSetupEntity) {
+        // A write replaces a corrupt row
+        unreadable = false
+        row.value = setup
+        writes.value++
+    }
+
+    override suspend fun delete() {
+        unreadable = false
+        row.value = null
+        writes.value++
+    }
+}
+
+/**
+ * Jellyfin's answer to a sign-in (`Users/AuthenticateByName` or `Users/AuthenticateWithQuickConnect`), with the
+ * fields the SDK requires
+ */
+fun signInAnswer(
+    isAdministrator: Boolean,
+    token: String,
+    userId: UUID = UUID.randomUUID(),
+): String = """{"User":${userJson(userId, isAdministrator)},"AccessToken":"$token"}"""
+
+/**
+ * A Jellyfin `UserDto` with the fields the SDK requires, as `Users/Me` and `Users/{id}` answer it
+ */
+fun userJson(
+    userId: UUID,
+    isAdministrator: Boolean = false,
+    name: String? = null,
+    enableAllDevices: Boolean = false,
+    maxActiveSessions: Int = 0,
+): String {
+    val flags =
+        listOf(
+            "IsHidden",
+            "EnableCollectionManagement",
+            "EnableSubtitleManagement",
+            "EnableLyricManagement",
+            "IsDisabled",
+            "EnableUserPreferenceAccess",
+            "EnableRemoteControlOfOtherUsers",
+            "EnableSharedDeviceControl",
+            "EnableRemoteAccess",
+            "EnableLiveTvManagement",
+            "EnableLiveTvAccess",
+            "EnableMediaPlayback",
+            "EnableAudioPlaybackTranscoding",
+            "EnableVideoPlaybackTranscoding",
+            "EnablePlaybackRemuxing",
+            "ForceRemoteSourceTranscoding",
+            "EnableContentDeletion",
+            "EnableContentDownloading",
+            "EnableSyncTranscoding",
+            "EnableMediaConversion",
+            "EnableAllChannels",
+            "EnableAllFolders",
+            "EnablePublicSharing",
+        ).joinToString(",") { "\"$it\":false" }
+    val counts =
+        listOf("InvalidLoginAttemptCount", "LoginAttemptsBeforeLockout", "RemoteClientBitrateLimit")
+            .joinToString(",") { "\"$it\":0" }
+    val policy =
+        """{"IsAdministrator":$isAdministrator,"EnableAllDevices":$enableAllDevices,"MaxActiveSessions":$maxActiveSessions,""" +
+            """$flags,$counts,"AuthenticationProviderId":"a","PasswordResetProviderId":"p","SyncPlayAccess":"None"}"""
+    val nameField = name?.let { ""","Name":"$it"""" }.orEmpty()
+    return """{"Id":"$userId"$nameField,"HasPassword":true,"HasConfiguredPassword":true,""" +
+        """"HasConfiguredEasyPassword":false,"Policy":$policy}"""
 }

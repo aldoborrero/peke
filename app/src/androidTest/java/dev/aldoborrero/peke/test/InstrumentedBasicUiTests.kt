@@ -5,7 +5,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
@@ -51,7 +50,7 @@ class InstrumentedBasicUiTests {
         composeTestRule.setContent {
             PekeTheme {
                 MainContent(
-                    backStack = mutableListOf(SetupDestination.ServerList),
+                    backStack = mutableListOf(SetupDestination.Setup()),
                     navigationManager = navigationManager,
                     userPreferences = mockk(relaxed = true),
                     backdropService = mockk(relaxed = true),
@@ -61,13 +60,8 @@ class InstrumentedBasicUiTests {
             }
         }
 
-        composeTestRule.onNodeWithText("Add Server").assertExists()
-        composeTestRule.onNodeWithTag("add_server").performKeyInput {
-            pressKey(Key.DirectionDown) // TODO
-        }
-        composeTestRule.onNodeWithTag("add_server").performClickEnter()
-
-        composeTestRule.onNodeWithText("Discovered Servers").assertExists()
+        // A TV that isn't set up starts at the setup's server step
+        composeTestRule.onNodeWithText("Add your Jellyfin server").assertExists()
     }
 }
 

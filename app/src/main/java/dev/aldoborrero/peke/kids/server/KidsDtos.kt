@@ -106,6 +106,66 @@ data class KidsLiveTvItem(
     @SerialName("CurrentProgram") val currentProgram: KidsLiveTvItem? = null,
 )
 
+/**
+ * The oldest plugin version Peke sets a TV up with (spec FR-002)
+ */
+const val MIN_PLUGIN_VERSION = "0.0.7.0"
+
+/**
+ * Whether [version], such as `0.0.7.0`, is [MIN_PLUGIN_VERSION] or later. A missing or unreadable version is not.
+ */
+fun pluginVersionSupported(version: String?): Boolean {
+    val parts = version?.trim()?.split('.')?.map { it.toIntOrNull() ?: return false } ?: return false
+    val min = MIN_PLUGIN_VERSION.split('.').map { it.toInt() }
+    for (i in 0 until maxOf(parts.size, min.size)) {
+        val a = parts.getOrElse(i) { 0 }
+        val b = min.getOrElse(i) { 0 }
+        if (a != b) return a > b
+    }
+    return true
+}
+
+/**
+ * Whether a server can be set up: it has the Kids plugin in a version Peke sets TVs up with
+ */
+enum class PluginSupport {
+    SUPPORTED,
+
+    /**
+     * No plugin, or one older than [MIN_PLUGIN_VERSION]
+     */
+    NEEDED,
+    UNREACHABLE,
+}
+
+/**
+ * A Jellyfin user as `GET /Users` lists them, with only what setup shows
+ */
+@Serializable
+data class HouseholdUserDto(
+    @SerialName("Id") val id: String,
+    @SerialName("Name") val name: String? = null,
+    @SerialName("PrimaryImageTag") val primaryImageTag: String? = null,
+)
+
+/**
+ * Jellyfin's state of a Quick Connect request (`GET /QuickConnect/Connect`), with only whether it was approved; the
+ * secret it also carries is never read from it
+ */
+@Serializable
+data class QuickConnectState(
+    @SerialName("Authenticated") val authenticated: Boolean = false,
+)
+
+/**
+ * A kid of the household: a Jellyfin user with a profile in the Kids plugin
+ */
+data class HouseholdKid(
+    val userId: UUID,
+    val name: String?,
+    val imageTag: String?,
+)
+
 @Serializable
 data class KidProfileRef(
     @SerialName("UserId") val userId: String,

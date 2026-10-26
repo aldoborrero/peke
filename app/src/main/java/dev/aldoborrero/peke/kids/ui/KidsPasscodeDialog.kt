@@ -29,9 +29,9 @@ import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.gate.ParentLockKeys
 import dev.aldoborrero.peke.kids.gate.ParentLockType
+import dev.aldoborrero.peke.kids.setup.PinArrowRow
+import dev.aldoborrero.peke.kids.setup.PinEntryCreate
 import dev.aldoborrero.peke.ui.components.BasicDialog
-import dev.aldoborrero.peke.ui.setup.PinArrowRow
-import dev.aldoborrero.peke.ui.setup.PinEntryCreate
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
@@ -68,7 +68,7 @@ fun KidsPasscodeDialog(
 }
 
 /**
- * Which keys make up a code of [type], for [dev.aldoborrero.peke.ui.setup.PinEntryCreate]
+ * Which keys make up a code of [type], for [dev.aldoborrero.peke.kids.setup.PinEntryCreate]
  */
 fun parentLockSymbol(type: ParentLockType): (Key) -> String? = { ParentLockKeys.symbol(it.nativeKeyCode, type)?.toString() }
 

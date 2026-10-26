@@ -9,6 +9,7 @@ import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import dev.aldoborrero.peke.util.LogRedaction
 import org.acra.ACRA
 import org.acra.ReportField
 import org.acra.data.StringFormat
@@ -26,8 +27,18 @@ class PekeApplication :
     init {
         instance = this
 
+        // Every line is redacted before it reaches logcat, which crash reports and "Send app logs" read
         if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
+            Timber.plant(
+                object : Timber.DebugTree() {
+                    override fun log(
+                        priority: Int,
+                        tag: String?,
+                        message: String,
+                        t: Throwable?,
+                    ) = super.log(priority, tag, LogRedaction.redact(message), null)
+                },
+            )
         } else {
             Timber.plant(
                 object : Timber.Tree() {
@@ -42,7 +53,7 @@ class PekeApplication :
                         message: String,
                         t: Throwable?,
                     ) {
-                        Log.println(priority, tag ?: "Peke", message)
+                        Log.println(priority, tag ?: "Peke", LogRedaction.redact(message))
                     }
                 },
             )

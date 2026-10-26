@@ -22,7 +22,6 @@ class PekePreferencesTest {
                 AppPreference.RefreshRateSwitching,
                 AppPreference.ResolutionSwitching,
                 AppPreference.PlaybackDebugInfo,
-                AppPreference.QuickConnect,
                 ExperimentalPreference.Enable,
                 ExperimentalPreference.ExperimentalSettings,
                 AppPreference.InstalledVersion,
@@ -47,7 +46,6 @@ class PekePreferencesTest {
                 AppPreference.SlideshowPlayVideos,
                 AppPreference.RememberSelectedTab,
                 AppPreference.ShowNextUpTiming,
-                AppPreference.ProtectProfilePreference,
                 AppPreference.UserProfileSettings,
                 AppPreference.KidsMode,
             )

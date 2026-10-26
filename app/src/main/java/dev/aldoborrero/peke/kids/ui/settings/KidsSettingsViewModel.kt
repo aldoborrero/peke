@@ -88,10 +88,6 @@ data class KidsSettingsState(
      */
     val lock: LockState? = null,
     val verified: Boolean = false,
-    /**
-     * Whether the current user is a server administrator, who sets the first household code
-     */
-    val isAdmin: Boolean = false,
     val users: List<KidUserRow> = emptyList(),
     val pickedNames: Map<UUID, String> = emptyMap(),
     // Only known when the current user is a kid profile, since policies of other users can't be read
@@ -110,9 +106,9 @@ data class KidsSettingsState(
     val lockType: ParentLockType? get() = (lock as? LockState.Code)?.type
 
     /**
-     * Without a household code only an administrator can set kids mode up
+     * Without a household code only an administrator can set kids mode up, in the parent gate's recovery
      */
-    val needsAdmin: Boolean get() = lock == LockState.NotSet && !isAdmin
+    val needsAdmin: Boolean get() = lock == LockState.NotSet
 }
 
 @HiltViewModel
@@ -150,14 +146,11 @@ class KidsSettingsViewModel
             viewModelScope.launch {
                 val outdated = serverRepository.currentServer?.let { pluginService.state(it.id).outdated } == true
                 val lock = parentLockService.lockState()
-                val isAdmin = parentLockService.isAdmin()
                 _state.update {
                     it.copy(
                         pluginOutdated = outdated,
                         lock = lock,
-                        isAdmin = isAdmin,
-                        // An administrator sets the first code, which needs no other check
-                        verified = alreadyVerified || (lock == LockState.NotSet && isAdmin),
+                        verified = alreadyVerified,
                     )
                 }
                 serverRepository.current.value?.let { kidProfileRepository.refreshServer(it.server, it.user) }
@@ -241,7 +234,7 @@ class KidsSettingsViewModel
             }
 
         private fun needsGrant() {
-            _state.update { it.copy(verified = it.lock == LockState.NotSet && it.isAdmin) }
+            _state.update { it.copy(verified = false) }
         }
 
         fun setKid(

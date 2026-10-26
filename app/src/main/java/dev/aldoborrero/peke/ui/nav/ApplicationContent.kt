@@ -23,17 +23,11 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
-import dev.aldoborrero.peke.kids.ui.GrownUpRoute
-import dev.aldoborrero.peke.kids.ui.GrownUpShell
+import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
-import dev.aldoborrero.peke.kids.ui.KidsUnansweredPage
-import dev.aldoborrero.peke.kids.ui.grownUpRoute
-import dev.aldoborrero.peke.kids.ui.unknownUserRoute
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.services.SetupDestination
-import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchIO
@@ -49,24 +43,55 @@ class ApplicationContentViewModel
     constructor(
         val backdropService: BackdropService,
         private val kidsModeService: KidsModeService,
-        private val setupNavigationManager: SetupNavigationManager,
+        private val tvLauncher: TvLauncher,
     ) : ViewModel() {
-        val lockEngaged = kidsModeService.lockEngaged
-
         /**
          * Whether the server couldn't say if the current user is a kid, see [KidsModeService.unanswered]
          */
         val unanswered = kidsModeService.unanswered
 
-        fun retry() = kidsModeService.retry()
-
-        fun toKidsUserList(server: JellyfinServer) {
-            setupNavigationManager.navigateTo(SetupDestination.UserList(server))
+        /**
+         * A user who isn't one of this TV's kids: back to the kids side's first screen, the picker or the only kid,
+         * never a list of users or a grown-up shell (spec 004)
+         */
+        fun toKidsSide() {
+            viewModelScope.launchIO { tvLauncher.launch() }
         }
 
         fun clearBackdrop() {
             viewModelScope.launchIO { backdropService.clearBackdrop() }
         }
+    }
+
+/**
+ * What a kid's pages show for the current user
+ */
+internal enum class KidPagesRoute {
+    /**
+     * Their pages: the user is a kid
+     */
+    SHOW,
+
+    /**
+     * Nothing yet: it isn't known whether the user is a kid
+     */
+    WAIT,
+
+    /**
+     * The launch rule's first screen: the server says the user isn't a kid, or couldn't say. Peke has no grown-up
+     * shell, and a user with no cached kid profile is none of this TV's kids.
+     */
+    LAUNCH_RULE,
+}
+
+internal fun kidPagesRoute(
+    state: KidsModeState,
+    unanswered: Boolean,
+): KidPagesRoute =
+    when (state) {
+        is KidsModeState.Active -> KidPagesRoute.SHOW
+        KidsModeState.Inactive -> KidPagesRoute.LAUNCH_RULE
+        KidsModeState.Loading -> if (unanswered) KidPagesRoute.LAUNCH_RULE else KidPagesRoute.WAIT
     }
 
 /**
@@ -96,13 +121,10 @@ fun ApplicationContent(
             viewModel = viewModel,
         )
         val navDrawerListState = rememberLazyListState()
-        // Until it is known whether the user is a kid, neither the regular drawer nor kids pages are shown, nor the
-        // grown-up shell: that waits for the server to say the user isn't a kid
-        val kidsLoading = LocalKidsMode.current == KidsModeState.Loading
-        // Peke is for kids: anyone else only gets the grown-up shell
-        val grownUp = LocalKidsMode.current == KidsModeState.Inactive
-        val lockEngaged by viewModel.lockEngaged.collectAsState()
+        // Peke is for kids: until it is known that the user is a kid nothing is shown, and anyone else goes back to the
+        // launch rule
         val unanswered by viewModel.unanswered.collectAsState()
+        val route = kidPagesRoute(LocalKidsMode.current, unanswered)
         NavDisplay(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
@@ -115,35 +137,11 @@ fun ApplicationContent(
                 key as Destination
                 val contentKey = "${key}_${server?.id}_${user?.id}"
                 NavEntry(key, contentKey = contentKey) {
-                    if (kidsLoading || grownUp) {
-                        val route = if (grownUp) grownUpRoute(key, lockEngaged) else unknownUserRoute(unanswered, lockEngaged)
-                        when (route) {
-                            GrownUpRoute.Loading -> {
-                                LoadingPage(Modifier.fillMaxSize())
-                            }
-
-                            GrownUpRoute.KidsUserList -> {
-                                LaunchedEffect(Unit) { viewModel.toKidsUserList(server) }
-                                LoadingPage(Modifier.fillMaxSize())
-                            }
-
-                            GrownUpRoute.Unanswered -> {
-                                KidsUnansweredPage(onRetry = viewModel::retry, modifier = Modifier.fillMaxSize())
-                            }
-
-                            GrownUpRoute.Shell -> {
-                                GrownUpShell(Modifier.fillMaxSize())
-                            }
-
-                            is GrownUpRoute.Show -> {
-                                DestinationContent(
-                                    destination = route.destination,
-                                    preferences = preferences,
-                                    onClearBackdrop = viewModel::clearBackdrop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                        }
+                    if (route == KidPagesRoute.WAIT) {
+                        LoadingPage(Modifier.fillMaxSize())
+                    } else if (route == KidPagesRoute.LAUNCH_RULE) {
+                        LaunchedEffect(Unit) { viewModel.toKidsSide() }
+                        LoadingPage(Modifier.fillMaxSize())
                     } else if (key.fullScreen) {
                         DestinationContent(
                             destination = key,

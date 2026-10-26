@@ -35,18 +35,22 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
-import dev.aldoborrero.peke.kids.KidsLockedLaunch
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsLiveTv
-import dev.aldoborrero.peke.kids.LocalKidsLocked
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
+import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
 import dev.aldoborrero.peke.kids.server.KidsPluginService
+import dev.aldoborrero.peke.kids.setup.LaunchRule
+import dev.aldoborrero.peke.kids.setup.TvLauncher
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KidsMusicGuard
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.services.AppUpgradeHandler
+import dev.aldoborrero.peke.services.AppVisibility
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.DatePlayedInvalidationService
 import dev.aldoborrero.peke.services.DeviceProfileService
@@ -68,7 +72,6 @@ import dev.aldoborrero.peke.services.UserSwitchListener
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
 import dev.aldoborrero.peke.ui.CoilConfig
 import dev.aldoborrero.peke.ui.LocalImageUrlService
-import dev.aldoborrero.peke.ui.collectLatestIn
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.nav.Destination
@@ -80,10 +83,8 @@ import dev.aldoborrero.peke.util.DebugLogTree
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.requestSerializersModule
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -173,7 +174,17 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var kidsLiveTvService: KidsLiveTvService
 
-    private var signInAuto = true
+    @Inject
+    lateinit var tvSetupRepository: TvSetupRepository
+
+    @Inject
+    lateinit var tvLauncher: TvLauncher
+
+    @Inject
+    lateinit var grownUpSessions: GrownUpSessions
+
+    @Inject
+    lateinit var appVisibility: AppVisibility
 
     private val json =
         Json {
@@ -193,6 +204,8 @@ class MainActivity : AppCompatActivity() {
         lifecycle.addObserver(kidsMusicGuard)
         if (savedInstanceState == null) lifecycleScope.launch { kidsDataCleaner.sweep() }
 
+        // Whose pages the saved back stack holds: opening anyone else starts them from their home (C12)
+        tvLauncher.pagesOf = savedInstanceState?.getInt(KEY_BACK_STACK_KID, -1)?.takeIf { it >= 0 }
         val backStackStr = savedInstanceState?.getString(KEY_BACK_STACK)
         val restoredBackStack =
             if (backStackStr != null) {
@@ -220,19 +233,6 @@ class MainActivity : AppCompatActivity() {
             navigationManager.backStack = NavBackStack(Destination.Home())
         }
 
-        viewModel.serverRepository.currentUserFlow
-            .onEach { user ->
-                withContext(PekeDispatchers.Main) {
-                    if (user?.hasPin == true) {
-                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                }
-            }.catch { ex ->
-                Timber.e(ex, "Error with settings flag secure")
-            }.launchIn(lifecycleScope)
-
         screensaverService.keepScreenOn
             .onEach { keepScreenOn ->
                 Timber.v("keepScreenOn: %s", keepScreenOn)
@@ -246,10 +246,6 @@ class MainActivity : AppCompatActivity() {
             }.catch { ex ->
                 Timber.e(ex, "Error with keepScreenOn")
             }.launchIn(lifecycleScope)
-
-        userPreferencesDataStore.data.collectLatestIn(lifecycleScope) { prefs ->
-            signInAuto = prefs.signInAutomatically
-        }
 
         viewModel.appStart(intent)
         setContent {
@@ -287,12 +283,10 @@ class MainActivity : AppCompatActivity() {
                                 DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
                             }
                             val kidsModeState by kidsModeService.state.collectAsState()
-                            val kidsLocked by kidsModeService.locked.collectAsState()
                             val kidsLiveTv by kidsLiveTvService.available.collectAsState()
                             CompositionLocalProvider(
                                 LocalImageUrlService provides imageUrlService,
                                 LocalKidsMode provides kidsModeState,
-                                LocalKidsLocked provides kidsLocked,
                                 LocalKidsLiveTv provides kidsLiveTv,
                             ) {
                                 PekeTheme(
@@ -354,6 +348,9 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         Timber.d("onStop")
         screensaverService.stop(true)
+        appVisibility.started = false
+        // Home or standby leaves the TV to a kid: nothing a grown-up opened stays open (spec FR-004, FR-008)
+        grownUpSessions.end()
     }
 
     override fun onPause() {
@@ -364,11 +361,14 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         Timber.d("onStart")
+        appVisibility.started = true
 
         lifecycleScope.launchDefault {
             val appPreferences = userPreferencesDataStore.data.first()
-            // Update notices are for grown-ups only: never while the TV is locked to kids or a kid is using it
-            val grownUp = kidsModeService.lockEngaged.filterNotNull().first() == false && !kidsModeService.isActive
+            // Update notices are for grown-ups only: only while the TV is being set up, never on a set-up TV, which
+            // is always the kids'
+            val tvState = tvSetupRepository.state.first { it != TvState.Loading }
+            val grownUp = (tvState == TvState.NotSetUp || tvState is TvState.InSetup) && !kidsModeService.isActive
             if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates && grownUp) {
                 try {
                     updateChecker.maybeShowUpdateToast()
@@ -388,6 +388,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val str = json.encodeToString(navigationManager.backStack.toList())
             outState.putString(KEY_BACK_STACK, str)
+            tvLauncher.pagesOf?.let { outState.putInt(KEY_BACK_STACK_KID, it) }
         } catch (ex: Exception) {
             // Best-effort: some destinations carry types we can't serialize; skip persisting
             // the back stack rather than crashing in onSaveInstanceState.
@@ -436,6 +437,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_BACK_STACK = "backStack"
+        private const val KEY_BACK_STACK_KID = "backStackKid"
 
         lateinit var instance: MainActivity
             private set
@@ -447,7 +449,6 @@ class MainActivityViewModel
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
-        private val preferences: DataStore<AppPreferences>,
         val serverRepository: ServerRepository,
         private val setupNavigationManager: SetupNavigationManager,
         private val navigationManager: NavigationManager,
@@ -455,8 +456,8 @@ class MainActivityViewModel
         private val backdropService: BackdropService,
         private val appUpgradeHandler: AppUpgradeHandler,
         private val intentService: IntentService,
-        private val kidsModeService: KidsModeService,
-        private val kidsLockedLaunch: KidsLockedLaunch,
+        private val tvSetupRepository: TvSetupRepository,
+        private val tvLauncher: TvLauncher,
     ) : ViewModel() {
         private val mutex = Mutex()
 
@@ -473,8 +474,11 @@ class MainActivityViewModel
                         )
                     }
 
+                    // With no kid current, as on a cold start, an intent waits for the launch rule: it runs once that
+                    // opened the only kid, and is dropped on the picker. It never picks a kid itself.
+                    val waitForKid = intent != null && serverRepository.current.value == null
                     try {
-                        val result = handleIntent(intent)
+                        val result = !waitForKid && handleIntent(intent)
                         if (result) {
                             Timber.i("appStart was handled by intent")
                             return@withLock
@@ -487,7 +491,19 @@ class MainActivityViewModel
                         handleAppStart()
                     } catch (ex: Exception) {
                         Timber.e(ex, "Error during appStart")
-                        setupNavigationManager.navigateTo(SetupDestination.ServerList)
+                        // Fail closed: setup only for a TV that isn't set up
+                        val state = tvSetupRepository.state.value
+                        val notSetUp = state == TvState.NotSetUp || state is TvState.InSetup
+                        setupNavigationManager.navigateTo(if (notSetUp) SetupDestination.Setup() else SetupDestination.Loading)
+                        return@withLock
+                    }
+
+                    if (waitForKid && serverRepository.current.value != null) {
+                        try {
+                            if (handleIntent(intent)) Timber.i("The intent ran as the kid the launch rule opened")
+                        } catch (ex: Exception) {
+                            Timber.e(ex, "Error parsing intent")
+                        }
                     }
                 }
             }
@@ -511,54 +527,35 @@ class MainActivityViewModel
         }
 
         /**
-         * Handle an [Intent], navigating if needed
+         * Handle an [Intent], navigating if needed. An intent only acts as the current kid, with their rules, and never
+         * switches user: [IntentService] ignores user ids in it (C6). One that can't do that is dropped, and the app
+         * starts as usual, through the launch rule.
          *
          * @return true if the intent was handled, false if normal app start should proceed
          */
         @VisibleForTesting
         internal suspend fun handleIntent(intent: Intent?): Boolean {
-            val result = intent?.let { intentService.parseIntent(intent) }
-            if (result is IntentResult.Target && kidsModeService.isLockedNow()) {
-                // Deep links could lead outside the kids experience, so start normally instead
-                Timber.i("Ignoring intent while locked to kids mode")
-                return false
-            }
-            when (result) {
+            when (val result = intent?.let { intentService.parseIntent(intent) }) {
                 is IntentResult.Error -> {
-                    val current = serverRepository.current.value
-                    val destination =
-                        if (current != null) {
-                            SetupDestination.UserList(current.server)
-                        } else {
-                            SetupDestination.ServerList
-                        }
-                    setupNavigationManager.navigateTo(destination)
-                    Timber.e("Error parsing intent: %s", result.message)
-                    showToast(context, result.message)
-                    return true
+                    Timber.w("Dropping an intent: %s", result.message)
+                    return false
                 }
 
                 is IntentResult.Target -> {
                     val current = serverRepository.current.value
-                    if (current != null) {
-                        Timber.i("Received valid intent, switching to AppContent")
-
-                        if (result.addHomeToBackStack) {
-                            navigationManager.reloadHome()
-                        } else {
-                            navigationManager.backStack.clear()
-                        }
-                        navigationManager.backStack.addAll(result.destinations)
-
-                        setupNavigationManager.navigateTo(
-                            SetupDestination.AppContent(current),
-                        )
-                    } else {
-                        // This should never happen, but just reset app state if it does
-                        setupNavigationManager.navigateTo(SetupDestination.ServerList)
-                        Timber.e("Error parsing intent, no user is active")
-                        showToast(context, "An error occurred parsing the intent")
+                    if (current == null) {
+                        // IntentService checked for a current kid, so this should never happen
+                        Timber.w("Dropping an intent: no kid is current")
+                        return false
                     }
+                    Timber.i("Received valid intent, switching to AppContent")
+                    if (result.addHomeToBackStack) {
+                        navigationManager.reloadHome()
+                    } else {
+                        navigationManager.backStack.clear()
+                    }
+                    navigationManager.backStack.addAll(result.destinations)
+                    setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                     return true
                 }
 
@@ -587,41 +584,11 @@ class MainActivityViewModel
         }
 
         /**
-         * Handle starting the app including auto sign in and navigating to the right starting page
+         * Go to the first screen of a cold or warm start, from [LaunchRule]: a set-up TV always opens on the kids side
          */
         @VisibleForTesting
         internal suspend fun handleAppStart() {
-            val signInAutomatically = preferences.data.first().signInAutomatically
-            val currentUser = serverRepository.current.value
-            if (signInAutomatically && currentUser != null && !currentUser.user.isProtected) {
-                // Hot reload
-                Timber.v("Hot reload restoring state")
-                setupNavigationManager.navigateTo(
-                    SetupDestination.AppContent(currentUser),
-                )
-            } else {
-                val restoredSession =
-                    try {
-                        if (signInAutomatically) {
-                            Timber.v("Sign in automatically")
-                            serverRepository.restoreLastSession()
-                        } else {
-                            serverRepository.getMostRecentServer()
-                        }
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        Timber.e(ex, "Error restoring the last session")
-                        null
-                    }
-                Timber.d("Restore last session result=%s", restoredSession)
-                // While locked to kids mode, a launch always goes back to the kids side
-                val destination =
-                    kidsLockedLaunch.destination(restoredSession, signInAutomatically)
-                        ?: restoredSession?.destination
-                        ?: SetupDestination.ServerList
-                setupNavigationManager.navigateTo(destination)
-            }
+            tvLauncher.launch()
         }
     }
 

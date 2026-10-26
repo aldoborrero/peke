@@ -13,21 +13,15 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.setup.PinArrowRow
+import dev.aldoborrero.peke.kids.setup.PinEntryCreate
+import dev.aldoborrero.peke.kids.setup.pinSymbol
 import dev.aldoborrero.peke.ui.components.BasicDialog
-import dev.aldoborrero.peke.ui.setup.PinArrowRow
-import dev.aldoborrero.peke.ui.setup.PinEntryCreate
-import dev.aldoborrero.peke.ui.setup.pinSymbol
 
 enum class PinFlowState {
     ENTER_PIN_TO_REMOVE,
     ENTER_PIN,
     CONFIRM_PIN,
-}
-
-enum class ProfileProtection {
-    NONE,
-    PIN,
-    LOGIN,
 }
 
 /**

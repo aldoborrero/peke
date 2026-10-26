@@ -71,13 +71,10 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.playOnClickSound
 import dev.aldoborrero.peke.ui.playSoundOnFocus
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings
-import dev.aldoborrero.peke.ui.setup.ReleaseNotes
-import dev.aldoborrero.peke.ui.setup.UpdateViewModel
 import dev.aldoborrero.peke.ui.showToast
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.DataLoadingState
 import dev.aldoborrero.peke.util.ExceptionHandler
-import dev.aldoborrero.peke.util.LoadingState
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.Locale
@@ -101,12 +98,10 @@ fun PreferencesContent(
     val state = rememberLazyListState()
     var preferences by remember { mutableStateOf(initialPreferences) }
     val currentUser by viewModel.currentUser.collectAsState()
-    var showPinFlow by remember { mutableStateOf(false) }
     var showVersionDialog by remember { mutableStateOf(false) }
     val kidsAvailable by viewModel.kidsAvailable.collectAsState()
 
     var cacheUsage by remember { mutableStateOf(CacheUsage(0, 0, 0)) }
-    var showQuickConnectDialog by remember { mutableStateOf(false) }
     var showLocaleChoiceDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -412,66 +407,6 @@ fun PreferencesContent(
                                     )
                                 }
 
-                                AppPreference.ProtectProfilePreference -> {
-                                    val summary =
-                                        when {
-                                            currentUser?.requireLogin == true -> R.string.require_login
-                                            currentUser?.hasPin == true -> R.string.require_pin_code
-                                            else -> R.string.none
-                                        }
-                                    ChoicePreference(
-                                        title = stringResource(pref.title),
-                                        summary = stringResource(summary),
-                                        interactionSource = interactionSource,
-                                        possibleValues =
-                                            listOf(
-                                                stringResource(R.string.none),
-                                                stringResource(R.string.require_pin_code),
-                                                stringResource(R.string.require_login),
-                                            ),
-                                        selectedIndex =
-                                            when {
-                                                currentUser?.requireLogin == true -> ProfileProtection.LOGIN
-                                                currentUser?.hasPin == true -> ProfileProtection.PIN
-                                                else -> ProfileProtection.NONE
-                                            }.ordinal,
-                                        onValueChange = {
-                                            currentUser?.let { user ->
-                                                when (ProfileProtection.entries[it]) {
-                                                    ProfileProtection.NONE -> {
-                                                        viewModel.removeLoginAndPin(user)
-                                                    }
-
-                                                    ProfileProtection.PIN -> {
-                                                        showPinFlow = true
-                                                    }
-
-                                                    ProfileProtection.LOGIN -> {
-                                                        viewModel.setRequireLogin(user)
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        modifier = focusModifier,
-                                    )
-                                }
-
-                                AppPreference.QuickConnect -> {
-                                    ClickPreference(
-                                        title = stringResource(pref.title),
-                                        onClick = {
-                                            if (currentUser != null) {
-                                                viewModel.resetQuickConnectStatus()
-                                                showQuickConnectDialog = true
-                                            }
-                                        },
-                                        modifier = focusModifier,
-                                        summary = pref.summary(context, null),
-                                        onLongClick = {},
-                                        interactionSource = interactionSource,
-                                    )
-                                }
-
                                 ScreensaverPreference.Start -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -582,54 +517,8 @@ fun PreferencesContent(
                 }
             }
         }
-        if (showPinFlow && currentUser != null) {
-            currentUser?.let { user ->
-                SetPinFlow(
-                    currentPin = user.pin,
-                    onAddPin = {
-                        viewModel.setPin(user, it)
-                        showPinFlow = false
-                    },
-                    onRemovePin = {
-                        viewModel.setPin(user, null)
-                        showPinFlow = false
-                    },
-                    onDismissRequest = { showPinFlow = false },
-                )
-            }
-        }
     }
 
-    if (showQuickConnectDialog) {
-        val quickConnectStatus by viewModel.quickConnectStatus.collectAsState(LoadingState.Pending)
-        val successMessage = stringResource(R.string.quick_connect_success)
-
-        LaunchedEffect(quickConnectStatus) {
-            when (val status = quickConnectStatus) {
-                LoadingState.Success -> {
-                    Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
-                    showQuickConnectDialog = false
-                }
-
-                is LoadingState.Error -> {
-                    val errorMessage = status.message ?: "Authorization failed"
-                    Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
-                }
-
-                else -> {}
-            }
-        }
-
-        QuickConnectDialog(
-            onSubmit = { code ->
-                viewModel.authorizeQuickConnect(code)
-            },
-            onDismissRequest = {
-                viewModel.resetQuickConnectStatus()
-                showQuickConnectDialog = false
-            },
-        )
-    }
     if (showVersionDialog) {
         LaunchedEffect(Unit) {
             viewModel.fetchReleaseNotes()

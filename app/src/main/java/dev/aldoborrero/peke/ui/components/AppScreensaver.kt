@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,6 +83,11 @@ sealed interface ScreensaverItem {
     ) : ScreensaverItem
 
     data object Empty : ScreensaverItem
+
+    /**
+     * No kid is current: Peke's own art instead of anyone's library
+     */
+    data object Neutral : ScreensaverItem
 
     data class CurrentItem(
         val item: BaseItem,
@@ -133,6 +140,10 @@ fun AppScreensaverContent(
             ),
         )
         when (currentItem) {
+            ScreensaverItem.Neutral -> {
+                ScreensaverNeutral(duration = duration, modifier = Modifier.fillMaxSize())
+            }
+
             ScreensaverItem.Empty -> {
                 ScreensaverPlaceholder(
                     text = stringResource(R.string.no_results),
@@ -250,6 +261,53 @@ fun AppScreensaverContent(
         }
     }
 }
+
+/**
+ * Peke's logo, moving around the screen like [ScreensaverPlaceholder]'s text
+ */
+@Composable
+fun ScreensaverNeutral(
+    duration: Duration,
+    modifier: Modifier = Modifier,
+) {
+    var alignment by remember { mutableStateOf(Alignment.Center) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(duration)
+            alignment = NEUTRAL_ALIGNMENTS.filter { it != alignment }.random()
+        }
+    }
+    AnimatedContent(
+        targetState = alignment,
+        label = "neutral art",
+        transitionSpec = {
+            fadeIn(animationSpec = tween(500, delayMillis = 100))
+                .togetherWith(fadeOut(animationSpec = tween(500, 100)))
+        },
+        modifier = modifier,
+    ) { align ->
+        Box(Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(R.mipmap.ic_launcher_foreground),
+                contentDescription = stringResource(R.string.app_name),
+                modifier =
+                    Modifier
+                        .align(align)
+                        .padding(40.dp)
+                        .size(240.dp),
+            )
+        }
+    }
+}
+
+private val NEUTRAL_ALIGNMENTS =
+    listOf(
+        Alignment.TopStart,
+        Alignment.TopEnd,
+        Alignment.Center,
+        Alignment.BottomStart,
+        Alignment.BottomEnd,
+    )
 
 @Composable
 fun ScreensaverPlaceholder(

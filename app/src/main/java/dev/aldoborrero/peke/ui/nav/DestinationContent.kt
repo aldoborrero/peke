@@ -13,7 +13,9 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlayPage
+import dev.aldoborrero.peke.kids.ui.GrownUpGuard
 import dev.aldoborrero.peke.kids.ui.KidsTimesUpPage
+import dev.aldoborrero.peke.kids.ui.isGrownUp
 import dev.aldoborrero.peke.kids.ui.settings.KidsSettingsPage
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.components.ErrorMessage
@@ -47,11 +49,11 @@ import dev.aldoborrero.peke.ui.detail.series.SeriesOverview
 import dev.aldoborrero.peke.ui.main.HomePage
 import dev.aldoborrero.peke.ui.main.settings.HomeSettingsPage
 import dev.aldoborrero.peke.ui.playback.PlaybackPage
+import dev.aldoborrero.peke.ui.preferences.InstallUpdatePage
 import dev.aldoborrero.peke.ui.preferences.PreferencesPage
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleStylePage
 import dev.aldoborrero.peke.ui.preferences.user.UserProfilePreferencesPage
 import dev.aldoborrero.peke.ui.search.SearchPage
-import dev.aldoborrero.peke.ui.setup.InstallUpdatePage
 import dev.aldoborrero.peke.ui.slideshow.SlideshowPage
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
@@ -76,6 +78,23 @@ fun DestinationContent(
         KidsDirectPlayPage(destination, modifier)
         return
     }
+    // Grown-up pages render only while a parent grant is live; otherwise the gate asks first (C12)
+    if (destination.isGrownUp()) {
+        GrownUpGuard(inKidPages = true, modifier = modifier) {
+            DestinationPage(destination, preferences, onClearBackdrop, modifier)
+        }
+    } else {
+        DestinationPage(destination, preferences, onClearBackdrop, modifier)
+    }
+}
+
+@Composable
+private fun DestinationPage(
+    destination: Destination,
+    preferences: UserPreferences,
+    onClearBackdrop: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     when (destination) {
         is Destination.Home -> {
             HomePage(

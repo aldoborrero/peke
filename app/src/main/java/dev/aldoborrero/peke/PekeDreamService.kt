@@ -23,14 +23,11 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dagger.hilt.android.AndroidEntryPoint
-import dev.aldoborrero.peke.data.RestoredSession
-import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.services.ScreensaverService
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
 import dev.aldoborrero.peke.ui.CoilConfig
 import dev.aldoborrero.peke.ui.components.AppScreensaverContent
-import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.util.ProvideLocalClock
 import kotlinx.coroutines.flow.collectLatest
@@ -43,9 +40,6 @@ import kotlin.time.Duration.Companion.milliseconds
 class PekeDreamService :
     DreamService(),
     SavedStateRegistryOwner {
-    @Inject
-    lateinit var serverRepository: ServerRepository
-
     @Inject
     lateinit var screensaverService: ScreensaverService
 
@@ -71,15 +65,8 @@ class PekeDreamService :
         Timber.d("onCreate")
 
         savedStateRegistryController.performRestore(null)
+        // No session is restored: only the kid whose pages are open shows, and otherwise Peke's own art (C10)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
-        lifecycleScope.launchDefault {
-            if (serverRepository.current.value == null) {
-                val result = serverRepository.restoreLastSession()
-                if (result !is RestoredSession.Success) {
-                    Timber.w("Could not restore user session")
-                }
-            }
-        }
     }
 
     override fun onAttachedToWindow() {
@@ -91,39 +78,36 @@ class PekeDreamService :
                 setViewTreeLifecycleOwner(this@PekeDreamService)
                 setViewTreeSavedStateRegistryOwner(this@PekeDreamService)
                 setContent {
-                    val user by serverRepository.currentUserFlow.collectAsState(null)
-                    if (user != null) {
-                        var prefs by remember { mutableStateOf<AppPreferences?>(null) }
-                        LaunchedEffect(Unit) {
-                            preferencesDataStore.data.collectLatest { prefs = it }
-                        }
-                        prefs?.let { prefs ->
-                            CoilConfig(
-                                prefs = prefs,
-                                okHttpClient = okHttpClient,
-                                debugLogging = false,
-                                enableCache = true,
-                            )
-                            PekeTheme(appThemeColors = prefs.interfacePreferences.appThemeColors) {
-                                ProvideLocalClock {
-                                    val screensaverPrefs = prefs.interfacePreferences.screensaverPreference
-                                    val currentItem by itemFlow.collectAsState(null)
-                                    Box(Modifier.fillMaxSize()) {
-                                        AppScreensaverContent(
-                                            currentItem = currentItem,
-                                            showClock = screensaverPrefs.showClock,
-                                            duration = screensaverPrefs.duration.milliseconds,
-                                            animate = screensaverPrefs.animate,
-                                            modifier = Modifier.fillMaxSize(),
+                    var prefs by remember { mutableStateOf<AppPreferences?>(null) }
+                    LaunchedEffect(Unit) {
+                        preferencesDataStore.data.collectLatest { prefs = it }
+                    }
+                    prefs?.let { prefs ->
+                        CoilConfig(
+                            prefs = prefs,
+                            okHttpClient = okHttpClient,
+                            debugLogging = false,
+                            enableCache = true,
+                        )
+                        PekeTheme(appThemeColors = prefs.interfacePreferences.appThemeColors) {
+                            ProvideLocalClock {
+                                val screensaverPrefs = prefs.interfacePreferences.screensaverPreference
+                                val currentItem by itemFlow.collectAsState(null)
+                                Box(Modifier.fillMaxSize()) {
+                                    AppScreensaverContent(
+                                        currentItem = currentItem,
+                                        showClock = screensaverPrefs.showClock,
+                                        duration = screensaverPrefs.duration.milliseconds,
+                                        animate = screensaverPrefs.animate,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                    if (screensaverPrefs.dimEnabled) {
+                                        val alpha = screensaverPrefs.dimPercent / 100f
+                                        Box(
+                                            Modifier
+                                                .fillMaxSize()
+                                                .background(Color.Black.copy(alpha = alpha)),
                                         )
-                                        if (screensaverPrefs.dimEnabled) {
-                                            val alpha = screensaverPrefs.dimPercent / 100f
-                                            Box(
-                                                Modifier
-                                                    .fillMaxSize()
-                                                    .background(Color.Black.copy(alpha = alpha)),
-                                            )
-                                        }
                                     }
                                 }
                             }

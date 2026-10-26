@@ -17,6 +17,12 @@ import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.gate.PasscodeHasher
 import dev.aldoborrero.peke.kids.gate.VerifyOutcome
 import dev.aldoborrero.peke.kids.server.KidsPluginService
+import dev.aldoborrero.peke.kids.setup.AdminSession
+import dev.aldoborrero.peke.kids.setup.AdminSessions
+import dev.aldoborrero.peke.kids.setup.AdminSignIn
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,7 +53,17 @@ class ParentLockServiceTest {
     private var admin = false
     private val verifier = PasscodeHasher.hash("1234")
 
-    private suspend fun TestScope.service(): ParentLockService {
+    /**
+     * This TV's users, as stored
+     */
+    private var users = listOf(kid)
+
+    /**
+     * @param pluginChecked whether the plugin answered in this run of the app before the gate opens
+     */
+    private suspend fun TestScope.service(pluginChecked: Boolean = true): ParentLockService {
+        // The kid is one of this TV's kids: only their token is used
+        profileDao.upsert(KidProfile(userId = kid.rowId))
         val repository = mockk<ServerRepository>()
         every { repository.current } returns current
         every { repository.currentServer } answers { current.value?.server }
@@ -55,14 +71,26 @@ class ParentLockServiceTest {
             ServerUserConfig(id = kid.id, policy = mockk<UserPolicy> { every { isAdministrator } returns admin })
         }
         val jellyfinServerDao = mockk<JellyfinServerDao>()
-        every { jellyfinServerDao.getServer(server.id) } returns JellyfinServerUsers(server, listOf(kid))
-        every { jellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(kid)))
+        every { jellyfinServerDao.getServer(server.id) } answers { JellyfinServerUsers(server, users) }
+        every { jellyfinServerDao.getServers() } answers { listOf(JellyfinServerUsers(server, users)) }
+        val tvSetupRepository = mockk<TvSetupRepository> { coEvery { server() } returns server }
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val api = http.api(dispatcher)
-        val plugin = KidsPluginService(repository, api, serverDao, profileDao, clock, backgroundScope)
         http.on("GET", "/Kids/Info", 200, """{"ApiVersion":1,"Features":[$KIDS_FEATURES_JSON]}""")
-        plugin.check(server)
-        return ParentLockService(repository, jellyfinServerDao, profileDao, serverDao, api, plugin, clock, dispatcher)
+        val plugin = KidsPluginService(repository, api, serverDao, profileDao, clock, backgroundScope)
+        if (pluginChecked) plugin.check(server)
+        return ParentLockService(
+            repository,
+            jellyfinServerDao,
+            profileDao,
+            serverDao,
+            tvSetupRepository,
+            api,
+            plugin,
+            AdminSessions(http.jellyfin, http.deviceInfo, api, dispatcher),
+            clock,
+            dispatcher,
+        )
     }
 
     private fun serverLock() {
@@ -303,18 +331,68 @@ class ParentLockServiceTest {
         }
 
     @Test
-    fun `administrators set the first code without a grant or current code`() =
+    fun `an administrator's token is no longer a grant`() =
         runTest(UnconfinedTestDispatcher()) {
             admin = true
-            http.on("GET", "/Kids/Parent/Lock", 200, "{}")
+            serverLock()
             http.on("PUT", "/Kids/Parent/Lock", 200, """{"LockType":"NUMERIC"}""")
-            verifyAnswer("""{"Valid":true,"Grant":"g-2"}""")
             val service = service()
-            assertEquals(LockState.NotSet, service.lockState())
-            assertEquals(LockChange.Done, service.setCode(ParentLockType.NUMERIC, "4321", null))
-            val put = http.requests.first { it.method == "PUT" }
-            assertFalse(put.body!!.contains("Current"))
-            assertNull(put.headers["X-Kids-Grant"])
+            assertNull(service.auth())
+            assertEquals(LockChange.NeedsGrant, service.setCode(ParentLockType.NUMERIC, "4321", null))
+            assertTrue(http.requests.none { it.method == "PUT" })
+            assertFalse(service.hasLiveGrant())
+        }
+
+    @Test
+    fun `with no kid token the gate uses the offline verifier`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            verifyAnswer("""{"Valid":true,"Grant":"g-1"}""")
+            val service = service()
+            service.verify("1234")
+            service.dropGrant()
+            // No kid is current, and the TV's only kid lost their token
+            current.value = null
+            users = listOf(kid.copy(accessToken = null))
+            val sent = http.requests.size
+
+            assertEquals(LockState.Code(ParentLockType.NUMERIC), service.lockState())
+            assertEquals(VerifyOutcome.Wrong, service.verify("0000"))
+            assertEquals(VerifyOutcome.ValidOffline, service.verify("1234"))
+            // Nothing went to the server without a kid's token
+            assertEquals(sent, http.requests.size)
+            assertTrue(service.hasLiveGrant())
+        }
+
+    @Test
+    fun `a refused kid token falls back to the offline verifier`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            verifyAnswer("""{"Valid":true,"Grant":"g-1"}""")
+            profileDao.upsert(KidProfile(userId = kid.rowId))
+            val service = service()
+            service.verify("1234")
+            service.dropGrant()
+            current.value = null
+            // Signed out from the dashboard: the server refuses the kid's token
+            http.on("GET", "/Kids/Parent/Lock", 401)
+            http.on("POST", "/Kids/Parent/Verify", 401)
+
+            assertEquals(LockState.Code(ParentLockType.NUMERIC), service.lockState())
+            assertEquals(VerifyOutcome.ValidOffline, service.verify("1234"))
+        }
+
+    @Test
+    fun `with no kid token and no verifier only recovery is offered`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            val service = service()
+            current.value = null
+            users = emptyList()
+
+            assertEquals(LockState.RecoveryOnly, service.lockState())
+            assertEquals(VerifyOutcome.CannotCheck, service.verify("1234"))
+            assertTrue(http.requests.none { it.path.startsWith("/Kids/Parent") })
         }
 
     @Test
@@ -351,50 +429,6 @@ class ParentLockServiceTest {
             http.offline = true
             assertEquals(LockState.Unknown, service.lockState())
         }
-
-    /**
-     * Jellyfin's answer to `POST /Users/AuthenticateByName`, with the fields the SDK requires
-     */
-    private fun signInAnswer(
-        isAdministrator: Boolean,
-        token: String,
-    ): String {
-        val flags =
-            listOf(
-                "IsHidden",
-                "EnableCollectionManagement",
-                "EnableSubtitleManagement",
-                "EnableLyricManagement",
-                "IsDisabled",
-                "EnableUserPreferenceAccess",
-                "EnableRemoteControlOfOtherUsers",
-                "EnableSharedDeviceControl",
-                "EnableRemoteAccess",
-                "EnableLiveTvManagement",
-                "EnableLiveTvAccess",
-                "EnableMediaPlayback",
-                "EnableAudioPlaybackTranscoding",
-                "EnableVideoPlaybackTranscoding",
-                "EnablePlaybackRemuxing",
-                "ForceRemoteSourceTranscoding",
-                "EnableContentDeletion",
-                "EnableContentDownloading",
-                "EnableSyncTranscoding",
-                "EnableMediaConversion",
-                "EnableAllDevices",
-                "EnableAllChannels",
-                "EnableAllFolders",
-                "EnablePublicSharing",
-            ).joinToString(",") { "\"$it\":false" }
-        val counts =
-            listOf("InvalidLoginAttemptCount", "LoginAttemptsBeforeLockout", "MaxActiveSessions", "RemoteClientBitrateLimit")
-                .joinToString(",") { "\"$it\":0" }
-        val policy =
-            """{"IsAdministrator":$isAdministrator,$flags,$counts,"AuthenticationProviderId":"a","PasswordResetProviderId":"p","SyncPlayAccess":"None"}"""
-        val user =
-            """{"Id":"${UUID.randomUUID()}","HasPassword":true,"HasConfiguredPassword":true,"HasConfiguredEasyPassword":false,"Policy":$policy}"""
-        return """{"User":$user,"AccessToken":"$token"}"""
-    }
 
     @Test
     fun `an administrator sign-in is checked once and signed out`() =
@@ -440,5 +474,137 @@ class ParentLockServiceTest {
             http.on("POST", "/Sessions/Logout", 500)
             assertEquals(AdminCheck.ADMIN, service.checkAdmin("admin", "secret"))
             assertEquals(2, http.requests.count { it.path == "/Sessions/Logout" })
+        }
+
+    private fun TestScope.adminSessions(): AdminSessions {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        return AdminSessions(http.jellyfin, http.deviceInfo, http.api(dispatcher), dispatcher)
+    }
+
+    private suspend fun TestScope.adminSession(): AdminSession {
+        http.on("POST", "/Users/AuthenticateByName", 200, signInAnswer(true, "admin-token"))
+        http.on("POST", "/Sessions/Logout", 204)
+        return (adminSessions().open(server, "admin", "pw") as AdminSignIn.Opened).session
+    }
+
+    @Test
+    fun `recovery sets a new code with the administrator, without the current one`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            verifyAnswer("""{"Valid":true,"Grant":"g-1"}""")
+            val service = service()
+            service.verify("1234")
+            assertNotNull(serverDao.get(server.id)?.verifier)
+            http.on("PUT", "/Kids/Parent/Lock", 200, """{"LockType":"NUMERIC","ChangedAt":"2026-10-23T10:00:00Z"}""")
+            val newVerifier = PasscodeHasher.hash("4321")
+            http.on("GET", "/Kids/Parent/Verifier", 200, """{"LockType":"NUMERIC","Verifier":"$newVerifier"}""")
+            val session = adminSession()
+
+            assertEquals(LockChange.Done, service.recover(session, ParentLockType.NUMERIC, "4321"))
+            val put = http.requests.single { it.method == "PUT" && it.path == "/Kids/Parent/Lock" }
+            assertFalse(put.body!!.contains("Current"))
+            assertTrue(put.body.contains("\"Code\":\"4321\""))
+            assertTrue(put.headers["Authorization"]!!.contains("Token=\"admin-token\""))
+            assertTrue(put.headers["Authorization"]!!.contains("DeviceId=\"${session.deviceId}\""))
+            assertNull(put.headers["X-Kids-Grant"])
+            // The old code no longer opens the gate offline, the new one does, and the grants the old one gave are gone
+            assertEquals(newVerifier, serverDao.get(server.id)?.verifier)
+            val verifierRead = http.requests.last { it.path == "/Kids/Parent/Verifier" }
+            assertTrue(verifierRead.headers["Authorization"]!!.contains("Token=\"admin-token\""))
+            assertFalse(service.hasGrant())
+            // The administrator passed the gate: the parent menu, with Reset this TV, opens
+            assertTrue(service.hasLiveGrant())
+            // The administrator session ended right after
+            assertTrue(session.isClosed)
+            val logout = http.requests.single { it.path == "/Sessions/Logout" }
+            assertTrue(logout.headers["Authorization"]!!.contains("Token=\"admin-token\""))
+        }
+
+    @Test
+    fun `recovery refuses an account that isn't an administrator`() =
+        runTest(UnconfinedTestDispatcher()) {
+            service()
+            http.on("POST", "/Users/AuthenticateByName", 200, signInAnswer(false, "kid-token"))
+            http.on("POST", "/Sessions/Logout", 204)
+            assertEquals(AdminSignIn.NotAdmin, adminSessions().open(server, "kid", "pw"))
+            assertTrue(http.requests.none { it.method == "PUT" })
+            // Its session was ended right away
+            assertEquals(1, http.requests.count { it.path == "/Sessions/Logout" })
+        }
+
+    @Test
+    fun `the recovery session closes when the change fails`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val service = service()
+            http.on("PUT", "/Kids/Parent/Lock", 500)
+            val session = adminSession()
+            assertNotEquals(LockChange.Done, service.recover(session, ParentLockType.NUMERIC, "4321"))
+            assertTrue(session.isClosed)
+            assertEquals(1, http.requests.count { it.path == "/Sessions/Logout" })
+        }
+
+    @Test
+    fun `recovery refuses a code that can't be used, and still closes the session`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val service = service()
+            val session = adminSession()
+            assertEquals(LockChange.Invalid, service.recover(session, ParentLockType.NUMERIC, "12"))
+            assertTrue(http.requests.none { it.method == "PUT" })
+            assertTrue(session.isClosed)
+        }
+
+    @Test
+    fun `with no current kid and no plugin status known, the gate asks the plugin`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            verifyAnswer("""{"Valid":true,"Grant":"g-1"}""")
+            // The kids data was lost: nothing cached about the server, and the picker has no kid current, so nothing
+            // asked the plugin yet
+            current.value = null
+            val service = service(pluginChecked = false)
+            assertTrue(http.requests.none { it.path == "/Kids/Info" })
+
+            assertEquals(LockState.Code(ParentLockType.NUMERIC), service.lockState())
+            assertTrue(http.requests.any { it.path == "/Kids/Info" })
+            val lockRead = http.requests.last { it.path == "/Kids/Parent/Lock" }
+            // Asked as one of this TV's kids, with that kid's own device id
+            assertTrue(lockRead.headers["Authorization"]!!.contains("Token=\"k\""))
+            assertTrue(lockRead.headers["Authorization"]!!.contains(pekeKidDeviceId(FakeKidsServer.DEVICE_ID, kid.id)))
+            assertEquals(VerifyOutcome.Valid, service.verify("1234"))
+        }
+
+    @Test
+    fun `a user who isn't one of this TV's kids is never asked with`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            verifyAnswer("""{"Valid":true,"Grant":"g-1"}""")
+            // An administrator's row an older version kept, with a token
+            val grownUp = JellyfinUser(rowId = 9, id = UUID.randomUUID(), name = "admin", serverId = server.id, accessToken = "admin-token")
+            users = listOf(grownUp, kid.copy(accessToken = null))
+            val service = service()
+            current.value = null
+
+            assertEquals(LockState.RecoveryOnly, service.lockState())
+            assertEquals(VerifyOutcome.CannotCheck, service.verify("1234"))
+            assertTrue(http.requests.none { it.headers["Authorization"]?.contains("admin-token") == true })
+        }
+
+    @Test
+    fun `after a recovery with no kid token the gate still checks the new code`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val service = service()
+            current.value = null
+            users = listOf(kid.copy(accessToken = null))
+            assertEquals(LockState.RecoveryOnly, service.lockState())
+            http.on("PUT", "/Kids/Parent/Lock", 200, """{"LockType":"NUMERIC","ChangedAt":"2026-10-23T10:00:00Z"}""")
+            http.on("GET", "/Kids/Parent/Verifier", 200, """{"LockType":"NUMERIC","Verifier":"${PasscodeHasher.hash("4321")}"}""")
+
+            assertEquals(LockChange.Done, service.recover(adminSession(), ParentLockType.NUMERIC, "4321"))
+            assertTrue(service.hasLiveGrant())
+            service.forgetGrants()
+
+            assertEquals(LockState.Code(ParentLockType.NUMERIC), service.lockState())
+            assertEquals(VerifyOutcome.Wrong, service.verify("1234"))
+            assertEquals(VerifyOutcome.ValidOffline, service.verify("4321"))
         }
 }

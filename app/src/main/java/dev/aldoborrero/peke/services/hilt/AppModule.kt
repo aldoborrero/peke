@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.services.hilt
 
 import android.content.Context
 import androidx.work.WorkManager
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -9,9 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.aldoborrero.peke.BuildConfig
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.data.MostRecentServerProvider
-import dev.aldoborrero.peke.data.MostRecentServerSharedPreferences
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.setup.RefusedSessions
+import dev.aldoborrero.peke.kids.setup.RefusedTokenInterceptor
 import dev.aldoborrero.peke.util.CoroutineContextApiClientFactory
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineDispatcher
@@ -89,11 +90,13 @@ object AppModule {
     @StandardOkHttpClient
     @Provides
     @Singleton
-    fun okHttpClient() =
+    fun okHttpClient(refusedSessions: Lazy<RefusedSessions>) =
         OkHttpClient
             .Builder()
             .apply {
                 // TODO user agent, timeouts, logging, etc
+                // A kid's session the server refused shows as needing a grown-up (spec FR-019)
+                addNetworkInterceptor(RefusedTokenInterceptor { refusedSessions.get().refused(it) })
             }.build()
 
     @AuthOkHttpClient
@@ -108,8 +111,9 @@ object AppModule {
         .newBuilder()
         .addInterceptor {
             val request = it.request()
+            val user = serverRepository.current.value?.user
             val newRequest =
-                serverRepository.current.value?.user?.accessToken?.let { token ->
+                user?.accessToken?.let { token ->
                     request
                         .newBuilder()
                         .addHeader(
@@ -117,7 +121,8 @@ object AppModule {
                             AuthorizationHeaderBuilder.buildHeader(
                                 clientName = clientInfo.name,
                                 clientVersion = clientInfo.version,
-                                deviceId = deviceInfo.id,
+                                // The id the user's other calls go out with
+                                deviceId = pekeKidDeviceId(deviceInfo.id, user.id),
                                 deviceName = deviceInfo.name,
                                 accessToken = token,
                             ),
@@ -182,12 +187,6 @@ object AppModule {
     fun workManager(
         @ApplicationContext context: Context,
     ): WorkManager = WorkManager.getInstance(context)
-
-    @Provides
-    @Singleton
-    fun mostRecentServerProvider(
-        @ApplicationContext context: Context,
-    ): MostRecentServerProvider = MostRecentServerSharedPreferences(context)
 }
 
 @Module

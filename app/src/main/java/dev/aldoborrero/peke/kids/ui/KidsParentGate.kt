@@ -4,33 +4,51 @@ import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.gate.LockChange
+import dev.aldoborrero.peke.kids.gate.PasscodeHasher
 import dev.aldoborrero.peke.kids.server.KidsDenial
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.ui.components.DialogItem
 import dev.aldoborrero.peke.ui.components.DialogItemEntry
 import dev.aldoborrero.peke.ui.components.DialogPopup
+import dev.aldoborrero.peke.ui.preferences.SetPinFlow
 
 /**
- * The single way out of kids mode: the household parent code, then a menu for grown-ups. On a server whose plugin
- * went away before this TV cached the code, a server administrator's sign-in only allows turning kids mode off there.
+ * The single way to grown-up control: the household parent code, then a menu for grown-ups (`contracts/tv-flows.md`).
+ * Nothing in it unlocks the TV; resetting it is the only way out of kids mode. On a server whose plugin went away
+ * before this TV cached the code, a server administrator's sign-in only allows resetting this TV.
+ *
+ * @param withKid whether a kid's session is open behind the gate; from the picker or the "no kids" page there is none,
+ * and the menu leaves out that kid's items
+ * @param onPassed where to go once the code is right, instead of the menu, such as a kid picked while another is
+ * stopped
  */
 @Composable
 fun KidsParentGate(
     onDismissRequest: () -> Unit,
-    unlockOnly: Boolean = false,
+    withKid: Boolean = true,
+    onPassed: (() -> Unit)? = null,
     viewModel: KidsParentGateViewModel = hiltViewModel(),
 ) {
-    viewModel.unlockOnly = unlockOnly
+    viewModel.withKid = withKid
     DisposableEffect(Unit) { onDispose { viewModel.reset() } }
+    // The app went to the background since the gate opened: it closes, so the kid who comes back finds neither the
+    // menu nor a code being set
+    val epoch by viewModel.epoch.collectAsState()
+    val openedAt = remember { epoch }
+    LaunchedEffect(epoch) { if (epoch != openedAt) onDismissRequest() }
     val context = LocalContext.current
     val stage by viewModel.stage.collectAsState()
     val limits by viewModel.timeLimits.state.collectAsState()
@@ -38,6 +56,16 @@ fun KidsParentGate(
         .collectAsState()
     val plugin by viewModel.pluginService.current.collectAsState()
     val resources = context.resources
+    // The menu's pages need the grant, so choosing one closes the gate without ending it; anything else that closes
+    // the menu ends it
+    val leaveMenu = {
+        viewModel.leaveMenu()
+        onDismissRequest()
+    }
+    val leaveFor = { open: () -> Unit ->
+        onDismissRequest()
+        open()
+    }
 
     when (val s = stage) {
         is GateStage.Passcode -> {
@@ -48,7 +76,7 @@ fun KidsParentGate(
                 attempt = s.attempt,
                 onDismissRequest = onDismissRequest,
                 onConfirm = {
-                    viewModel.submit(it, onDone = onDismissRequest) { refusal ->
+                    viewModel.submit(it, onDone = onDismissRequest, onPassed = onPassed) { refusal ->
                         val message =
                             when (refusal) {
                                 GateRefusal.Wrong -> {
@@ -73,6 +101,46 @@ fun KidsParentGate(
             )
         }
 
+        is GateStage.WrongCode -> {
+            // Try again comes first and is focused; recovery needs a server administrator
+            DialogPopup(
+                showDialog = true,
+                title = stringResource(R.string.kids_gate_wrong_passcode),
+                dialogItems =
+                    listOf(
+                        DialogItem(stringResource(R.string.peke_setup_try_again)) { viewModel.retryCode() },
+                        DialogItem(stringResource(R.string.kids_gate_forgot)) { viewModel.forgotCode() },
+                    ),
+                onDismissRequest = onDismissRequest,
+                dismissOnClick = false,
+                waitToLoad = false,
+            )
+        }
+
+        is GateStage.RecoveryCode -> {
+            key(s.type) {
+                SetPinFlow(
+                    currentPin = null,
+                    onAddPin = { code ->
+                        viewModel.setRecoveredCode(code) { result ->
+                            val message =
+                                when (result) {
+                                    LockChange.Done -> R.string.kids_gate_code_changed
+                                    LockChange.Unreachable -> R.string.kids_cant_reach_server
+                                    else -> R.string.kids_save_failed
+                                }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onRemovePin = {},
+                    onDismissRequest = onDismissRequest,
+                    isValid = { PasscodeHasher.isValid(it, s.type) },
+                    symbolFor = parentLockSymbol(s.type),
+                    hint = { ParentLockHint(s.type, it) },
+                )
+            }
+        }
+
         is GateStage.NoCode -> {
             DialogPopup(
                 showDialog = true,
@@ -86,6 +154,27 @@ fun KidsParentGate(
                             dismissOnClick = true,
                             onClick = {},
                         ),
+                        DialogItem(stringResource(if (s.notSet) R.string.kids_gate_set_code_admin else R.string.kids_gate_forgot)) {
+                            viewModel.forgotCode()
+                        },
+                    ),
+                onDismissRequest = onDismissRequest,
+                dismissOnClick = false,
+                waitToLoad = false,
+            )
+        }
+
+        GateStage.RecoveryOnly -> {
+            DialogPopup(
+                showDialog = true,
+                title = stringResource(R.string.kids_grown_ups),
+                dialogItems =
+                    listOf(
+                        DialogItem(
+                            headlineContent = { Text(stringResource(R.string.kids_gate_recovery_only)) },
+                            onClick = {},
+                        ),
+                        DialogItem(stringResource(R.string.kids_gate_forgot)) { viewModel.forgotCode() },
                     ),
                 onDismissRequest = onDismissRequest,
                 dismissOnClick = false,
@@ -130,7 +219,7 @@ fun KidsParentGate(
                             headlineContent = { Text(stringResource(pluginGoneTitle(plugin.outdated))) },
                             onClick = {},
                         ),
-                        DialogItem(stringResource(R.string.kids_turn_off_here), dismissOnClick = true) { viewModel.turnOffHere() },
+                        DialogItem(stringResource(R.string.peke_menu_reset), dismissOnClick = true) { viewModel.openReset() },
                     ),
                 onDismissRequest = onDismissRequest,
                 dismissOnClick = false,
@@ -171,24 +260,32 @@ fun KidsParentGate(
                                 onClick = {},
                             ),
                         )
-                        add(DialogItem(stringResource(R.string.kids_turn_off_here), dismissOnClick = true) { viewModel.turnOffHere() })
                         add(DialogItem.divider())
                     }
-                    if (canAddTime) {
-                        add(DialogItem(stringResource(R.string.kids_add_time)) { viewModel.chooseMinutes() })
+                    if (withKid) {
+                        if (canAddTime) {
+                            add(DialogItem(stringResource(R.string.kids_add_time)) { viewModel.chooseMinutes() })
+                        }
+                        listOfNotNull(todayLeft, sittingLeft, breakLeft).forEach { line ->
+                            add(DialogItem(headlineContent = { Text(line) }, onClick = {}))
+                        }
+                        add(DialogItem.divider())
+                        add(DialogItem(stringResource(R.string.kids_settings)) { leaveFor(viewModel::openSettings) })
                     }
-                    listOfNotNull(todayLeft, sittingLeft, breakLeft).forEach { line ->
-                        add(DialogItem(headlineContent = { Text(line) }, onClick = {}))
+                    add(DialogItem(stringResource(R.string.peke_menu_kids_on_tv)) { leaveFor(viewModel::openKidsOnTv) })
+                    if (withKid) {
+                        add(DialogItem(stringResource(R.string.peke_menu_this_tv)) { leaveFor(viewModel::openThisTv) })
                     }
+                    add(DialogItem(stringResource(R.string.license_info)) { leaveFor(viewModel::openLicense) })
                     add(DialogItem.divider())
-                    add(DialogItem(stringResource(R.string.kids_settings), dismissOnClick = true) { viewModel.openSettings() })
-                    add(DialogItem(stringResource(R.string.kids_leave), dismissOnClick = true) { viewModel.leave() })
+                    add(DialogItem(stringResource(R.string.peke_menu_reset)) { leaveFor(viewModel::openReset) })
                 }
             DialogPopup(
                 showDialog = true,
                 title = stringResource(R.string.kids_grown_ups),
                 dialogItems = items,
-                onDismissRequest = onDismissRequest,
+                // Back leaves the menu without a page to open, and ends the grant
+                onDismissRequest = leaveMenu,
                 dismissOnClick = false,
                 waitToLoad = false,
             )
@@ -202,8 +299,9 @@ fun KidsParentGate(
                     KidsParentGateViewModel.MINUTE_OPTIONS.map { minutes ->
                         DialogItem(
                             headlineContent = { Text(pluralStringResource(R.plurals.kids_minutes_option, minutes, minutes)) },
-                            dismissOnClick = true,
                             onClick = {
+                                // The grant ends once the minutes are added
+                                onDismissRequest()
                                 viewModel.addTime(minutes) { result ->
                                     val message =
                                         when (result) {
@@ -217,7 +315,7 @@ fun KidsParentGate(
                             },
                         )
                     },
-                onDismissRequest = onDismissRequest,
+                onDismissRequest = leaveMenu,
                 dismissOnClick = false,
                 waitToLoad = false,
             )

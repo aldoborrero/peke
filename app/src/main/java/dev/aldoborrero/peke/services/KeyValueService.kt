@@ -67,6 +67,18 @@ class KeyValueService
             }
         }
 
+        /**
+         * Remove the values saved under [keys]
+         */
+        suspend fun remove(keys: Collection<String>) {
+            if (keys.isEmpty()) return
+            dataStore.updateData { preferences ->
+                preferences.toMutablePreferences().apply {
+                    keys.forEach { remove(stringPreferencesKey(it)) }
+                }
+            }
+        }
+
         suspend inline fun <reified T> save(
             userId: UUID,
             key: String,

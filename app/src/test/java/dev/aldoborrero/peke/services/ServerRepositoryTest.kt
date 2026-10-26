@@ -5,18 +5,20 @@ import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.JellyfinServerDao
-import dev.aldoborrero.peke.data.MostRecentServer
-import dev.aldoborrero.peke.data.MostRecentServerProvider
 import dev.aldoborrero.peke.data.RestoredSession
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.data.UserConfigCache
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.ServerUserConfig
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvSetupStep
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppPreferencesSerializer
+import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
 import dev.aldoborrero.peke.test.nonBlankString
-import dev.aldoborrero.peke.ui.isNotNullOrBlank
 import dev.aldoborrero.peke.ui.successResponse
 import dev.aldoborrero.peke.ui.toServerString
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -85,7 +87,9 @@ class ServerRepositoryTest {
 
     private val mockUserApi = mockk<UserApi>()
     private val mockSystemApi = mockk<SystemApi>()
-    private val mockMostRecentServerProvider = mockk<MostRecentServerProvider>()
+    private val tvState = MutableStateFlow<TvState>(TvState.NotSetUp)
+    private val tvSetupRepository = mockk<TvSetupRepository> { every { state } returns tvState }
+    private val installDevice = DeviceInfo("install-id", "Living room TV")
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
@@ -112,10 +116,6 @@ class ServerRepositoryTest {
         every { mockApiClient.clientInfo } returns ClientInfo("Peke test", "0.0.1")
         every { mockApiClient.deviceInfo } returns DeviceInfo("Peke test ID", "Peke test device")
         every { mockApiClient.update(any(), any(), any(), any()) } just Runs
-        coEvery { mockMostRecentServerProvider.save(any()) } just Runs
-        coEvery { mockMostRecentServerProvider.clear() } just Runs
-        coEvery { mockMostRecentServerProvider.clearUser() } just Runs
-        every { mockMostRecentServerProvider.get() } returns MostRecentServer.None
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -124,15 +124,21 @@ class ServerRepositoryTest {
         PekeDispatchers.reset()
     }
 
+    private val userConfigCache = mockk<UserConfigCache>(relaxed = true).also { coEvery { it.get(any()) } returns null }
+    private val appVisibility = AppVisibility()
+
     private fun create() =
         ServerRepository(
             mockContext,
             mockJellyfin,
             mockJellyfinServerDao,
             mockApiClient,
+            installDevice,
             testDispatcher,
-            mockMostRecentServerProvider,
+            tvSetupRepository,
             mockk(relaxed = true),
+            userConfigCache,
+            appVisibility,
         )
 
     private val serverId = UUID.randomUUID()
@@ -206,7 +212,6 @@ class ServerRepositoryTest {
             Assert.assertEquals(user, serverRepository.currentUser)
             Assert.assertEquals(serverUserConfig, serverRepository.currentUserDto)
 
-            coVerify(exactly = 1) { mockMostRecentServerProvider.save(CurrentUser(server, user)) }
             verify(exactly = 1) { mockJellyfinServerDao.addOrUpdateUser(user) }
         }
 
@@ -292,7 +297,6 @@ class ServerRepositoryTest {
                 )
             }
             verify(exactly = 1) { mockJellyfinServerDao.deleteUser(serverId, userId) }
-            coVerify { mockMostRecentServerProvider.clearUser() }
         }
 
     @Test
@@ -336,7 +340,6 @@ class ServerRepositoryTest {
                 )
             }
             verify(exactly = 1) { mockJellyfinServerDao.deleteServer(serverId) }
-            coVerify { mockMostRecentServerProvider.clear() }
         }
 
     @Test
@@ -372,8 +375,6 @@ class ServerRepositoryTest {
             Assert.assertEquals(server, serverRepository.currentServer)
             Assert.assertEquals(user, serverRepository.currentUser)
             Assert.assertEquals(serverUserConfig, serverRepository.currentUserDto)
-
-            coVerify(exactly = 1) { mockMostRecentServerProvider.save(CurrentUser(server, user)) }
         }
 
     @Test
@@ -411,8 +412,6 @@ class ServerRepositoryTest {
             Assert.assertEquals(server, serverRepository.currentServer)
             Assert.assertEquals(user, serverRepository.currentUser)
             Assert.assertEquals(serverUserConfig, serverRepository.currentUserDto)
-
-            coVerify(exactly = 1) { mockMostRecentServerProvider.save(CurrentUser(server, user)) }
         }
 
     @Test
@@ -464,14 +463,13 @@ class ServerRepositoryTest {
     }
 
     @Test
-    fun `Test restoreLastSession, success`() =
+    fun `restoreLastSession restores this TV's last kid`() =
         runTest {
             val user = user.copy(pin = null)
+            val sibling = user.copy(rowId = user.rowId + 1, id = UUID.randomUUID(), name = "sibling", accessToken = "s")
             coEvery { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
-            coEvery { mockJellyfinServerDao.getServer(serverId) } returns
-                JellyfinServerUsers(server, listOf(user))
-            every { mockMostRecentServerProvider.get() } returns
-                MostRecentServer.from(CurrentUser(server, user))
+            coEvery { mockJellyfinServerDao.getServer(serverId) } returns JellyfinServerUsers(server, listOf(user, sibling))
+            tvState.value = TvState.SetUp(server, listOf(sibling, user), lastKidRowId = user.rowId)
 
             val result = create().restoreLastSession()
             assertTrue(result is RestoredSession.Success)
@@ -487,104 +485,234 @@ class ServerRepositoryTest {
                     deviceInfo = any(),
                 )
             }
-            coVerify { mockMostRecentServerProvider.save(any()) }
         }
 
     @Test
-    fun `Test restoreLastSession, user protected`() =
+    fun `restoreLastSession restores the only kid when no kid was last`() =
         runTest {
-            every { mockMostRecentServerProvider.get() } returns
-                MostRecentServer.ServerAndUser(serverId, server.url, userId, "token")
+            val user = user.copy(pin = null)
+            coEvery { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
+            coEvery { mockJellyfinServerDao.getServer(serverId) } returns JellyfinServerUsers(server, listOf(user))
+            tvState.value = TvState.SetUp(server, listOf(user))
 
             val result = create().restoreLastSession()
-            assertTrue(result is RestoredSession.ServerOnly)
-            val current = (result as RestoredSession.ServerOnly)
-            assertEquals(server, current.server)
+            assertEquals(CurrentUser(server, user), (result as RestoredSession.Success).currentUser)
         }
 
     @Test
-    fun `Test restoreLastSession, server only`() =
+    fun `restoreLastSession picks no kid among several without a last one`() =
         runTest {
-            every { mockMostRecentServerProvider.get() } returns
-                MostRecentServer.Server(server.id, server.url)
+            val sibling = user.copy(rowId = user.rowId + 1, id = UUID.randomUUID(), name = "sibling", accessToken = "s")
+            tvState.value = TvState.SetUp(server, listOf(user, sibling))
 
             val result = create().restoreLastSession()
-            assertTrue(result is RestoredSession.ServerOnly)
-            val current = (result as RestoredSession.ServerOnly)
-            assertEquals(server, current.server)
+            assertEquals(RestoredSession.ServerOnly(server), result)
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
         }
 
     @Test
-    fun `Test restoreLastSession, nothing to restore`() =
+    fun `restoreLastSession restores no kid who needs a grown-up`() =
         runTest {
-            every { mockMostRecentServerProvider.get() } returns MostRecentServer.None
+            tvState.value = TvState.SetUp(server, listOf(user.copy(accessToken = null)), lastKidRowId = user.rowId)
 
-            val result = create().restoreLastSession()
-            assertTrue(result is RestoredSession.None)
+            assertEquals(RestoredSession.ServerOnly(server), create().restoreLastSession())
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
         }
 
     @Test
-    fun `removing the saved user who isn't current clears the saved user`() =
+    fun `restoreLastSession restores nobody on a TV that isn't set up`() =
         runTest {
-            coEvery { mockJellyfinServerDao.deleteUser(any(), any()) } just Runs
-            every { mockMostRecentServerProvider.get() } returns MostRecentServer.ServerAndUser(serverId, server.url, userId, "token")
-            create().removeUser(user)
-            coVerify(exactly = 1) { mockMostRecentServerProvider.clearUser() }
-            coVerify(exactly = 0) { mockMostRecentServerProvider.clear() }
+            tvState.value = TvState.NotSetUp
+            assertTrue(create().restoreLastSession() is RestoredSession.None)
+            tvState.value = TvState.InSetup(TvSetupStep.KIDS)
+            assertTrue(create().restoreLastSession() is RestoredSession.None)
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
         }
+
+    private fun kidDevice(id: UUID = userId) = DeviceInfo(pekeKidDeviceId(installDevice.id, id), installDevice.name)
 
     @Test
-    fun `removing another user keeps the saved session`() =
+    fun `changeUser sends the user's own device id`() =
         runTest {
-            coEvery { mockJellyfinServerDao.deleteUser(any(), any()) } just Runs
-            every { mockMostRecentServerProvider.get() } returns
-                MostRecentServer.ServerAndUser(serverId, server.url, UUID.randomUUID(), "token")
-            create().removeUser(user)
-            coVerify(exactly = 0) { mockMostRecentServerProvider.clearUser() }
-            coVerify(exactly = 0) { mockMostRecentServerProvider.clear() }
-        }
+            every { mockJellyfinServerDao.addOrUpdateServer(any()) } just Runs
+            every { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
 
-    @Test
-    fun `removing the saved server that isn't current clears the saved session`() =
-        runTest {
-            coEvery { mockJellyfinServerDao.deleteServer(any()) } just Runs
-            every { mockMostRecentServerProvider.get() } returns MostRecentServer.Server(serverId, server.url)
-            create().removeServer(server)
-            coVerify(exactly = 1) { mockMostRecentServerProvider.clear() }
-        }
-}
+            create().changeUser(server, user)
 
-class TestMostRecentServerProvider : MostRecentServerProvider {
-    var mostRecentServer: MostRecentServer = MostRecentServer.None
-
-    override fun get(): MostRecentServer = mostRecentServer
-
-    override suspend fun save(current: CurrentUser) {
-        mostRecentServer =
-            if (current.user.accessToken.isNotNullOrBlank()) {
-                MostRecentServer.ServerAndUser(
-                    current.server.id,
-                    current.server.url,
-                    current.user.id,
-                    current.user.accessToken,
-                )
-            } else {
-                MostRecentServer.Server(
-                    current.server.id,
-                    current.server.url,
+            verify(exactly = 1) {
+                mockApiClient.update(
+                    baseUrl = server.url,
+                    accessToken = user.accessToken,
+                    clientInfo = any(),
+                    deviceInfo = kidDevice(),
                 )
             }
-    }
-
-    override suspend fun clear() {
-        mostRecentServer = MostRecentServer.None
-    }
-
-    override suspend fun clearUser() {
-        when (val s = mostRecentServer) {
-            MostRecentServer.None -> Unit
-            is MostRecentServer.Server -> Unit
-            is MostRecentServer.ServerAndUser -> MostRecentServer.Server(s.serverId, s.serverUrl)
         }
-    }
+
+    @Test
+    fun `restoreUser opens a saved user without the network`() =
+        runTest {
+            val serverRepository = create()
+
+            val current = serverRepository.restoreUser(server, user)
+
+            assertEquals(CurrentUser(server, user), current)
+            assertEquals(current, serverRepository.current.value)
+            verify(exactly = 1) {
+                mockApiClient.update(
+                    baseUrl = server.url,
+                    accessToken = user.accessToken,
+                    clientInfo = any(),
+                    deviceInfo = kidDevice(),
+                )
+            }
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
+            coVerify(exactly = 0) { mockSystemApi.getPublicSystemInfo() }
+            verify(exactly = 0) { mockJellyfinServerDao.addOrUpdateUser(any()) }
+            // Not known until the background refresh
+            Assert.assertNull(serverRepository.currentUserDto)
+        }
+
+    @Test
+    fun `restoreUser refuses a user of another server`() =
+        runTest {
+            val serverRepository = create()
+            val other = JellyfinServer(UUID.randomUUID(), null, "http://other.local", null)
+            val refused =
+                try {
+                    serverRepository.restoreUser(other, user)
+                    false
+                } catch (_: IllegalStateException) {
+                    true
+                }
+            assertTrue(refused)
+            Assert.assertNull(serverRepository.current.value)
+        }
+
+    @Test
+    fun `removing the current user goes back to the install device id`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.deleteUser(any(), any()) } just Runs
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository, currentUser = user)
+
+            serverRepository.removeUser(user)
+
+            verify {
+                mockApiClient.update(
+                    baseUrl = any(),
+                    accessToken = null,
+                    clientInfo = any(),
+                    deviceInfo = installDevice,
+                )
+            }
+        }
+
+    @Test
+    fun `adding a server talks to it with the install device id`() =
+        runTest {
+            coEvery { mockJellyfinServerDao.addOrUpdateServer(any()) } just Runs
+            create().addAndChangeServer(server)
+
+            verify {
+                mockApiClient.update(
+                    baseUrl = server.url,
+                    accessToken = null,
+                    clientInfo = any(),
+                    deviceInfo = installDevice,
+                )
+            }
+        }
+
+    private fun authenticationResult(token: String) =
+        AuthenticationResult(user = userDto, accessToken = token, serverId = serverId.toServerString())
+
+    @Test
+    fun `saving a signed-in kid doesn't make them current`() =
+        runTest(testDispatcher) {
+            val other = JellyfinUser(rowId = 2, id = UUID.randomUUID(), name = "other", serverId = serverId, accessToken = "other")
+            every { mockJellyfinServerDao.addOrUpdateUser(any()) } answers { firstArg<JellyfinUser>().copy(rowId = 1) }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository, currentUser = other)
+
+            val saved = serverRepository.saveUser(server.url, authenticationResult("new-token"), null)
+
+            assertEquals("new-token", saved.user.accessToken)
+            assertEquals(server, saved.server)
+            // The kid on screen stays current, with their own token on the app's client
+            assertEquals(other, serverRepository.currentUser)
+            verify(exactly = 0) { mockApiClient.update(any(), any(), any(), any()) }
+            coVerify { userConfigCache.save(userDto) }
+            // The stored server keeps its name and version
+            verify(exactly = 0) { mockJellyfinServerDao.addOrUpdateServer(any()) }
+        }
+
+    @Test
+    fun `saving the current kid signed in again moves their session to the new token`() =
+        runTest(testDispatcher) {
+            every { mockJellyfinServerDao.addOrUpdateUser(any()) } answers { firstArg() }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository, currentUser = user)
+
+            serverRepository.saveUser(server.url, authenticationResult("new-token"), user)
+
+            assertEquals("new-token", serverRepository.currentUser?.accessToken)
+            // An old PIN is dropped with the new sign-in
+            assertEquals(null, serverRepository.currentUser?.pin)
+            verify { mockApiClient.update(baseUrl = server.url, accessToken = "new-token", clientInfo = any(), deviceInfo = any()) }
+        }
+
+    @Test
+    fun `a kid opened from the stored row starts with their cached configuration`() =
+        runTest(testDispatcher) {
+            coEvery { userConfigCache.get(userId) } returns userDto
+            val serverRepository = create()
+
+            serverRepository.restoreUser(server, user)
+
+            assertEquals(serverUserConfig, serverRepository.currentUserDto)
+            // Nothing asked the server
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
+        }
+
+    @Test
+    fun `a refreshed configuration is cached for the next start`() =
+        runTest(testDispatcher) {
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            serverRepository.updateUserDto()
+
+            assertEquals(serverUserConfig, serverRepository.currentUserDto)
+            coVerify { userConfigCache.save(userDto) }
+        }
+
+    @Test
+    fun `background work doesn't switch user while the app's pages are on screen`() =
+        runTest(testDispatcher) {
+            tvState.value = TvState.SetUp(server, listOf(user), lastKidRowId = user.rowId)
+            appVisibility.started = true
+            val serverRepository = create()
+
+            assertEquals(RestoredSession.None, serverRepository.restoreLastSession())
+            Assert.assertNull(serverRepository.currentUser)
+            coVerify(exactly = 0) { mockUserApi.getCurrentUser() }
+        }
+
+    @Test
+    fun `a refused token leaves its row without a token, and nobody current`() =
+        runTest(testDispatcher) {
+            every { mockJellyfinServerDao.getServers() } returns listOf(JellyfinServerUsers(server, listOf(user)))
+            every { mockJellyfinServerDao.addOrUpdateUser(any()) } answers { firstArg() }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            assertTrue(serverRepository.forgetToken("token"))
+
+            verify { mockJellyfinServerDao.addOrUpdateUser(user.copy(accessToken = null)) }
+            Assert.assertNull(serverRepository.current.value)
+            Assert.assertNull(serverRepository.currentUserDto)
+            // Some other token: nothing to forget
+            assertEquals(false, serverRepository.forgetToken("someone-else"))
+        }
 }
