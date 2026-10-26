@@ -36,6 +36,9 @@ import dev.aldoborrero.peke.data.filter.FilterValueOption
 import dev.aldoborrero.peke.data.filter.ItemFilterBy
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.GetItemsFilter
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.components.ContextMenu
 import dev.aldoborrero.peke.ui.components.ContextMenuActions
@@ -70,6 +73,7 @@ fun CollectionDetails(
         ),
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
 ) {
+    val kidsMode = LocalKidsMode.current.isActive
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
 
@@ -138,7 +142,7 @@ fun CollectionDetails(
             { filter: GetItemsFilter -> viewModel.changeFilter(filter) }
         }
     val onClickPlay = { _: RowColumn, item: BaseItem ->
-        viewModel.navigateTo(Destination.Playback(item = item))
+        viewModel.navigateTo(if (kidsMode) kidsPlayKeyDestination(item) else Destination.Playback(item = item))
     }
     val onClickPlayAll =
         remember {

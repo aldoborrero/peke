@@ -746,7 +746,6 @@
     <string name="show_visualizer">Show visualizer</string>
     <string name="show_backdrop">Show backdrop</string>
     <string name="play_as_type">Play as?</string>
-    <string name="visualizer_rationale">Visualizing the currently playing audio requires permission to record audio.</string>
     <string name="continue_string">Continue</string>
     <string name="separate_types">Separate types</string>
     <string name="prefer_logos">Prefer showing logos for titles</string>
@@ -1042,8 +1041,14 @@
     <string name="peke_no_kids_title">This TV has no kids</string>
     <string name="peke_no_kids_hint">A grown-up can add a kid to this TV.</string>
     <string name="peke_menu_kids_on_tv">Kids on this TV</string>
-    <string name="peke_menu_this_tv">This TV</string>
+    <string name="peke_menu_settings">Settings</string>
+    <string name="peke_settings_playback">Playback and player</string>
+    <string name="peke_settings_advanced">Advanced</string>
     <string name="peke_menu_reset">Reset this TV</string>
+    <string name="peke_menu_kid_settings">Kid\'s settings</string>
+    <string name="peke_menu_switch_kid">Switch kid</string>
+    <string name="peke_this_tv_start_over">Start over</string>
+    <string name="peke_this_tv_reset_summary">Sign every kid out and set this TV up again</string>
     <string name="peke_kids_on_tv_hint">Pick a kid to remove them from this TV. They stay in the household and on other TVs.</string>
     <string name="peke_kids_on_tv_add">Add a kid</string>
     <string name="peke_kids_on_tv_remove">Remove %1$s from this TV?</string>
@@ -1057,4 +1062,21 @@
     <string name="kids_gate_forgot">Forgot the code?</string>
     <string name="kids_gate_set_code_admin">Set the code as a server administrator</string>
     <string name="kids_gate_code_changed">Parent code changed. Type the new code.</string>
+    <string name="peke_voice_search">Voice search for kids</string>
+    <string name="peke_voice_search_on">On: kids with search can use the microphone</string>
+    <string name="peke_voice_search_off">Off: kids don\'t see the microphone</string>
+    <string name="peke_voice_search_explain_title">Turn on voice search?</string>
+    <string name="peke_voice_search_explain">Voice search lets kids say what they\'re looking for. Their voice is sent to this TV\'s speech service, not to your Jellyfin server. Android will ask you to allow the microphone.</string>
+    <string name="peke_voice_search_turn_on">Turn on voice search</string>
+    <string name="peke_voice_search_not_now">Not now</string>
+    <string name="peke_voice_search_denied">The microphone wasn\'t allowed, so voice search stays off.</string>
+    <string name="peke_voice_search_denied_for_good">The microphone isn\'t allowed for Peke. To use voice search, allow it in this TV\'s Settings → Apps → Peke → Permissions → Microphone, then turn voice search on here.</string>
+    <string name="peke_voice_search_setup_hint">Some kids on this TV can search. Voice search lets them say what they\'re looking for instead of typing. You can change this later in Settings.</string>
+    <string name="peke_http_warning_title">This connection isn\'t encrypted</string>
+    <string name="peke_http_warning">Someone on your home network could see or change what this TV and your server say to each other, including the parent code check. Use an https:// address if your server has one.</string>
+    <string name="peke_http_warning_use">Use it anyway</string>
+    <string name="peke_http_warning_back">Back</string>
+    <string name="peke_server_address">Server</string>
+    <string name="peke_server_not_encrypted">%1$s · Not encrypted</string>
+    <string name="peke_something_went_wrong">Oops, something went wrong</string>
 </resources>

@@ -7,6 +7,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.ui.SlimItemFields
 import dev.aldoborrero.peke.ui.components.VoiceInputManager
@@ -33,6 +34,7 @@ class SearchForViewModel
         private val serverRepository: ServerRepository,
         val navigationManager: NavigationManager,
         val voiceInputManager: VoiceInputManager,
+        val voiceSearchSetting: VoiceSearchSetting,
         @Assisted val searchType: BaseItemKind,
     ) : ViewModel() {
         @AssistedFactory

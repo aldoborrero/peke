@@ -22,6 +22,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.FavoriteWatchManager
@@ -194,6 +197,7 @@ fun ItemGrid(
             creationCallback = { it.create(destination) },
         ),
 ) {
+    val kidsMode = LocalKidsMode.current.isActive
     val contextMenu = rememberContextMenu(preferences, viewModel)
 
     val state by viewModel.state.collectAsState()
@@ -228,7 +232,12 @@ fun ItemGrid(
                         position = index
                         contextMenu.showContextMenu(index, item)
                     },
-                    onClickPlay = { _, item -> viewModel.navigateTo(Destination.Playback(item)) },
+                    onClickPlay = {
+                        _,
+                        item,
+                        ->
+                        viewModel.navigateTo(if (kidsMode) kidsPlayKeyDestination(item) else Destination.Playback(item))
+                    },
                     letterPosition = { c: Char -> 0 },
                     gridFocusRequester = focusRequester,
                     showJumpButtons = false,

@@ -66,12 +66,13 @@ class KidsDirectPlayViewModel
                         Timber.w(ex, "Could not resolve %s", destination)
                         null
                     }
-                withContext(PekeDispatchers.Main) {
-                    // Swap this loading page for the player, so Back returns to where the kid was
-                    navigationManager.goBack()
-                    if (item != null) navigationManager.navigateTo(Destination.Playback(item))
-                }
-                if (item == null) showToast(context, context.getString(R.string.kids_nothing_to_play))
+                // Swap this loading page for the player, so Back returns to where the kid was. If the kid went back, or
+                // time's up came on top, while it loaded, the answer is dropped (spec 005 FR-003, FR-004)
+                val stillOnTop =
+                    withContext(PekeDispatchers.Main) {
+                        navigationManager.replaceTop(destination, item?.let { Destination.Playback(it) })
+                    }
+                if (item == null && stillOnTop) showToast(context, context.getString(R.string.kids_nothing_to_play))
             }
         }
 

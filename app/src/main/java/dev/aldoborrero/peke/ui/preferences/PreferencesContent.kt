@@ -1,5 +1,7 @@
 package dev.aldoborrero.peke.ui.preferences
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -36,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -57,6 +60,8 @@ import dev.aldoborrero.peke.preferences.advancedPreferences
 import dev.aldoborrero.peke.preferences.basicPreferences
 import dev.aldoborrero.peke.preferences.experimentalPreferences
 import dev.aldoborrero.peke.preferences.lazyListWrapScrolling
+import dev.aldoborrero.peke.preferences.pekeAdvancedPreferences
+import dev.aldoborrero.peke.preferences.pekePlaybackPreferences
 import dev.aldoborrero.peke.preferences.pekePreferences
 import dev.aldoborrero.peke.preferences.screensaverPreferences
 import dev.aldoborrero.peke.preferences.updatePlaybackPreferences
@@ -98,6 +103,7 @@ fun PreferencesContent(
     val state = rememberLazyListState()
     var preferences by remember { mutableStateOf(initialPreferences) }
     val currentUser by viewModel.currentUser.collectAsState()
+    val currentServer by viewModel.currentServer.collectAsState()
     var showVersionDialog by remember { mutableStateOf(false) }
     val kidsAvailable by viewModel.kidsAvailable.collectAsState()
 
@@ -144,6 +150,8 @@ fun PreferencesContent(
             PreferenceScreenOption.EXPERIMENTAL -> experimentalPreferences
             PreferenceScreenOption.HDR_FORMATS -> HdrFormatPreferences
             PreferenceScreenOption.PEKE -> pekePreferences
+            PreferenceScreenOption.PEKE_PLAYBACK -> pekePlaybackPreferences
+            PreferenceScreenOption.PEKE_ADVANCED -> pekeAdvancedPreferences
         }
     val screenTitle =
         when (preferenceScreenOption) {
@@ -155,7 +163,9 @@ fun PreferencesContent(
             PreferenceScreenOption.SKIP_SEGMENTS -> R.string.skip_behavior
             PreferenceScreenOption.EXPERIMENTAL -> R.string.experimental_settings
             PreferenceScreenOption.HDR_FORMATS -> R.string.hdr_formats
-            PreferenceScreenOption.PEKE -> R.string.settings
+            PreferenceScreenOption.PEKE -> R.string.peke_menu_settings
+            PreferenceScreenOption.PEKE_PLAYBACK -> R.string.peke_settings_playback
+            PreferenceScreenOption.PEKE_ADVANCED -> R.string.peke_settings_advanced
         }
 
     var visible by remember { mutableStateOf(false) }
@@ -381,6 +391,62 @@ fun PreferencesContent(
                                     )
                                 }
 
+                                AppPreference.ServerAddress -> {
+                                    // Read only; plain HTTP says so (spec 005 FR-014)
+                                    val url = currentServer?.url.orEmpty()
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = {},
+                                        modifier = focusModifier,
+                                        summary =
+                                            if (url.startsWith("http://", ignoreCase = true)) {
+                                                stringResource(R.string.peke_server_not_encrypted, url)
+                                            } else {
+                                                url
+                                            },
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
+                                    )
+                                }
+
+                                AppPreference.KidsVoiceSearch -> {
+                                    // Off until the grown-up allowed the microphone; a permission withdrawn in the
+                                    // system settings reads as off too (spec 005 FR-008)
+                                    val on =
+                                        preferences.interfacePreferences.searchPreferences.kidsVoiceSearch &&
+                                            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                                            PackageManager.PERMISSION_GRANTED
+                                    var asking by remember { mutableStateOf(false) }
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = { if (on) viewModel.setKidsVoiceSearch(false) else asking = true },
+                                        modifier = focusModifier,
+                                        summary = stringResource(if (on) R.string.peke_voice_search_on else R.string.peke_voice_search_off),
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
+                                    )
+                                    if (asking) {
+                                        VoiceSearchConsent(
+                                            onEnabled = {
+                                                asking = false
+                                                viewModel.setKidsVoiceSearch(true)
+                                            },
+                                            onDismissRequest = { asking = false },
+                                        )
+                                    }
+                                }
+
+                                AppPreference.ResetThisTv -> {
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = viewModel::openReset,
+                                        modifier = focusModifier,
+                                        summary = pref.summary(context, null),
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
+                                    )
+                                }
+
                                 AppPreference.SendAppLogs -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -572,6 +638,8 @@ fun PreferencesPage(
             PreferenceScreenOption.EXPERIMENTAL,
             PreferenceScreenOption.HDR_FORMATS,
             PreferenceScreenOption.PEKE,
+            PreferenceScreenOption.PEKE_PLAYBACK,
+            PreferenceScreenOption.PEKE_ADVANCED,
             -> {
                 PreferencesContent(
                     initialPreferences,

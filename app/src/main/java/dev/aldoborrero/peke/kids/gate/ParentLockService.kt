@@ -477,6 +477,7 @@ class ParentLockService
             grants.clear()
             passedUntil = null
             settingsGrant = false
+            pickGrant = false
             refusedTokens.clear()
         }
 
@@ -611,6 +612,19 @@ class ParentLockService
         }
 
         fun consumeSettingsGrant(): Boolean = settingsGrant.also { settingsGrant = false }
+
+        @Volatile
+        private var pickGrant = false
+
+        /**
+         * Lets the next kids picker pick without the gate, also a kid stopped by a sibling's limits: a grown-up chose
+         * Switch kid in the parent menu, so the gate just passed. Only kept in memory, and only with a live grant.
+         */
+        fun grantPick() {
+            pickGrant = true
+        }
+
+        fun consumePickGrant(): Boolean = pickGrant.also { pickGrant = false }
 
         companion object {
             private const val GRANT_MILLIS = 5 * 60 * 1000L

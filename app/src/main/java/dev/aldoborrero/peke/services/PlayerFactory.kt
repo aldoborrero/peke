@@ -242,6 +242,7 @@ class PlayerFactory
         fun createMediaSession(player: Player) =
             MediaSession
                 .Builder(context, player)
+                .setCallback(KidsSessionCallback(context.packageName))
                 .build()
     }
 

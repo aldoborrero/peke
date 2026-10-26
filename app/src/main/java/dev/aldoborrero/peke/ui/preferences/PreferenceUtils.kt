@@ -40,6 +40,8 @@ enum class PreferenceScreenOption {
     EXPERIMENTAL,
     HDR_FORMATS,
     PEKE,
+    PEKE_PLAYBACK,
+    PEKE_ADVANCED,
     ;
 
     companion object {

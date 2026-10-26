@@ -353,4 +353,35 @@ class KidsPickerTest {
             ),
         )
     }
+
+    @Test
+    fun `after Switch kid a grown-up picks any kid while the grant is live`() =
+        runTest(dispatcher) {
+            cached(timeUpUntil("2026-10-24T05:00:00Z"))
+            every { parentLockService.consumePickGrant() } returns true
+            every { parentLockService.hasLiveGrant() } returns true
+            val vm = viewModel()
+
+            vm.pick(lucia).join()
+
+            assertNull(vm.state.value.gate)
+            coVerifyOrder {
+                parentLockService.forgetGrants()
+                launcher.openKid(server, lucia)
+            }
+        }
+
+    @Test
+    fun `after Switch kid a grant that ran out asks for the code again`() =
+        runTest(dispatcher) {
+            cached(timeUpUntil("2026-10-24T05:00:00Z"))
+            every { parentLockService.consumePickGrant() } returns true
+            every { parentLockService.hasLiveGrant() } returns false
+            val vm = viewModel()
+
+            vm.pick(lucia).join()
+
+            assertEquals(PickerGate(lucia, PickAction.GATE_THEN_OPEN), vm.state.value.gate)
+            coVerify(exactly = 0) { launcher.openKid(any(), any()) }
+        }
 }

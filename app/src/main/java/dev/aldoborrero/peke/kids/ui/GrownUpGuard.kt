@@ -1,22 +1,31 @@
 package dev.aldoborrero.peke.kids.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.setup.TvLauncher
+import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.NavigationManager
-import dev.aldoborrero.peke.ui.components.LicenseInfo
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.nav.Destination
+import dev.aldoborrero.peke.ui.nav.DestinationPage
+import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -57,6 +66,21 @@ class GrownUpGuardViewModel
             } else {
                 viewModelScope.launch { tvLauncher.launch() }
             }
+        }
+
+        /**
+         * Pages from [start] outside a kid's pages, with the kid's pages set aside
+         */
+        fun openApart(start: Destination): MutableList<Destination> = navigationManager.openApart(start)
+
+        fun closeApart() = navigationManager.closeApart()
+
+        /**
+         * Leave pages shown outside a kid's pages: the kid's pages come back first, then the launch rule's first screen
+         */
+        fun leaveApart() {
+            closeApart()
+            leave(inKidPages = false)
         }
     }
 
@@ -112,13 +136,33 @@ fun GrownUpGuard(
 }
 
 /**
- * The license screen from the parent menu when no kid is current; Back returns to the picker or the "no kids" page
+ * Settings from the parent menu when no kid is current: its settings, and the pages they open, outside a kid's pages.
+ * The kid's pages are set aside meanwhile ([NavigationManager.openApart]); Back from the first page returns to the
+ * picker or the "no kids" page.
  */
 @Composable
-fun SetupLicensePage(
+fun SetupThisTvPage(
+    preferences: UserPreferences,
     modifier: Modifier = Modifier,
     viewModel: GrownUpGuardViewModel = hiltViewModel(),
 ) {
-    BackHandler { viewModel.leave(inKidPages = false) }
-    LicenseInfo(modifier)
+    val pages = remember { viewModel.openApart(Destination.Settings(PreferenceScreenOption.PEKE)) }
+    DisposableEffect(Unit) { onDispose { viewModel.closeApart() } }
+    BackHandler(enabled = pages.size <= 1) { viewModel.leaveApart() }
+    NavDisplay(
+        backStack = pages,
+        onBack = { if (pages.size > 1) pages.removeLastOrNull() else viewModel.leaveApart() },
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
+        entryProvider = { key ->
+            NavEntry(key) {
+                // Only grown-up pages, which this page's guard covers; a kid's page never shows here
+                if (key.isGrownUp()) DestinationPage(key, preferences, onClearBackdrop = {}, modifier = Modifier.fillMaxSize())
+            }
+        },
+        modifier = modifier,
+    )
 }

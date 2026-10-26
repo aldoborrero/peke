@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
@@ -14,6 +15,8 @@ import dev.aldoborrero.peke.services.ProfilePolicy
 import dev.aldoborrero.peke.services.Release
 import dev.aldoborrero.peke.services.ScreensaverService
 import dev.aldoborrero.peke.services.ServerReportService
+import dev.aldoborrero.peke.services.SetupDestination
+import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.ui.launchIO
 import dev.aldoborrero.peke.util.DataLoadingState
@@ -38,7 +41,20 @@ class PreferencesViewModel
         private val updateChecker: UpdateChecker,
         private val serverReportService: ServerReportService,
         profilePolicy: ProfilePolicy,
+        val voiceSearchSetting: VoiceSearchSetting,
+        private val setupNavigationManager: SetupNavigationManager,
     ) : ViewModel() {
+        /**
+         * Reset this TV, after a confirmation, whose Cancel returns to the kid when Settings is among their pages, and
+         * otherwise to the picker
+         */
+        fun openReset() {
+            val fromKid = !navigationManager.isApart
+            // The kid's pages come back before the setup page replaces these
+            navigationManager.closeApart()
+            setupNavigationManager.navigateTo(SetupDestination.ResetTv(fromKid = fromKid))
+        }
+
         /**
          * Whether the current server offers kids mode, which needs the Jellyfin Kids plugin
          */
@@ -51,6 +67,12 @@ class PreferencesViewModel
                 SharingStarted.Eagerly,
                 null,
             )
+        val currentServer =
+            serverRepository.currentServerFlow.stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                serverRepository.currentServer,
+            )
         val currentUserDto =
             serverRepository.currentUserDtoFlow.stateIn(
                 viewModelScope,
@@ -59,6 +81,13 @@ class PreferencesViewModel
             )
 
         val releaseNotes = MutableStateFlow<DataLoadingState<Release>>(DataLoadingState.Pending)
+
+        /**
+         * Voice search for kids, set only once the grown-up allowed the microphone (spec 005 FR-007)
+         */
+        fun setKidsVoiceSearch(on: Boolean) {
+            viewModelScope.launchIO { voiceSearchSetting.set(on) }
+        }
 
         fun sendAppLogs() {
             viewModelScope.launchIO { serverReportService.sendAppLogs() }

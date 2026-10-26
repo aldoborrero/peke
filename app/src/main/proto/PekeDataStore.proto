@@ -168,6 +168,8 @@ message ScreensaverPreferences{
 message SearchPreferences {
   bool combined_search_results = 1;
   bool show_voice_search_button = 2;
+  // Kids see the microphone only after a grown-up turned this on behind the parent gate (spec 005 FR-006)
+  bool kids_voice_search = 3;
 }
 
 enum DisplayToggle{

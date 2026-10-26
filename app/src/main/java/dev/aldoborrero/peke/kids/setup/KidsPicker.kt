@@ -160,6 +160,12 @@ class KidsPickerViewModel
     ) : ViewModel() {
         private val gate = MutableStateFlow<PickerGate?>(null)
 
+        /**
+         * Opened by Switch kid in the parent menu: while the grant is live, a grown-up is choosing, so no pick asks for
+         * the code again
+         */
+        private val grownUpPicking = parentLockService.consumePickGrant()
+
         val state: StateFlow<PickerState> =
             combine(tvSetupRepository.state, gate, ::pickerState)
                 .stateIn(viewModelScope, SharingStarted.Eagerly, pickerState(tvSetupRepository.state.value, null))
@@ -186,8 +192,10 @@ class KidsPickerViewModel
                 val lastStopped =
                     last != kid.rowId &&
                         lastKidStopped(lastKid != null, lastKid?.let { allowanceService.lastKnownStatus(tv.server, it) })
-                when (val action = pickAction(kid, last, lastStopped)) {
-                    PickAction.OPEN -> open(tv, kid)
+                val action = pickAction(kid, last, lastStopped)
+                when {
+                    action == PickAction.OPEN -> open(tv, kid)
+                    grownUpPicking && parentLockService.hasLiveGrant() -> proceed(tv, kid, action)
                     else -> gate.value = PickerGate(kid, action)
                 }
             }
@@ -200,17 +208,25 @@ class KidsPickerViewModel
                 val pending = gate.value ?: return@launch
                 gate.value = null
                 val tv = tvSetupRepository.state.value as? TvState.SetUp ?: return@launch
-                when (pending.action) {
-                    PickAction.OPEN, PickAction.GATE_THEN_OPEN -> {
-                        open(tv, pending.kid)
-                    }
+                proceed(tv, pending.kid, pending.action)
+            }
 
-                    PickAction.GATE_THEN_SIGN_IN -> {
-                        // The grant lets the sign-in page show; it ends when the sign-in is done or left
-                        setupNavigationManager.navigateTo(SetupDestination.SignInAgain(tv.server, pending.kid))
-                    }
+        private suspend fun proceed(
+            tv: TvState.SetUp,
+            kid: JellyfinUser,
+            action: PickAction,
+        ) {
+            when (action) {
+                PickAction.OPEN, PickAction.GATE_THEN_OPEN -> {
+                    open(tv, kid)
+                }
+
+                PickAction.GATE_THEN_SIGN_IN -> {
+                    // The grant lets the sign-in page show; it ends when the sign-in is done or left
+                    setupNavigationManager.navigateTo(SetupDestination.SignInAgain(tv.server, kid))
                 }
             }
+        }
 
         /**
          * [kid] is chosen: the grant of a gate passed to get here ends first, then their home opens

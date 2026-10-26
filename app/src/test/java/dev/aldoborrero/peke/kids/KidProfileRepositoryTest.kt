@@ -215,9 +215,10 @@ class KidProfileRepositoryTest {
             profileDao.upsert(KidProfile(userId = adult.rowId, revision = 1))
             http.on("GET", "/Kids/Profiles", 200, """[{"UserId":"${kid.id.toString().replace("-", "")}","Revision":4}]""")
             http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(4))
+            http.on("GET", "/Kids/Users/${adult.id}/Profile", 404, NOT_A_KID)
             repository.refreshServer(server)
             assertNull(profileDao.get(adult.rowId))
-            // Left out of the list: the server said the adult isn't a kid, so they are signed out and forgotten
+            // Left out of the list and the plugin said the adult isn't a kid, so they are signed out and forgotten
             assertEquals(setOf(adult.rowId), repository.notKids.value)
             coVerify { serverRepository.removeUser(adult) }
             assertTrue(
@@ -239,6 +240,7 @@ class KidProfileRepositoryTest {
     fun `server refresh asks only with a kid's token`() =
         runTest(UnconfinedTestDispatcher()) {
             val repository = repository()
+            http.on("GET", "/Kids/Users/${adult.id}/Profile", 404, NOT_A_KID)
             http.on("GET", "/Kids/Profiles", 200, """[{"UserId":"${kid.id}","Revision":4}]""")
             http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(4))
 
@@ -252,6 +254,35 @@ class KidProfileRepositoryTest {
             assertTrue(list.headers["Authorization"]!!.contains("Token=\"k\""))
             // The adult, no kid, goes
             coVerify { serverRepository.removeUser(adult) }
+        }
+
+    @Test
+    fun `an empty kids list removes nobody without the plugin's own answer`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = repository()
+            profileDao.upsert(KidProfile(userId = kid.rowId, revision = 4))
+            http.on("GET", "/Kids/Profiles", 200, "[]")
+            // The kid's own profile still answers, or fails
+            http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, profile(4))
+            repository.refreshServer(server)
+            assertEquals(4L, profileDao.get(kid.rowId)?.revision)
+            http.on("GET", "/Kids/Users/${kid.id}/Profile", 500)
+            repository.refreshServer(server)
+            assertEquals(4L, profileDao.get(kid.rowId)?.revision)
+            coVerify(exactly = 0) { serverRepository.removeUser(kid) }
+            assertTrue(http.requests.none { it.path == "/Sessions/Logout" && it.headers["Authorization"]!!.contains("Token=\"k\"") })
+        }
+
+    @Test
+    fun `a kid left out of the list goes only when the plugin says not a kid`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = repository()
+            profileDao.upsert(KidProfile(userId = kid.rowId, revision = 4))
+            http.on("GET", "/Kids/Profiles", 200, "[]")
+            http.on("GET", "/Kids/Users/${kid.id}/Profile", 404, NOT_A_KID)
+            repository.refreshServer(server)
+            assertNull(profileDao.get(kid.rowId))
+            coVerify { serverRepository.removeUser(kid) }
         }
 
     @Test

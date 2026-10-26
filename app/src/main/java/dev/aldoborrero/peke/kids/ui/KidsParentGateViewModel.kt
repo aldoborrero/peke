@@ -3,6 +3,8 @@ package dev.aldoborrero.peke.kids.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.aldoborrero.peke.data.CurrentUser
+import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.kids.gate.AdminCheck
 import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.gate.LockChange
@@ -15,8 +17,11 @@ import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.setup.AdminSession
 import dev.aldoborrero.peke.kids.setup.AdminSessions
 import dev.aldoborrero.peke.kids.setup.AdminSignIn
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
+import dev.aldoborrero.peke.services.MusicService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
@@ -25,8 +30,11 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -124,6 +132,9 @@ class KidsParentGateViewModel
         private val setupNavigationManager: SetupNavigationManager,
         private val adminSessions: AdminSessions,
         grownUpSessions: GrownUpSessions,
+        tvSetupRepository: TvSetupRepository,
+        serverRepository: ServerRepository,
+        private val musicService: MusicService,
         @param:DefaultCoroutineScope private val appScope: CoroutineScope,
     ) : ViewModel() {
         private val _stage = MutableStateFlow<GateStage>(GateStage.Passcode())
@@ -137,10 +148,23 @@ class KidsParentGateViewModel
 
         /**
          * Whether the gate opened inside a kid's session, so the menu offers that kid's items. From the picker or the
-         * "no kids" page there is no current kid: the menu leaves out adding time, the kid's settings and This TV, which
-         * live in a kid's pages.
+         * "no kids" page there is no current kid: the menu leaves out adding time, the kid's settings and Switch kid,
+         * and Settings opens outside a kid's pages.
          */
         var withKid = true
+
+        /**
+         * The kid whose session is open, for the menu's header
+         */
+        val current: StateFlow<CurrentUser?> = serverRepository.current
+
+        /**
+         * Whether this TV has another kid to switch to
+         */
+        val canSwitchKid: StateFlow<Boolean> =
+            tvSetupRepository.state
+                .map(::severalKids)
+                .stateIn(viewModelScope, SharingStarted.Eagerly, severalKids(tvSetupRepository.state.value))
 
         /**
          * The administrator signed in to recover the code, only in memory and only until the new code is set or the
@@ -282,14 +306,28 @@ class KidsParentGateViewModel
         }
 
         /**
-         * This TV's player and screensaver settings, in the kid's pages
+         * Settings, with its About (the license) and Reset this TV: in the kid's pages, or outside them from
+         * the picker
          */
         fun openThisTv() {
-            navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.PEKE))
+            if (withKid) {
+                navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.PEKE))
+            } else {
+                setupNavigationManager.navigateTo(SetupDestination.ThisTv)
+            }
         }
 
-        fun openLicense() {
-            if (withKid) navigationManager.navigateTo(Destination.License) else setupNavigationManager.navigateTo(SetupDestination.License)
+        /**
+         * The kids picker, without the gate again: it just passed, so the picker lets a grown-up pick any kid, also one
+         * stopped by a sibling's limits. Picking ends the grant.
+         */
+        fun switchKid() {
+            parentLockService.grantPick()
+            appScope.launch {
+                // As when switching from the sidebar: the kid's music doesn't carry on behind the picker
+                musicService.stopIfStarted()
+                setupNavigationManager.navigateTo(SetupDestination.KidsPicker)
+            }
         }
 
         /**
@@ -353,7 +391,7 @@ class KidsParentGateViewModel
                 val result = parentLockService.recover(session, current.type, code)
                 onResult(result)
                 if (result == LockChange.Done) {
-                    // The administrator passed the gate: the parent menu opens, with Kids on this TV and Reset this TV
+                    // The administrator passed the gate: the parent menu opens, with Kids on this TV and Settings, which resets it
                     _stage.value = GateStage.Menu
                 } else {
                     _stage.value = GateStage.Passcode()
@@ -383,6 +421,8 @@ class KidsParentGateViewModel
 
         companion object {
             val MINUTE_OPTIONS = listOf(15, 30, 45, 60, 90, 120)
+
+            private fun severalKids(tv: TvState): Boolean = (tv as? TvState.SetUp)?.kids.orEmpty().size > 1
 
             private fun adminCheck(result: AdminSignIn): AdminCheck =
                 when (result) {

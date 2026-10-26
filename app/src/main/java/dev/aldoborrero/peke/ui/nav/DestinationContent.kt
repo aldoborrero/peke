@@ -88,8 +88,12 @@ fun DestinationContent(
     }
 }
 
+/**
+ * The page for [destination], without the guard [DestinationContent] puts around grown-up pages: a caller that renders
+ * it directly guards it itself
+ */
 @Composable
-private fun DestinationPage(
+internal fun DestinationPage(
     destination: Destination,
     preferences: UserPreferences,
     onClearBackdrop: () -> Unit,

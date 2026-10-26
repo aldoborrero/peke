@@ -1,10 +1,7 @@
 package dev.aldoborrero.peke.ui.detail.music
 
-import android.Manifest
 import android.view.Gravity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -160,14 +157,6 @@ fun NowPlayingPage(
     BackHandler(lyricsFocused != null) {
         focusRequester.tryRequestFocus()
     }
-
-    var showRationaleDialog by remember { mutableStateOf(false) }
-    val launcher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission(),
-        ) { isGranted ->
-            viewModel.startVisualizer(isGranted, true)
-        }
 
     Box(modifier) {
         Backdrop(
@@ -392,34 +381,8 @@ fun NowPlayingPage(
             appPreferences = preferences,
             onDismissRequest = { showViewOptionsDialog = false },
             onViewOptionsChange = { viewModel.updatePreferences(it) },
-            onEnableVisualizer = {
-                val showRationale =
-                    context
-                        .findActivity()
-                        ?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == true
-                when {
-                    !state.visualizerPermissions && showRationale -> {
-                        showRationaleDialog = true
-                    }
-
-                    !state.visualizerPermissions -> {
-                        launcher.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-
-                    else -> {
-                        viewModel.startVisualizer(true, true)
-                    }
-                }
-            },
-        )
-    }
-    if (showRationaleDialog) {
-        RecordAudioRationaleDialog(
-            onDismissRequest = { showRationaleDialog = false },
-            onClick = {
-                showRationaleDialog = false
-                launcher.launch(Manifest.permission.RECORD_AUDIO)
-            },
+            // Peke asks for the microphone only for kids' voice search, behind the parent gate (spec 005 FR-011)
+            onEnableVisualizer = { if (state.visualizerPermissions) viewModel.startVisualizer(true, true) },
         )
     }
 }
@@ -458,32 +421,4 @@ fun NowPlayingBottomDialog(
         },
         gravity = Gravity.START,
     )
-}
-
-@Composable
-private fun RecordAudioRationaleDialog(
-    onDismissRequest: () -> Unit,
-    onClick: () -> Unit,
-) {
-    BasicDialog(
-        onDismissRequest = onDismissRequest,
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(16.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.visualizer_rationale),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Button(
-                onClick = onClick,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            ) {
-                Text(
-                    text = stringResource(R.string.continue_string),
-                )
-            }
-        }
-    }
 }

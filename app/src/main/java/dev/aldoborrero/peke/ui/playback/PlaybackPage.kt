@@ -180,7 +180,8 @@ fun PlaybackPageContent(
 
     // A grown-up turns debug info on in settings; only grown-ups (advanced playback) may toggle it from the player
     val advancedPlayback = LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)
-    var showDebugInfo by remember { mutableStateOf(prefs.showDebugInfo) }
+    // Kids never get the debug overlay, whatever the grown-up set (spec 005 FR-012)
+    var showDebugInfo by remember { mutableStateOf(prefs.showDebugInfo && advancedPlayback) }
 
     var playbackDialog by remember { mutableStateOf<PlaybackDialogType?>(null) }
 
@@ -496,7 +497,7 @@ fun PlaybackPageContent(
                 onPlaybackActionClick = onPlaybackActionClick,
                 onClickPlaybackDialogType = { playbackDialog = it },
                 onSeekBarChange = seekBarState::onValueChange,
-                showDebugInfo = showDebugInfo,
+                showDebugInfo = showDebugInfo && advancedPlayback,
                 currentPlayback = state.currentPlayback,
                 chapters = state.currentMediaInfo.chapters,
                 trickplayInfo = state.currentMediaInfo.trickPlayInfo,
