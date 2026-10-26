@@ -157,3 +157,22 @@ Deleted from this folder: `adaptive`, `android-cli`, `navigation-event` (android
 `kotlin-patterns`, `kotlin-testing`, `kotlin-coroutines-flows` (https://github.com/affaan-m/ecc,
 MIT, commit `90606c8315ee09cafc303515c5f33024db6b9882`): phone-, server- or KMP-oriented, or
 in conflict with the constitution.
+
+## wondelai/skills (Wondel.ai sp. z o.o., MIT)
+
+Source: https://github.com/wondelai/skills, commit `c172996` (2026-09-10). Each folder has
+`LICENSE`, a copy of the upstream root `LICENSE` (MIT, unmodified). Plain Markdown, no scripts.
+
+### ux-heuristics
+
+Path: `ux-heuristics`. Krug's principles, Nielsen's 10 heuristics, severity ratings, dark patterns
+and a WCAG checklist. Local modifications:
+
+- Removed the Amazon affiliate tags from the book links.
+- Added a Peke section: D-pad and focus instead of clicks and hover, 3-metre viewing, kids and
+  grown-ups as separate audiences, web-only advice skipped.
+
+### design-everyday-things
+
+Path: `design-everyday-things`. Don Norman's signifiers, mappings, constraints, feedback, error
+and conceptual models. Local modifications: same as `ux-heuristics`.
