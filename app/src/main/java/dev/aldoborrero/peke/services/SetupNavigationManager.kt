@@ -110,8 +110,9 @@ sealed interface SetupDestination : NavKey {
     ) : SetupDestination
 
     /**
-     * The license screen, from the parent menu when no kid is current. Only with a live parent grant.
+     * Settings, with its About and Reset this TV, from the parent menu when no kid is current. Only with a
+     * live parent grant.
      */
     @Serializable
-    data object License : SetupDestination
+    data object ThisTv : SetupDestination
 }

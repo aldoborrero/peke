@@ -22,6 +22,7 @@ import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.ui.components.DialogItem
 import dev.aldoborrero.peke.ui.components.DialogItemEntry
+import dev.aldoborrero.peke.ui.components.DialogItemText
 import dev.aldoborrero.peke.ui.components.DialogPopup
 import dev.aldoborrero.peke.ui.preferences.SetPinFlow
 
@@ -55,6 +56,8 @@ fun KidsParentGate(
     val snapshot by viewModel.timeLimits.allowanceService.snapshot
         .collectAsState()
     val plugin by viewModel.pluginService.current.collectAsState()
+    val current by viewModel.current.collectAsState()
+    val canSwitchKid by viewModel.canSwitchKid.collectAsState()
     val resources = context.resources
     // The menu's pages need the grant, so choosing one closes the gate without ending it; anything else that closes
     // the menu ends it
@@ -250,35 +253,35 @@ fun KidsParentGate(
                     val left = it.inWholeMinutes.toInt().coerceAtLeast(1)
                     pluralStringResource(R.plurals.kids_break_left, left, left)
                 }
+            val kidName = current?.user?.name
+            val pluginTitle = stringResource(pluginGoneTitle(plugin.outdated))
+            val pluginSummary = stringResource(pluginGoneSummary(plugin.outdated))
             val items =
                 buildList<DialogItemEntry> {
+                    // The status lines are text that focus skips: D-pad moves only between the actions
                     if (plugin.status == KidsServerStatus.GONE) {
-                        add(
-                            DialogItem(
-                                headlineContent = { Text(stringResource(pluginGoneTitle(plugin.outdated))) },
-                                supportingContent = { Text(stringResource(pluginGoneSummary(plugin.outdated))) },
-                                onClick = {},
-                            ),
-                        )
-                        add(DialogItem.divider())
+                        add(DialogItemText(pluginTitle, listOf(pluginSummary)))
                     }
+                    if (withKid) {
+                        val status = listOfNotNull(todayLeft, sittingLeft, breakLeft)
+                        if (kidName != null) {
+                            add(DialogItemText(kidName, status))
+                        } else {
+                            status.forEach { add(DialogItemText(it)) }
+                        }
+                    }
+                    if (isNotEmpty()) add(DialogItem.divider())
                     if (withKid) {
                         if (canAddTime) {
                             add(DialogItem(stringResource(R.string.kids_add_time)) { viewModel.chooseMinutes() })
                         }
-                        listOfNotNull(todayLeft, sittingLeft, breakLeft).forEach { line ->
-                            add(DialogItem(headlineContent = { Text(line) }, onClick = {}))
+                        add(DialogItem(stringResource(R.string.peke_menu_kid_settings)) { leaveFor(viewModel::openSettings) })
+                        if (canSwitchKid) {
+                            add(DialogItem(stringResource(R.string.peke_menu_switch_kid)) { leaveFor(viewModel::switchKid) })
                         }
-                        add(DialogItem.divider())
-                        add(DialogItem(stringResource(R.string.kids_settings)) { leaveFor(viewModel::openSettings) })
                     }
                     add(DialogItem(stringResource(R.string.peke_menu_kids_on_tv)) { leaveFor(viewModel::openKidsOnTv) })
-                    if (withKid) {
-                        add(DialogItem(stringResource(R.string.peke_menu_this_tv)) { leaveFor(viewModel::openThisTv) })
-                    }
-                    add(DialogItem(stringResource(R.string.license_info)) { leaveFor(viewModel::openLicense) })
-                    add(DialogItem.divider())
-                    add(DialogItem(stringResource(R.string.peke_menu_reset)) { leaveFor(viewModel::openReset) })
+                    add(DialogItem(stringResource(R.string.peke_menu_settings)) { leaveFor(viewModel::openThisTv) })
                 }
             DialogPopup(
                 showDialog = true,

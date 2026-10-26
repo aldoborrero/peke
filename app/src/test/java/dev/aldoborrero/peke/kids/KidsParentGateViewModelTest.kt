@@ -1,6 +1,9 @@
 package dev.aldoborrero.peke.kids
 
+import dev.aldoborrero.peke.data.CurrentUser
+import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
+import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.gate.LockChange
 import dev.aldoborrero.peke.kids.gate.LockState
@@ -8,16 +11,26 @@ import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.gate.VerifyOutcome
 import dev.aldoborrero.peke.kids.server.KidsPluginService
+import dev.aldoborrero.peke.kids.server.KidsStatus
 import dev.aldoborrero.peke.kids.setup.AdminSessions
+import dev.aldoborrero.peke.kids.setup.KidsPickerViewModel
+import dev.aldoborrero.peke.kids.setup.TvLauncher
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KidsInterruptedPlayback
 import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
+import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.kids.ui.GateStage
 import dev.aldoborrero.peke.kids.ui.KidsParentGateViewModel
+import dev.aldoborrero.peke.services.MusicService
 import dev.aldoborrero.peke.services.NavigationManager
+import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
+import dev.aldoborrero.peke.ui.nav.Destination
+import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -37,10 +50,12 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.UUID
+import kotlin.time.Duration
 
 /**
  * A grant from the gate lasts a few minutes ([ParentLockService.hasLiveGrant]); leaving the parent menu ends it, so the
@@ -76,15 +91,29 @@ class KidsParentGateViewModelTest {
     private val adminSessions = AdminSessions(http.jellyfin, http.deviceInfo, http.api(dispatcher), dispatcher)
     private val grownUpSessions = GrownUpSessions(parentLockService, adminSessions, CoroutineScope(dispatcher))
 
+    private val serverId = UUID.randomUUID()
+    private val server = JellyfinServer(serverId, "home", "http://jf.local", null)
+    private val manuel = JellyfinUser(rowId = 1, id = UUID.randomUUID(), name = "Manuel", serverId = serverId, accessToken = "t1")
+    private val lucia = JellyfinUser(rowId = 2, id = UUID.randomUUID(), name = "Lucía", serverId = serverId, accessToken = "t2")
+    private val tvState = MutableStateFlow<TvState>(TvState.SetUp(server, listOf(manuel, lucia), lastKidRowId = manuel.rowId))
+    private val tvSetupRepository = mockk<TvSetupRepository> { every { state } returns tvState }
+    private val serverRepository =
+        mockk<ServerRepository> { every { current } returns MutableStateFlow(CurrentUser(server, manuel)) }
+    private val navigationManager = mockk<NavigationManager>(relaxed = true)
+    private val setupNavigationManager = mockk<SetupNavigationManager>(relaxed = true)
+
     private fun viewModel() =
         KidsParentGateViewModel(
             timeLimits,
             mockk<KidsPluginService>(relaxed = true),
             parentLockService,
-            mockk<NavigationManager>(relaxed = true),
-            mockk<SetupNavigationManager>(relaxed = true),
+            navigationManager,
+            setupNavigationManager,
             adminSessions,
             grownUpSessions,
+            tvSetupRepository,
+            serverRepository,
+            mockk<MusicService>(relaxed = true),
             CoroutineScope(dispatcher),
         )
 
@@ -114,7 +143,7 @@ class KidsParentGateViewModelTest {
             vm.openSettings()
             vm.openKidsOnTv()
             vm.openThisTv()
-            vm.openLicense()
+            vm.switchKid()
             vm.openReset()
 
             verify(exactly = 0) { parentLockService.forgetGrants() }
@@ -194,5 +223,80 @@ class KidsParentGateViewModelTest {
 
             // With Kids on this TV and Reset this TV
             assertEquals(GateStage.Menu, vm.stage.first { it !is GateStage.RecoveryCode })
+        }
+
+    @Test
+    fun `Switch kid shows only with two or more kids on this TV`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            assertTrue(vm.canSwitchKid.value)
+
+            tvState.value = TvState.SetUp(server, listOf(manuel), lastKidRowId = manuel.rowId)
+            assertFalse(vm.canSwitchKid.value)
+
+            tvState.value = TvState.SetUp(server, listOf(manuel, lucia), lastKidRowId = manuel.rowId)
+            assertTrue(vm.canSwitchKid.value)
+            tvState.value = TvState.Loading
+            assertFalse(vm.canSwitchKid.value)
+        }
+
+    @Test
+    fun `Switch kid goes to the picker without a second gate, and the grant ends with the pick`() =
+        runTest(dispatcher) {
+            // The grant and the pick grant, as ParentLockService keeps them
+            var live = false
+            var pick = false
+            every { parentLockService.hasLiveGrant() } answers { live }
+            every { parentLockService.grantPick() } answers { pick = true }
+            every { parentLockService.consumePickGrant() } answers { pick.also { pick = false } }
+            every { parentLockService.forgetGrants() } answers {
+                live = false
+                pick = false
+            }
+            val vm = viewModel()
+            vm.openMenu()
+            live = true
+
+            vm.switchKid()
+
+            verify { setupNavigationManager.navigateTo(SetupDestination.KidsPicker) }
+            assertEquals(GateStage.Menu, vm.stage.value)
+            verify(exactly = 0) { parentLockService.forgetGrants() }
+
+            // Manuel, the last kid, is stopped; a grown-up picks his sister anyway
+            coEvery { allowanceService.lastKnownStatus(server, manuel, any()) } returns
+                KnownKidsStatus(KidsStatus(timeUp = true), fresh = true, sinceFetch = Duration.ZERO)
+            val launcher = mockk<TvLauncher>(relaxed = true)
+            val picker =
+                KidsPickerViewModel(tvSetupRepository, allowanceService, launcher, setupNavigationManager, parentLockService, http.jellyfin)
+
+            picker.pick(lucia).join()
+
+            assertNull(picker.state.value.gate)
+            coVerifyOrder {
+                parentLockService.forgetGrants()
+                launcher.openKid(server, lucia)
+            }
+            assertFalse(parentLockService.hasLiveGrant())
+
+            // The next picker asks again: the pick grant was for that one picker only
+            val next =
+                KidsPickerViewModel(tvSetupRepository, allowanceService, launcher, setupNavigationManager, parentLockService, http.jellyfin)
+            next.pick(lucia).join()
+            assertTrue(next.state.value.gate != null)
+        }
+
+    @Test
+    fun `Settings opens in the kid's pages, or outside them from the picker`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.openMenu()
+
+            vm.openThisTv()
+            verify { navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.PEKE)) }
+
+            vm.withKid = false
+            vm.openThisTv()
+            verify { setupNavigationManager.navigateTo(SetupDestination.ThisTv) }
         }
 }

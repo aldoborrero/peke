@@ -60,6 +60,8 @@ import dev.aldoborrero.peke.preferences.advancedPreferences
 import dev.aldoborrero.peke.preferences.basicPreferences
 import dev.aldoborrero.peke.preferences.experimentalPreferences
 import dev.aldoborrero.peke.preferences.lazyListWrapScrolling
+import dev.aldoborrero.peke.preferences.pekeAdvancedPreferences
+import dev.aldoborrero.peke.preferences.pekePlaybackPreferences
 import dev.aldoborrero.peke.preferences.pekePreferences
 import dev.aldoborrero.peke.preferences.screensaverPreferences
 import dev.aldoborrero.peke.preferences.updatePlaybackPreferences
@@ -148,6 +150,8 @@ fun PreferencesContent(
             PreferenceScreenOption.EXPERIMENTAL -> experimentalPreferences
             PreferenceScreenOption.HDR_FORMATS -> HdrFormatPreferences
             PreferenceScreenOption.PEKE -> pekePreferences
+            PreferenceScreenOption.PEKE_PLAYBACK -> pekePlaybackPreferences
+            PreferenceScreenOption.PEKE_ADVANCED -> pekeAdvancedPreferences
         }
     val screenTitle =
         when (preferenceScreenOption) {
@@ -159,7 +163,9 @@ fun PreferencesContent(
             PreferenceScreenOption.SKIP_SEGMENTS -> R.string.skip_behavior
             PreferenceScreenOption.EXPERIMENTAL -> R.string.experimental_settings
             PreferenceScreenOption.HDR_FORMATS -> R.string.hdr_formats
-            PreferenceScreenOption.PEKE -> R.string.settings
+            PreferenceScreenOption.PEKE -> R.string.peke_menu_settings
+            PreferenceScreenOption.PEKE_PLAYBACK -> R.string.peke_settings_playback
+            PreferenceScreenOption.PEKE_ADVANCED -> R.string.peke_settings_advanced
         }
 
     var visible by remember { mutableStateOf(false) }
@@ -430,6 +436,17 @@ fun PreferencesContent(
                                     }
                                 }
 
+                                AppPreference.ResetThisTv -> {
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = viewModel::openReset,
+                                        modifier = focusModifier,
+                                        summary = pref.summary(context, null),
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
+                                    )
+                                }
+
                                 AppPreference.SendAppLogs -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -621,6 +638,8 @@ fun PreferencesPage(
             PreferenceScreenOption.EXPERIMENTAL,
             PreferenceScreenOption.HDR_FORMATS,
             PreferenceScreenOption.PEKE,
+            PreferenceScreenOption.PEKE_PLAYBACK,
+            PreferenceScreenOption.PEKE_ADVANCED,
             -> {
                 PreferencesContent(
                     initialPreferences,

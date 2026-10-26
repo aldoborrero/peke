@@ -32,7 +32,7 @@ import dev.aldoborrero.peke.kids.setup.SetupFlow
 import dev.aldoborrero.peke.kids.setup.TvSetupStep
 import dev.aldoborrero.peke.kids.ui.GrownUpGuard
 import dev.aldoborrero.peke.kids.ui.ProvideKidsUi
-import dev.aldoborrero.peke.kids.ui.SetupLicensePage
+import dev.aldoborrero.peke.kids.ui.SetupThisTvPage
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -137,9 +137,9 @@ fun MainContent(
                                     }
                                 }
 
-                                SetupDestination.License -> {
+                                SetupDestination.ThisTv -> {
                                     GrownUpGuard(inKidPages = false, modifier = Modifier.fillMaxSize()) {
-                                        SetupLicensePage(Modifier.fillMaxSize())
+                                        SetupThisTvPage(preferences, Modifier.fillMaxSize())
                                     }
                                 }
 

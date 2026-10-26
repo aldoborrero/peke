@@ -17,6 +17,46 @@ class NavigationManager
         var backStack: MutableList<Destination> = NavBackStack(Destination.Home())
 
         /**
+         * The kid's pages, set aside while grown-up pages show outside them ([openApart])
+         */
+        private var setAside: MutableList<Destination>? = null
+
+        /**
+         * The kid's pages, also while they are set aside: what is saved with the activity
+         */
+        val kidBackStack: List<Destination> get() = setAside ?: backStack
+
+        /**
+         * Whether pages show outside a kid's pages, such as Settings from the kids picker
+         */
+        val isApart: Boolean get() = setAside != null
+
+        /**
+         * Show pages from [start] outside a kid's pages, such as Settings from the kids picker: the kid's pages are set
+         * aside until [closeApart], so pages that navigate, such as settings, stay among these
+         *
+         * @return the pages' back stack
+         */
+        fun openApart(start: Destination): MutableList<Destination> {
+            synchronized(this) {
+                if (setAside == null) setAside = backStack
+                backStack = NavBackStack(start)
+            }
+            log()
+            return backStack
+        }
+
+        /**
+         * Put the kid's pages set aside by [openApart] back; nothing happens if none were
+         */
+        fun closeApart() {
+            synchronized(this) {
+                setAside?.let { backStack = it }
+                setAside = null
+            }
+        }
+
+        /**
          * Go to the specified [dev.aldoborrero.peke.ui.nav.Destination]
          */
         fun navigateTo(destination: Destination) {

@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.services
 
 import dev.aldoborrero.peke.ui.nav.Destination
+import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
@@ -59,5 +60,52 @@ class NavigationManagerTest {
         manager.navigateTo(Destination.KidsTimesUp)
         assertFalse(manager.replaceTop(loading, player))
         assertEquals(listOf(Destination.Home(), loading, Destination.KidsTimesUp), manager.backStack.toList())
+    }
+
+    @Test
+    fun `pages shown apart leave the kid's pages as they were`() {
+        val manager = NavigationManager()
+        manager.navigateTo(loading)
+        val kid = listOf(Destination.Home(), loading)
+        val settings = Destination.Settings(PreferenceScreenOption.PEKE)
+
+        val apart = manager.openApart(settings)
+        apart.add(Destination.License)
+
+        assertTrue(manager.isApart)
+        assertEquals(listOf(settings, Destination.License), manager.backStack.toList())
+        // What the activity saves is still the kid's
+        assertEquals(kid, manager.kidBackStack.toList())
+
+        manager.closeApart()
+        assertFalse(manager.isApart)
+        assertEquals(kid, manager.backStack.toList())
+        // Closing twice changes nothing
+        manager.closeApart()
+        assertEquals(kid, manager.backStack.toList())
+    }
+
+    @Test
+    fun `back from a settings sub-screen returns to Settings, in a kid's pages and apart`() {
+        val settings = Destination.Settings(PreferenceScreenOption.PEKE)
+        listOf(PreferenceScreenOption.PEKE_PLAYBACK, PreferenceScreenOption.PEKE_ADVANCED).forEach { screen ->
+            val sub = Destination.Settings(screen)
+
+            val manager = NavigationManager()
+            manager.navigateTo(settings)
+            manager.navigateTo(sub)
+            manager.goBack()
+            assertEquals(listOf(Destination.Home(), settings), manager.backStack.toList())
+
+            // From the kids picker, the sub-screen opens among the pages shown apart, and the kid's pages stay
+            manager.goBack()
+            manager.openApart(settings)
+            manager.navigateTo(sub)
+            assertEquals(listOf(settings, sub), manager.backStack.toList())
+            assertEquals(listOf<Destination>(Destination.Home()), manager.kidBackStack.toList())
+            manager.goBack()
+            assertEquals(listOf<Destination>(settings), manager.backStack.toList())
+            manager.closeApart()
+        }
     }
 }

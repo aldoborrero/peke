@@ -822,7 +822,13 @@
     <string name="peke_license_credit">Peke for Jellyfin es un fork de Wholphin, de damontecres, con licencia GNU GPL versión 2. Código: github.com/aldoborrero/peke. Wholphin: github.com/damontecres/Wholphin. Peke no es una aplicación oficial de Jellyfin.</string>
     <string name="peke_menu_kids_on_tv">Niños de esta tele</string>
     <string name="peke_menu_reset">Restablecer esta tele</string>
-    <string name="peke_menu_this_tv">Esta tele</string>
+    <string name="peke_menu_kid_settings">Ajustes del niño</string>
+    <string name="peke_menu_switch_kid">Cambiar de niño</string>
+    <string name="peke_this_tv_start_over">Empezar de nuevo</string>
+    <string name="peke_this_tv_reset_summary">Cerrar la sesión de todos los niños y volver a configurar esta tele</string>
+    <string name="peke_menu_settings">Ajustes</string>
+    <string name="peke_settings_playback">Reproducción y reproductor</string>
+    <string name="peke_settings_advanced">Avanzado</string>
     <string name="peke_no_kids_hint">Un adulto puede añadir un niño a esta tele.</string>
     <string name="peke_no_kids_title">Esta tele no tiene niños</string>
     <string name="peke_picker_needs_grown_up">Necesita a un adulto</string>
@@ -880,7 +886,7 @@
     <string name="peke_voice_search_not_now">Ahora no</string>
     <string name="peke_voice_search_denied">No se permitió el micrófono, así que la búsqueda por voz sigue desactivada.</string>
     <string name="peke_voice_search_denied_for_good">Peke no tiene permiso para usar el micrófono. Para usar la búsqueda por voz, permítelo en los Ajustes de esta tele → Aplicaciones → Peke → Permisos → Micrófono y luego actívala aquí.</string>
-    <string name="peke_voice_search_setup_hint">Algunos niños de esta tele pueden buscar. Con la búsqueda por voz pueden decir lo que buscan en vez de escribirlo. Puedes cambiarlo más tarde en Esta tele.</string>
+    <string name="peke_voice_search_setup_hint">Algunos niños de esta tele pueden buscar. Con la búsqueda por voz pueden decir lo que buscan en vez de escribirlo. Puedes cambiarlo más tarde en Ajustes.</string>
     <string name="peke_http_warning_title">Esta conexión no está cifrada</string>
     <string name="peke_http_warning">Alguien en la red de tu casa podría ver o cambiar lo que esta tele y tu servidor se dicen, incluida la comprobación del código de padres. Usa una dirección https:// si tu servidor la tiene.</string>
     <string name="peke_http_warning_use">Usarla de todos modos</string>

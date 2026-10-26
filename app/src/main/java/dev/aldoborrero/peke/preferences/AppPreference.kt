@@ -532,6 +532,24 @@ sealed interface AppPreference<Pref, T> {
                 destination = Destination.Settings(PreferenceScreenOption.ADVANCED),
             )
 
+        /**
+         * Peke's playback and player settings, a sub-screen of Settings
+         */
+        val PekePlaybackSettings =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.peke_settings_playback,
+                destination = Destination.Settings(PreferenceScreenOption.PEKE_PLAYBACK),
+            )
+
+        /**
+         * Peke's advanced settings, a sub-screen of Settings: logs, crash reports, the image cache and experimental
+         */
+        val PekeAdvancedSettings =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.peke_settings_advanced,
+                destination = Destination.Settings(PreferenceScreenOption.PEKE_ADVANCED),
+            )
+
         val UserProfileSettings =
             AppDestinationPreference<AppPreferences>(
                 title = R.string.override_user_profile_settings,
@@ -706,6 +724,16 @@ sealed interface AppPreference<Pref, T> {
         val KidsVoiceSearch =
             AppClickablePreference<AppPreferences>(
                 title = R.string.peke_voice_search,
+            )
+
+        /**
+         * Reset this TV, after a confirmation (spec FR-015): the parent menu's way out of kids mode, at the end of
+         * Settings
+         */
+        val ResetThisTv =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.peke_menu_reset,
+                summary = R.string.peke_this_tv_reset_summary,
             )
 
         val SendAppLogs =
@@ -1222,23 +1250,54 @@ val advancedPreferences =
     }
 
 /**
- * Peke's settings, shown only to grown-ups in the grown-up shell: every app setting that makes sense for a kids TV
+ * Peke's settings, shown only to grown-ups in the grown-up shell: every app setting that makes sense for a kids TV.
+ * Playback and the advanced settings open sub-screens ([pekePlaybackPreferences], [pekeAdvancedPreferences]); Reset
+ * this TV comes last, on its own. The colour theme is left out until Peke has its own themes.
  */
 val pekePreferences =
     listOf(
         PreferenceGroup(
-            title = R.string.ui_interface,
+            title = R.string.general,
             preferences =
                 listOf(
-                    AppPreference.UserInterfaceLanguage,
-                    AppPreference.SubtitleStyle,
-                    AppPreference.ThemeColors,
+                    AppPreference.ServerAddress,
+                    AppPreference.KidsVoiceSearch,
                     AppPreference.ScreensaverSettings,
                     AppPreference.ShowClock,
-                    AppPreference.KidsVoiceSearch,
-                    AppPreference.ServerAddress,
+                    AppPreference.UserInterfaceLanguage,
+                    AppPreference.SubtitleStyle,
                 ),
         ),
+        PreferenceGroup(
+            title = R.string.more,
+            preferences =
+                listOf(
+                    AppPreference.PekePlaybackSettings,
+                    AppPreference.PekeAdvancedSettings,
+                ),
+        ),
+        PreferenceGroup(
+            title = R.string.about,
+            preferences =
+                listOf(
+                    AppPreference.InstalledVersion,
+                    AppPreference.Update,
+                    AppPreference.AutoCheckForUpdates,
+                    AppPreference.OssLicenseInfo,
+                ),
+        ),
+        // Last and on its own, away from everything else
+        PreferenceGroup(
+            title = R.string.peke_this_tv_start_over,
+            preferences = listOf(AppPreference.ResetThisTv),
+        ),
+    )
+
+/**
+ * Settings → Playback and player: how videos play, and the player backend with its own settings
+ */
+val pekePlaybackPreferences =
+    listOf(
         PreferenceGroup(
             title = R.string.playback,
             preferences =
@@ -1280,17 +1339,15 @@ val pekePreferences =
                     ),
                 ),
         ),
+    )
+
+/**
+ * Settings → Advanced: logs, crash reports, the image cache and the experimental settings
+ */
+val pekeAdvancedPreferences =
+    listOf(
         PreferenceGroup(
-            title = R.string.about,
-            preferences =
-                listOf(
-                    AppPreference.InstalledVersion,
-                    AppPreference.Update,
-                    AppPreference.AutoCheckForUpdates,
-                ),
-        ),
-        PreferenceGroup(
-            title = R.string.more,
+            title = R.string.peke_settings_advanced,
             preferences =
                 listOf(
                     AppPreference.SendAppLogs,
@@ -1299,7 +1356,6 @@ val pekePreferences =
                     AppPreference.ImageDiskCacheSize,
                     AppPreference.ClearImageCache,
                     ExperimentalPreference.Enable,
-                    AppPreference.OssLicenseInfo,
                 ),
             conditionalPreferences =
                 listOf(

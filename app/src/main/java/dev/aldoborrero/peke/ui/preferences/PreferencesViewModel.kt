@@ -15,6 +15,8 @@ import dev.aldoborrero.peke.services.ProfilePolicy
 import dev.aldoborrero.peke.services.Release
 import dev.aldoborrero.peke.services.ScreensaverService
 import dev.aldoborrero.peke.services.ServerReportService
+import dev.aldoborrero.peke.services.SetupDestination
+import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.services.UpdateChecker
 import dev.aldoborrero.peke.ui.launchIO
 import dev.aldoborrero.peke.util.DataLoadingState
@@ -40,7 +42,19 @@ class PreferencesViewModel
         private val serverReportService: ServerReportService,
         profilePolicy: ProfilePolicy,
         val voiceSearchSetting: VoiceSearchSetting,
+        private val setupNavigationManager: SetupNavigationManager,
     ) : ViewModel() {
+        /**
+         * Reset this TV, after a confirmation, whose Cancel returns to the kid when Settings is among their pages, and
+         * otherwise to the picker
+         */
+        fun openReset() {
+            val fromKid = !navigationManager.isApart
+            // The kid's pages come back before the setup page replaces these
+            navigationManager.closeApart()
+            setupNavigationManager.navigateTo(SetupDestination.ResetTv(fromKid = fromKid))
+        }
+
         /**
          * Whether the current server offers kids mode, which needs the Jellyfin Kids plugin
          */

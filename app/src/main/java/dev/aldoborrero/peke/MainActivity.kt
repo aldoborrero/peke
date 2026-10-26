@@ -386,7 +386,7 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         Timber.d("onSaveInstanceState")
         try {
-            val str = json.encodeToString(navigationManager.backStack.toList())
+            val str = json.encodeToString(navigationManager.kidBackStack.toList())
             outState.putString(KEY_BACK_STACK, str)
             tvLauncher.pagesOf?.let { outState.putInt(KEY_BACK_STACK_KID, it) }
         } catch (ex: Exception) {
@@ -549,6 +549,8 @@ class MainActivityViewModel
                         return false
                     }
                     Timber.i("Received valid intent, switching to AppContent")
+                    // Grown-up pages open from the picker give the kid's pages back first
+                    navigationManager.closeApart()
                     if (result.addHomeToBackStack) {
                         navigationManager.reloadHome()
                     } else {

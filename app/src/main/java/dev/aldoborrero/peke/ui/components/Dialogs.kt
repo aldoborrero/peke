@@ -94,6 +94,16 @@ sealed interface DialogItemEntry
 data object DialogItemDivider : DialogItemEntry
 
 /**
+ * Text within a [DialogPopup] that D-pad focus skips, such as a status line above the actions
+ *
+ * @param supporting smaller lines under [headline], if any
+ */
+data class DialogItemText(
+    val headline: String,
+    val supporting: List<String> = emptyList(),
+) : DialogItemEntry
+
+/**
  * An item within a [DialogPopup]
  */
 data class DialogItem(
@@ -288,7 +298,10 @@ fun DialogPopupContent(
         )
         val scope = rememberCoroutineScope()
         val listState = rememberLazyListState()
-        val focusRequesters = remember { List(dialogItems.size) { FocusRequester() } }
+        val focusRequesters = remember(dialogItems.size) { List(dialogItems.size) { FocusRequester() } }
+        // Only items take focus, so the list wraps between the first and the last of them
+        val firstItem = dialogItems.indexOfFirst { it is DialogItem }.coerceAtLeast(0)
+        val lastItem = dialogItems.indexOfLast { it is DialogItem }.coerceAtLeast(0)
         LazyColumn(
             state = listState,
             modifier = Modifier,
@@ -297,6 +310,23 @@ fun DialogPopupContent(
                 when (item) {
                     is DialogItemDivider -> {
                         HorizontalDivider(Modifier.height(16.dp))
+                    }
+
+                    is DialogItemText -> {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Text(
+                                text = item.headline,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            item.supporting.forEach { line ->
+                                Text(
+                                    text = line,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
 
                     is DialogItem -> {
@@ -323,10 +353,10 @@ fun DialogPopupContent(
                                     .lazyListWrapScrolling(
                                         listState,
                                         focused,
-                                        index == 0,
-                                        index == dialogItems.lastIndex,
-                                        focusRequesters[0],
-                                        focusRequesters[dialogItems.lastIndex],
+                                        index == firstItem,
+                                        index == lastItem,
+                                        focusRequesters[firstItem],
+                                        focusRequesters[lastItem],
                                     ),
                         )
                     }
