@@ -288,7 +288,7 @@ fun ScreensaverNeutral(
     ) { align ->
         Box(Modifier.fillMaxSize()) {
             Image(
-                painter = painterResource(R.mipmap.ic_launcher_foreground),
+                painter = painterResource(R.drawable.peke_buddy),
                 contentDescription = stringResource(R.string.app_name),
                 modifier =
                     Modifier
