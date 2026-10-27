@@ -65,7 +65,6 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.AppColors
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
@@ -79,7 +78,7 @@ import dev.aldoborrero.peke.ui.playback.PlaybackDialogType
 import dev.aldoborrero.peke.ui.seekBack
 import dev.aldoborrero.peke.ui.seekForward
 import dev.aldoborrero.peke.ui.skipStringRes
-import dev.aldoborrero.peke.ui.theme.LocalTheme
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -369,7 +368,7 @@ fun RightPlaybackButtons(
         // Captions
         PlaybackButton(
             enabled = true,
-            iconRes = R.drawable.captions_svgrepo_com,
+            iconRes = PekeIcon.SUBTITLES.outline,
             onClick = {
                 onControllerInteraction.invoke()
                 onClickPlaybackDialogType.invoke(PlaybackDialogType.CAPTIONS)
@@ -430,7 +429,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 modifier = Modifier.focusRequester(initialFocusRequester),
-                iconRes = if (showPlay) R.drawable.baseline_play_arrow_24 else R.drawable.baseline_pause_24,
+                iconRes = if (showPlay) PekeIcon.PLAY.outline else PekeIcon.PAUSE.outline,
                 onClick = {
                     onControllerInteraction.invoke()
                     if (showPlay) {
@@ -453,7 +452,7 @@ fun PlaybackButtons(
                 onControllerInteraction = onControllerInteraction,
             )
             PlaybackButton(
-                iconRes = R.drawable.baseline_skip_next_24,
+                iconRes = PekeIcon.NEXT_EPISODE.outline,
                 onClick = {
                     onControllerInteraction.invoke()
                     onPlaybackActionClick.invoke(PlaybackAction.Next)
@@ -474,7 +473,7 @@ fun PlaybackButton(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val selectedColor = MaterialTheme.colorScheme.border
+    val selectedColor = MaterialTheme.colorScheme.primary
     Button(
         enabled = enabled,
         onClick = onClick,
@@ -482,7 +481,9 @@ fun PlaybackButton(
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = AppColors.TransparentBlack25,
+                contentColor = Color.White,
                 focusedContainerColor = selectedColor,
+                focusedContentColor = MaterialTheme.colorScheme.onPrimary,
             ),
         contentPadding = PaddingValues(4.dp),
         interactionSource = interactionSource,
@@ -495,12 +496,7 @@ fun PlaybackButton(
             modifier = Modifier.fillMaxSize(),
             painter = painterResource(iconRes),
             contentDescription = "",
-            tint =
-                if (LocalTheme.current == AppThemeColors.OLED_BLACK) {
-                    LocalContentColor.current
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
+            tint = LocalContentColor.current,
         )
     }
 }
@@ -515,7 +511,7 @@ fun PlaybackFaButton(
     interactionSource: MutableInteractionSource? = null,
     textColor: Color = Color.Unspecified,
 ) {
-    val selectedColor = MaterialTheme.colorScheme.border
+    val selectedColor = MaterialTheme.colorScheme.primary
     Button(
         enabled = enabled,
         onClick = onClick,
@@ -523,7 +519,9 @@ fun PlaybackFaButton(
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = AppColors.TransparentBlack25,
+                contentColor = Color.White,
                 focusedContainerColor = selectedColor,
+                focusedContentColor = MaterialTheme.colorScheme.onPrimary,
             ),
         contentPadding = PaddingValues(4.dp),
         interactionSource = interactionSource,
@@ -540,10 +538,8 @@ fun PlaybackFaButton(
             color =
                 if (textColor.isSpecified) {
                     textColor
-                } else if (LocalTheme.current == AppThemeColors.OLED_BLACK) {
-                    LocalContentColor.current
                 } else {
-                    MaterialTheme.colorScheme.onSurface
+                    LocalContentColor.current
                 },
             modifier =
                 Modifier

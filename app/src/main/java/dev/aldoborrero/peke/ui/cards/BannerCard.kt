@@ -47,6 +47,8 @@ import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.enableMarquee
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -104,10 +106,12 @@ fun BannerCard(
     val currentOnLongClick by rememberUpdatedState(onLongClick)
 
     Card(
-        modifier = modifier.size(cardHeight * aspectRatio, cardHeight),
+        modifier = modifier.size(cardHeight * aspectRatio, cardHeight).pekeFocus(MaterialTheme.shapes.medium),
         onClick = { currentOnClick() },
         onLongClick = { currentOnLongClick() },
         interactionSource = interactionSource,
+        scale = PekeFocus.cardScale,
+        border = PekeFocus.cardBorder(),
         colors =
             CardDefaults.colors(
 //                containerColor = Color.Transparent,

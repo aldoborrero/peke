@@ -11,6 +11,9 @@ interface KidProfileDao {
     @Query("SELECT * FROM kid_profiles WHERE userId=:userId")
     fun observe(userId: Int): Flow<KidProfile?>
 
+    @Query("SELECT * FROM kid_profiles")
+    fun observeAll(): Flow<List<KidProfile>>
+
     @Query("SELECT * FROM kid_profiles WHERE userId=:userId")
     suspend fun get(userId: Int): KidProfile?
 

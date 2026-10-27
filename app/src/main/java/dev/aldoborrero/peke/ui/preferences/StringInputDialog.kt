@@ -82,7 +82,7 @@ fun StringInputDialog(
                 Text(
                     text = input.title,
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier,
                 )
                 if (input.maxLines > 1) {

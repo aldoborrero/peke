@@ -22,7 +22,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
@@ -77,7 +76,8 @@ import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.showToast
 import dev.aldoborrero.peke.ui.theme.PekeTheme
-import dev.aldoborrero.peke.ui.theme.colors.PurpleThemeColors
+import dev.aldoborrero.peke.ui.theme.PekeTvPalette
+import dev.aldoborrero.peke.ui.theme.tvColorScheme
 import dev.aldoborrero.peke.ui.util.ProvideLocalClock
 import dev.aldoborrero.peke.util.DebugLogTree
 import dev.aldoborrero.peke.util.ExceptionHandler
@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.appStart(intent)
         setContent {
-            MaterialTheme(colorScheme = PurpleThemeColors.darkScheme) {
+            MaterialTheme(colorScheme = tvColorScheme(PekeTvPalette)) {
                 Surface(Modifier.fillMaxSize()) {
                     val userPreferences by userPreferencesService.flow.collectAsState(null)
                     if (userPreferences == null) {
@@ -265,9 +265,9 @@ class MainActivity : AppCompatActivity() {
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black),
+                                        .background(PekeTvPalette.background),
                             ) {
-                                LoadingPage()
+                                LoadingPage(buddy = true)
                             }
                         }
                     } else {
@@ -290,7 +290,6 @@ class MainActivity : AppCompatActivity() {
                                 LocalKidsLiveTv provides kidsLiveTv,
                             ) {
                                 PekeTheme(
-                                    true,
                                     appThemeColors = appPreferences.interfacePreferences.appThemeColors,
                                 ) {
                                     ProvideLocalClock {

@@ -30,7 +30,9 @@ import coil3.request.crossfade
 import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.components.Genre
+import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import java.util.UUID
 
 @Composable
@@ -62,10 +64,12 @@ fun GenreCard(
 ) {
     val background = rememberIdColor(genreId).copy(alpha = .6f)
     Card(
-        modifier = modifier,
+        modifier = modifier.pekeFocus(MaterialTheme.shapes.medium),
         onClick = onClick,
         onLongClick = onLongClick,
         interactionSource = interactionSource,
+        scale = PekeFocus.cardScale,
+        border = PekeFocus.cardBorder(),
         colors =
             CardDefaults.colors(
                 containerColor = Color.Transparent,

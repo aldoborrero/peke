@@ -20,12 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
-import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.handleDPadKeyEvents
-import dev.aldoborrero.peke.ui.theme.LocalTheme
 
 /**
  * A TV capable control for choosing a value
@@ -126,82 +123,22 @@ data class SliderColors(
         @Composable
         fun default() =
             SliderColors(
-                activeFocused = sliderActiveColor(true),
-                activeUnfocused = sliderActiveColor(false),
-                inactiveFocused = sliderInactiveColor(true),
-                inactiveUnfocused = sliderInactiveColor(false),
+                activeFocused = sliderActiveColor(),
+                activeUnfocused = sliderActiveColor(),
+                inactiveFocused = sliderInactiveColor(),
+                inactiveUnfocused = sliderInactiveColor(),
             )
     }
 }
 
 /**
- * Determines the active color for the slider. This is the "filled" left side of the slider
+ * The active color for the slider: the "filled" left side
  */
 @Composable
-fun sliderActiveColor(focused: Boolean): Color {
-    val theme = LocalTheme.current
-    return when (theme) {
-        AppThemeColors.UNRECOGNIZED,
-        AppThemeColors.PURPLE,
-        AppThemeColors.BLUE,
-        AppThemeColors.GREEN,
-        AppThemeColors.ORANGE,
-        AppThemeColors.RED,
-        AppThemeColors.BROWN,
-        -> {
-            MaterialTheme.colorScheme.border
-        }
-
-        AppThemeColors.BOLD_BLUE -> {
-            if (focused) {
-                MaterialTheme.colorScheme.border
-            } else {
-                MaterialTheme.colorScheme.border
-            }
-        }
-
-        AppThemeColors.OLED_BLACK -> {
-            if (focused) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.border
-            }
-        }
-    }
-}
+fun sliderActiveColor(): Color = MaterialTheme.colorScheme.primary
 
 /**
- * Determines the inactive color for the slider. This is background of "unfilled" right side of the slider.
+ * The inactive color for the slider: the background of the "unfilled" right side
  */
 @Composable
-fun sliderInactiveColor(focused: Boolean): Color {
-    val theme = LocalTheme.current
-    return when (theme) {
-        AppThemeColors.UNRECOGNIZED,
-        AppThemeColors.PURPLE,
-        -> {
-            MaterialTheme.colorScheme.border
-                .copy(alpha = .25f)
-                .compositeOver(MaterialTheme.colorScheme.surfaceVariant)
-                .copy(alpha = .66f)
-        }
-
-        AppThemeColors.BLUE,
-        AppThemeColors.GREEN,
-        AppThemeColors.ORANGE,
-        AppThemeColors.BOLD_BLUE,
-        AppThemeColors.RED,
-        AppThemeColors.BROWN,
-        -> {
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .66f)
-        }
-
-        AppThemeColors.OLED_BLACK -> {
-            if (focused) {
-                MaterialTheme.colorScheme.tertiaryContainer
-            } else {
-                MaterialTheme.colorScheme.primaryContainer
-            }
-        }
-    }
-}
+fun sliderInactiveColor(): Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .35f)

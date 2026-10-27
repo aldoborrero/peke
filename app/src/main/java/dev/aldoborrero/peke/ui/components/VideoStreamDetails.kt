@@ -29,7 +29,6 @@ import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ChosenStreams
-import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.playback.audioStreamCount
@@ -218,7 +217,7 @@ fun StreamLabel(
 @PreviewTvSpec
 @Composable
 private fun StreamLabelPreview() {
-    PekeTheme(appThemeColors = AppThemeColors.PURPLE) {
+    PekeTheme {
         Column(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

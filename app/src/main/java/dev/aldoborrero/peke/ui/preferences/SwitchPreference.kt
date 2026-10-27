@@ -9,8 +9,6 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
 import androidx.tv.material3.SwitchColors
 import androidx.tv.material3.SwitchDefaults
-import dev.aldoborrero.peke.preferences.AppThemeColors
-import dev.aldoborrero.peke.ui.theme.LocalTheme
 
 @Composable
 fun SwitchPreference(
@@ -65,27 +63,11 @@ fun SwitchPreference(
 }
 
 @Composable
-fun SwitchColors(): SwitchColors {
-    val theme = LocalTheme.current
-    return when (theme) {
-        AppThemeColors.UNRECOGNIZED,
-        AppThemeColors.PURPLE,
-        AppThemeColors.BLUE,
-        -> {
-            SwitchDefaults.colors()
-        }
-
-        AppThemeColors.GREEN,
-        AppThemeColors.ORANGE,
-        AppThemeColors.BOLD_BLUE,
-        AppThemeColors.OLED_BLACK,
-        AppThemeColors.RED,
-        AppThemeColors.BROWN,
-        -> {
-            SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                uncheckedThumbColor = MaterialTheme.colorScheme.onPrimary,
-            )
-        }
-    }
-}
+fun SwitchColors(): SwitchColors =
+    // A switch that is on is drawn in the secondary colour (design/DESIGN.md)
+    SwitchDefaults.colors(
+        checkedThumbColor = MaterialTheme.colorScheme.onSecondary,
+        checkedTrackColor = MaterialTheme.colorScheme.secondary,
+        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        uncheckedTrackColor = MaterialTheme.colorScheme.background,
+    )

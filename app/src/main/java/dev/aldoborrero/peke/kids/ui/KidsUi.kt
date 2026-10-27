@@ -1,7 +1,5 @@
 package dev.aldoborrero.peke.kids.ui
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -14,6 +12,7 @@ import dev.aldoborrero.peke.preferences.DisplayToggle
 import dev.aldoborrero.peke.ui.nav.LocalProfileGate
 import dev.aldoborrero.peke.ui.nav.NavDrawerItem
 import dev.aldoborrero.peke.ui.nav.ProfileGate
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.util.InterfaceCustomization
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
@@ -49,7 +48,7 @@ fun kidsInterfaceCustomization(
 private val KidsProfileGate =
     ProfileGate(
         title = R.string.kids_grown_ups,
-        icon = Icons.Default.Lock,
+        icon = PekeIcon.GROWN_UPS.outline,
         content = { onDismissRequest, onPassed -> KidsParentGate(onDismissRequest = onDismissRequest, onPassed = onPassed) },
     )
 

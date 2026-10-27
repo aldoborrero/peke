@@ -2,13 +2,21 @@ package dev.aldoborrero.peke.kids.setup
 
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.FakeKidProfileDao
 import dev.aldoborrero.peke.kids.FakeKidsServer
+import dev.aldoborrero.peke.kids.FakeKidsServerDao
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.gate.ParentLockService
+import dev.aldoborrero.peke.kids.server.KidProfileMapper
+import dev.aldoborrero.peke.kids.server.KidsFeatures
+import dev.aldoborrero.peke.kids.server.KidsJson
+import dev.aldoborrero.peke.kids.server.KidsServer
 import dev.aldoborrero.peke.kids.server.KidsStatus
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
+import dev.aldoborrero.peke.ui.theme.PekeAvatar
 import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.configure
 import dev.aldoborrero.peke.util.reset
@@ -23,6 +31,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.jsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -56,6 +65,8 @@ class KidsPickerTest {
     private val launcher = mockk<TvLauncher>(relaxed = true)
     private val setupNavigationManager = mockk<SetupNavigationManager>(relaxed = true)
     private val parentLockService = mockk<ParentLockService>(relaxed = true)
+    private val profiles = FakeKidProfileDao()
+    private val kidsServers = FakeKidsServerDao()
 
     @Before
     fun setUp() = PekeDispatchers.configure(dispatcher)
@@ -71,6 +82,7 @@ class KidsPickerTest {
             setupNavigationManager,
             parentLockService,
             FakeKidsServer().jellyfin,
+            KidAvatars(profiles, kidsServers),
         )
 
     /**
@@ -110,6 +122,23 @@ class KidsPickerTest {
             assertTrue(
                 vm.state.value.kids
                     .none { it.needsGrownUp },
+            )
+        }
+
+    @Test
+    fun `each kid shows the avatar a grown-up picked in the plugin`() =
+        runTest(dispatcher) {
+            kidsServers.upsert(
+                KidsServer(serverId, apiVersion = 1, features = (KidsFeatures.REQUIRED + KidsFeatures.AVATAR).joinToString(",")),
+            )
+            val json = """{"UserId":"${lucia.id}","Revision":1,"Avatar":"mia"}"""
+            profiles.upsert(KidProfileMapper.fromServer(lucia.rowId, serverId, KidsJson.parseToJsonElement(json).jsonObject))
+            val vm = viewModel()
+
+            assertEquals(
+                listOf(null, PekeAvatar.MIA),
+                vm.state.value.kids
+                    .map { it.avatar },
             )
         }
 

@@ -387,7 +387,7 @@ fun HomePageContent(
                 remember(density) {
                     with(density) {
                         // The size of the row titles & spacing
-                        50.dp.toPx()
+                        58.dp.toPx()
                     }
                 }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
@@ -409,7 +409,7 @@ fun HomePageContent(
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .padding(bottom = 8.dp)
+                                .padding(bottom = 12.dp)
                         CompositionLocalProvider(
                             LocalBringIntoViewSpec provides defaultBringIntoViewSpec,
                         ) {

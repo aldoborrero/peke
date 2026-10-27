@@ -41,6 +41,8 @@ open class FakeKidProfileDao(
 
     override fun observe(userId: Int): Flow<KidProfile?> = profiles.map { it[userId] }
 
+    override fun observeAll(): Flow<List<KidProfile>> = profiles.map { it.values.toList() }
+
     override suspend fun get(userId: Int): KidProfile? = profiles.value[userId]
 
     override suspend fun allUserIds(): List<Int> = profiles.value.keys.toList()

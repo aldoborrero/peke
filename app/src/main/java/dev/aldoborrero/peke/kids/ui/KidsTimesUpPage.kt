@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.kids.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -8,10 +9,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,8 +26,10 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -41,6 +43,8 @@ import dev.aldoborrero.peke.kids.server.KidsDenial
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.ui.components.ExpandablePlayButton
 import dev.aldoborrero.peke.ui.components.TimeDisplay
+import dev.aldoborrero.peke.ui.theme.BuddyMood
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import javax.inject.Inject
 import kotlin.time.Duration
@@ -90,6 +94,7 @@ fun KidsTimesUpPage(
                 },
             ),
         subtitle = listOfNotNull(breakLeft, greeting).joinToString("\n").takeIf { it.isNotBlank() },
+        mood = stopMood(denial),
         onClickGrownUps = { showGate = true },
         modifier = modifier,
     )
@@ -114,6 +119,7 @@ fun KidsChannelRefusedPage(modifier: Modifier = Modifier) {
                 stringResource(R.string.kids_channel_not_on_list, name)
             },
         subtitle = stringResource(R.string.kids_channel_not_on_list_hint),
+        mood = BuddyMood.PUZZLED,
         onClickGrownUps = { showGate = true },
         modifier = modifier,
     )
@@ -123,9 +129,9 @@ fun KidsChannelRefusedPage(modifier: Modifier = Modifier) {
 }
 
 /**
- * A full screen message for children whose only action is the grown-ups button, which opens the parent gate. Focus
- * starts on the message, never on Grown-ups (constitution V, spec 005 FR-013): OK there does nothing, and Down reaches
- * Grown-ups.
+ * A full screen message for children, narrated by the buddy in [mood], whose only action is Grown-ups, small in the
+ * bottom corner, which opens the parent gate (design/DESIGN.md: friendly stops). Focus starts on the message, never on
+ * Grown-ups (constitution V, spec 005 FR-013): OK there does nothing, and Down or Right reaches Grown-ups.
  */
 @Composable
 fun KidsGrownUpsMessage(
@@ -133,6 +139,7 @@ fun KidsGrownUpsMessage(
     subtitle: String?,
     onClickGrownUps: () -> Unit,
     modifier: Modifier = Modifier,
+    mood: BuddyMood = BuddyMood.HAPPY,
 ) {
     val messageFocus = remember { FocusRequester() }
     val grownUpsFocus = remember { FocusRequester() }
@@ -147,18 +154,28 @@ fun KidsGrownUpsMessage(
         TimeDisplay()
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 64.dp, vertical = 48.dp),
         ) {
+            Image(
+                painter = painterResource(mood.drawable),
+                contentDescription = null,
+                modifier = Modifier.height(200.dp),
+            )
             // Focusable so the remote has a place to start, but with no action
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier =
                     Modifier
                         .focusRequester(messageFocus)
-                        .focusProperties { down = grownUpsFocus }
-                        .onFocusChanged { messageFocused = it.isFocused }
+                        .focusProperties {
+                            down = grownUpsFocus
+                            right = grownUpsFocus
+                        }.onFocusChanged { messageFocused = it.isFocused }
                         .focusable()
                         .border(
                             width = 2.dp,
@@ -168,24 +185,32 @@ fun KidsGrownUpsMessage(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    // DESIGN's Display; long Spanish titles wrap rather than shrink
+                    style = MaterialTheme.typography.displayLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
                 )
                 subtitle?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
-            ExpandablePlayButton(
-                title = R.string.kids_grown_ups,
-                resume = Duration.ZERO,
-                icon = Icons.Default.Lock,
-                onClick = { onClickGrownUps() },
-                modifier = Modifier.focusRequester(grownUpsFocus),
-            )
         }
+        // Small, and in the same corner on every stop
+        ExpandablePlayButton(
+            title = R.string.kids_grown_ups,
+            resume = Duration.ZERO,
+            icon = painterResource(PekeIcon.GROWN_UPS.outline),
+            onClick = { onClickGrownUps() },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(horizontal = 48.dp, vertical = 40.dp)
+                    .focusRequester(grownUpsFocus),
+        )
     }
 }

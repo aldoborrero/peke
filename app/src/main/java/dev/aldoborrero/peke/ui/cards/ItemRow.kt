@@ -64,10 +64,12 @@ fun <T> ItemRow(
     ) {
         ItemRowTitle(title)
 
+        // DESIGN's 20–24 px between cards, and room above and below for the focus ring and scale-up
+        val gap = maxOf(horizontalPadding, CardGap)
         LazyRow(
             state = state,
-            horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
-            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            contentPadding = PaddingValues(horizontal = gap, vertical = 16.dp),
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -137,3 +139,8 @@ fun ItemRowTitle(
     color = MaterialTheme.colorScheme.onBackground,
     modifier = modifier.padding(start = 8.dp),
 )
+
+/**
+ * The smallest gap between cards in a row: 24 canvas px (design/DESIGN.md, Shape and space)
+ */
+val CardGap = 18.dp

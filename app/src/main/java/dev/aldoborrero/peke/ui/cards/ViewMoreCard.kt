@@ -39,7 +39,9 @@ import dev.aldoborrero.peke.ui.AspectRatio
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.enableMarquee
+import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import kotlinx.coroutines.delay
 
 @Composable
@@ -84,10 +86,13 @@ fun ViewMoreCard(
             modifier =
                 Modifier
                     .size(width, height)
-                    .aspectRatio(aspectRatio.ratio),
+                    .aspectRatio(aspectRatio.ratio)
+                    .pekeFocus(MaterialTheme.shapes.medium),
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
+            scale = PekeFocus.cardScale,
+            border = PekeFocus.cardBorder(),
             colors =
                 CardDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),

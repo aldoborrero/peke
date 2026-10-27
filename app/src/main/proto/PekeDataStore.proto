@@ -100,15 +100,17 @@ message HomePagePreferences{
   bool click_to_play = 5;
 }
 
+// Peke's themes (design/DESIGN.md). 0–7 were Wholphin's themes: a TV that stored one moves to PEKE_TV
+// (ThemeMigration), and their numbers and names are never used again.
 enum AppThemeColors {
-  PURPLE = 0;
-  BLUE = 1;
-  GREEN = 2;
-  ORANGE = 3;
-  BOLD_BLUE = 4;
-  OLED_BLACK = 5;
-  RED = 6;
-  BROWN = 7;
+  // Was PURPLE, which proto3 doesn't store, so it also means nothing stored
+  APP_THEME_COLORS_UNSPECIFIED = 0;
+  reserved 1 to 7;
+  reserved "PURPLE", "BLUE", "GREEN", "ORANGE", "BOLD_BLUE", "OLED_BLACK", "RED", "BROWN";
+  PEKE_TV = 8;
+  MANDARINA = 9;
+  CARAMELO = 10;
+  PAPEL = 11;
 }
 
 enum EdgeStyle{

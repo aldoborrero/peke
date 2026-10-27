@@ -87,7 +87,8 @@
     </plurals>
     <string name="advanced_settings">Configuración avanzada</string>
     <string name="advanced_ui">Interfaz avanzada</string>
-    <string name="app_theme">Tema de la aplicación</string>
+    <string name="app_theme">Tema</string>
+    <string name="theme_papel">Papel (de día)</string>
     <string name="installed_version">Versión instalada</string>
     <string name="settings">Configuración</string>
     <string name="critic_rating">Calificación de la crítica</string>
@@ -443,10 +444,6 @@
     <string name="volume_medium">Medio</string>
     <string name="volume_high">Alto</string>
     <string name="volume_full">Máximo</string>
-    <string name="purple">Morado</string>
-    <string name="orange">Naranja</string>
-    <string name="bold_blue">Azul intenso</string>
-    <string name="black">Negro</string>
     <string name="display_preset_default">Póster</string>
     <string name="display_preset_compact">Póster compacto</string>
     <string name="skip_ignore">Ignorar</string>
@@ -458,6 +455,7 @@
     <string name="next_up_playback_end">Al finalizar la reproducción</string>
     <string name="next_up_outro">Durante los créditos finales</string>
     <string name="white">Blanco</string>
+    <string name="black">Negro</string>
     <string name="light_gray">Gris claro</string>
     <string name="dark_gray">Gris oscuro</string>
     <string name="yellow">Amarillo</string>
@@ -646,7 +644,6 @@
     <string name="dpad_seek_mode_minimal_summary">Barra de progreso pequeña en la parte inferior de la pantalla (predeterminado)</string>
     <string name="dpad_seek_mode_trickplay_summary">Barra de progreso con vista previa de fotogramas</string>
     <string name="dpad_seek_mode_none_summary">Sin barra de progreso</string>
-    <string name="brown">Marrón</string>
     <string name="appears_on">Aparece en</string>
     <string name="disable_audio_offload">Desactivar el procesamiento de audio por hardware</string>
     <string name="disable_audio_offload_summary">Desactivar el procesamiento de audio por hardware puede solucionar los bloqueos de reproducción en algunos dispositivos</string>
@@ -738,6 +735,11 @@
         <item quantity="many">Quedan %1$d minutos</item>
         <item quantity="other">Quedan %1$d minutos</item>
     </plurals>
+    <plurals name="kids_time_bar_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="kids_minutes_left_sitting">
         <item quantity="one">Queda %1$d minuto en este rato</item>
         <item quantity="many">Quedan %1$d minutos en este rato</item>
@@ -779,6 +781,13 @@
     <string name="kids_timer_bar_bottom">Abajo</string>
     <string name="kids_timer_bar_top">Arriba</string>
     <string name="kids_times_up">¡Se acabó el tiempo!</string>
+    <string name="kids_oops_title">Vaya, algo ha salido mal</string>
+    <string name="kids_empty">Aún no hay nada aquí</string>
+    <string name="kids_search_empty">No hemos encontrado nada. ¡Prueba otra palabra!</string>
+    <string name="kids_oops_wont_play">Vaya, este no se puede ver</string>
+    <string name="kids_oops_hint">Prueba con otro o pide ayuda a un adulto</string>
+    <string name="kids_offline_title">Peke no encuentra tus series</string>
+    <string name="kids_offline_hint">Volvemos a probar en un momento</string>
     <string name="kids_times_up_subtitle">Hasta la próxima, %1$s</string>
     <string name="kids_unlimited">Sin límite</string>
     <string name="kids_watch_again">Ver otra vez</string>

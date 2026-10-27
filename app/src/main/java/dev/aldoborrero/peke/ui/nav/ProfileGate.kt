@@ -1,10 +1,10 @@
 package dev.aldoborrero.peke.ui.nav
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * A check between a restricted profile and leaving it, such as kids mode's parent gate
@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 @Immutable
 class ProfileGate(
     @param:StringRes val title: Int,
-    val icon: ImageVector,
+    @param:DrawableRes val icon: Int,
     val content: @Composable (onDismissRequest: () -> Unit, onPassed: (() -> Unit)?) -> Unit,
 )
 

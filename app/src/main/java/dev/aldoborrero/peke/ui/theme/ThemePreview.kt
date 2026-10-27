@@ -19,7 +19,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,10 +49,10 @@ import kotlinx.coroutines.flow.flowOf
 )
 @Composable
 private fun ThemePreview() {
-    val themes = AppThemeColors.entries.filterNot { it == AppThemeColors.UNRECOGNIZED }
+    val themes = listOf(AppThemeColors.PEKE_TV, AppThemeColors.MANDARINA, AppThemeColors.CARAMELO, AppThemeColors.PAPEL)
     Column {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -69,7 +68,7 @@ private fun ThemePreview() {
 private fun SectionTitle(text: String) {
     Text(
         text = text,
-        color = Color.White,
+        color = MaterialTheme.colorScheme.onBackground,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(top = 8.dp),
     )
@@ -82,8 +81,8 @@ private fun ThemeExample(theme: AppThemeColors) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
             Column(Modifier.background(MaterialTheme.colorScheme.background)) {
                 Text(
-                    text = theme.toString(),
-                    color = Color.White,
+                    text = theme.pekePalette().name,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(8.dp),
                 )
                 Column(

@@ -6,7 +6,10 @@ import dev.aldoborrero.peke.data.AppDatabase
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.FakeKidProfileDao
 import dev.aldoborrero.peke.kids.FakeKidsServer
+import dev.aldoborrero.peke.kids.FakeKidsServerDao
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.data.KidsDataCleaner
 import dev.aldoborrero.peke.kids.data.KidsDatabase
@@ -143,6 +146,7 @@ class RefusedSessionsTest {
                     setupNavigationManager,
                     mockk<ParentLockService>(relaxed = true),
                     http.jellyfin,
+                    KidAvatars(FakeKidProfileDao(), FakeKidsServerDao()),
                 )
             assertTrue(
                 picker.state.value.kids

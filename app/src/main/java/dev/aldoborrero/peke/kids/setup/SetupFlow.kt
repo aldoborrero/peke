@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,6 +30,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -69,6 +73,7 @@ import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsResult
 import dev.aldoborrero.peke.kids.server.PluginSupport
 import dev.aldoborrero.peke.kids.server.SetLockRequest
+import dev.aldoborrero.peke.kids.ui.LocalGrownUpPage
 import dev.aldoborrero.peke.kids.ui.ParentLockHint
 import dev.aldoborrero.peke.kids.ui.parentLockSymbol
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
@@ -79,6 +84,7 @@ import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
 import dev.aldoborrero.peke.ui.preferences.SetPinFlow
 import dev.aldoborrero.peke.ui.preferences.VoiceSearchConsent
+import dev.aldoborrero.peke.ui.theme.LocalPekeFocusScale
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -913,23 +919,32 @@ fun SetupFlow(
     BackHandler(enabled = screen.let { it !is SetupScreen.Starting && (it !is SetupScreen.Server || it.httpWarning != null) }) {
         viewModel.back()
     }
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth(.6f)
-                    .padding(vertical = 32.dp),
-        ) {
-            when (val s = screen) {
-                SetupScreen.Starting -> CircularProgress(Modifier.size(48.dp))
-                is SetupScreen.Server -> ServerStep(s, viewModel)
-                is SetupScreen.Admin -> AdminStep(s, viewModel)
-                is SetupScreen.Code -> CodeStep(s, viewModel)
-                is SetupScreen.Kids -> KidsStep(s, viewModel)
-                is SetupScreen.SignIn -> SignInStep(s, viewModel)
-                is SetupScreen.Voice -> VoiceStep(viewModel)
+    // A grown-up's screens: the focus border and ring without the kids' scale-up, and errors with their details
+    CompositionLocalProvider(LocalPekeFocusScale provides false, LocalGrownUpPage provides true) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(.6f)
+                        .padding(vertical = 32.dp),
+            ) {
+                // The buddy and the wordmark head every step (design/DESIGN.md: the grown-up setup header)
+                Image(
+                    painter = painterResource(R.drawable.logo_peke),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.height(72.dp),
+                )
+                when (val s = screen) {
+                    SetupScreen.Starting -> CircularProgress(Modifier.size(48.dp))
+                    is SetupScreen.Server -> ServerStep(s, viewModel)
+                    is SetupScreen.Admin -> AdminStep(s, viewModel)
+                    is SetupScreen.Code -> CodeStep(s, viewModel)
+                    is SetupScreen.Kids -> KidsStep(s, viewModel)
+                    is SetupScreen.SignIn -> SignInStep(s, viewModel)
+                    is SetupScreen.Voice -> VoiceStep(viewModel)
+                }
             }
         }
     }
@@ -942,8 +957,9 @@ private fun StepTitle(
 ) {
     Text(
         text = stringResource(title),
-        style = MaterialTheme.typography.displaySmall,
-        color = MaterialTheme.colorScheme.onSurface,
+        // DESIGN's Title
+        style = MaterialTheme.typography.headlineLarge,
+        color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center,
     )
     hint?.let {

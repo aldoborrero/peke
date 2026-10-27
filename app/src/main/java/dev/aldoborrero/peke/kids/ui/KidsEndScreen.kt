@@ -1,11 +1,13 @@
 package dev.aldoborrero.peke.kids.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -19,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -28,6 +31,7 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.ui.cards.SeasonCard
 import dev.aldoborrero.peke.ui.components.ExpandablePlayButton
 import dev.aldoborrero.peke.ui.ifElse
+import dev.aldoborrero.peke.ui.theme.BuddyMood
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import kotlin.time.Duration
 
@@ -49,6 +53,12 @@ fun KidsEndScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
+        // The buddy cheers the kid on at the end of what they watched (design/DESIGN.md, The PekeTV buddy)
+        Image(
+            painter = painterResource(BuddyMood.CHEERING.drawable),
+            contentDescription = null,
+            modifier = Modifier.height(120.dp),
+        )
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier =

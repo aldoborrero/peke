@@ -194,7 +194,7 @@ fun SearchEditTextBox(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         },
         enabled = enabled,
@@ -246,7 +246,7 @@ fun EditTextBox(
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = MaterialTheme.typography.bodyLarge.merge(MaterialTheme.colorScheme.onPrimaryContainer),
+            textStyle = MaterialTheme.typography.bodyLarge.merge(MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(colors.cursorColor),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
@@ -346,7 +346,7 @@ fun SearchEditTextBox(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         },
         enabled = enabled,
@@ -383,7 +383,7 @@ private fun EditTextBoxPreview() {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = stringResource(R.string.search),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 },
                 isInputValid = { true },

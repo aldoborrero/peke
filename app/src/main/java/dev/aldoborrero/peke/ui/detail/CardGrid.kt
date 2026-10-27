@@ -65,6 +65,8 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.ui.KidsEmptyMessage
+import dev.aldoborrero.peke.kids.ui.isKidScreen
 import dev.aldoborrero.peke.ui.AppColors
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.ifElse
@@ -231,7 +233,9 @@ fun <T : CardGridItem> CardGrid(
             }
         }
 
-    if (pager.isEmpty()) {
+    if (pager.isEmpty() && isKidScreen()) {
+        KidsEmptyMessage(R.string.kids_empty, modifier)
+    } else if (pager.isEmpty()) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = modifier.fillMaxSize(),

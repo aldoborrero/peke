@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -14,6 +15,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.ui.KidsTroubleMessage
+import dev.aldoborrero.peke.kids.ui.isKidScreen
 import dev.aldoborrero.peke.services.ServerReportService
 import dev.aldoborrero.peke.ui.launchIO
 import dev.aldoborrero.peke.util.DataLoadingState
@@ -39,8 +42,14 @@ fun ErrorMessage(
     message: String?,
     exception: Throwable?,
     modifier: Modifier = Modifier,
+    @StringRes kidsTitle: Int? = null,
     viewModel: ErrorViewModel = hiltViewModel(),
 ) {
+    // Kids see the buddy and a friendly line, never the error or the log button (design/DESIGN.md, Words)
+    if (isKidScreen()) {
+        KidsTroubleMessage(exception = exception, title = kidsTitle, modifier = modifier)
+        return
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.padding(16.dp),
@@ -88,10 +97,12 @@ fun ErrorMessage(
 fun ErrorMessage(
     error: LoadingState.Error,
     modifier: Modifier = Modifier,
+    @StringRes kidsTitle: Int? = null,
 ) = ErrorMessage(
     message = error.message,
     exception = error.exception,
     modifier = modifier,
+    kidsTitle = kidsTitle,
 )
 
 @Composable

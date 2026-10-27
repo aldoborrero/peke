@@ -311,7 +311,7 @@
     <string name="ac3_supported">Device supports AC3/Dolby Digital</string>
     <string name="advanced_settings">Advanced Settings</string>
     <string name="advanced_ui">Advanced UI</string>
-    <string name="app_theme">Application Theme</string>
+    <string name="app_theme">Theme</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="combine_continue_next"><![CDATA[Combine Continue Watching & Next Up]]></string>
@@ -557,20 +557,15 @@
     <string name="volume_high">High</string>
     <string name="volume_full">Full</string>
 
-    <string name="purple">Purple</string>
-    <string name="orange">Orange</string>
-    <string name="bold_blue">Bold Blue</string>
-    <string name="black">Black</string>
-    <string name="brown">Brown</string>
+    <string name="theme_peke_tv" translatable="false">PekeTV</string>
+    <string name="theme_mandarina" translatable="false">Mandarina</string>
+    <string name="theme_caramelo" translatable="false">Caramelo</string>
+    <string name="theme_papel">Papel (daytime)</string>
     <string-array name="app_theme_colors">
-        <item>@string/purple</item>
-        <item>@string/blue</item>
-        <item>@string/green</item>
-        <item>@string/orange</item>
-        <item>@string/bold_blue</item>
-        <item>@string/black</item>
-        <item>@string/red</item>
-        <item>@string/brown</item>
+        <item>@string/theme_peke_tv</item>
+        <item>@string/theme_mandarina</item>
+        <item>@string/theme_caramelo</item>
+        <item>@string/theme_papel</item>
     </string-array>
 
     <string name="skip_ignore">Ignore</string>
@@ -610,6 +605,7 @@
     </string-array>
 
     <string name="white">White</string>
+    <string name="black">Black</string>
     <string name="light_gray">Light gray</string>
     <string name="dark_gray">Dark gray</string>
     <string name="yellow">Yellow</string>
@@ -891,10 +887,21 @@
         <item quantity="other">%1$d minutes</item>
     </plurals>
     <string name="kids_times_up">Time\'s up!</string>
+    <string name="kids_oops_title">Oops, something went wrong</string>
+    <string name="kids_empty">Nothing here yet</string>
+    <string name="kids_search_empty">Nothing found. Try another word!</string>
+    <string name="kids_oops_wont_play">Oops, this one won\'t play</string>
+    <string name="kids_oops_hint">Try another one, or ask a grown-up</string>
+    <string name="kids_offline_title">Peke can\'t find your shows</string>
+    <string name="kids_offline_hint">Let\'s try again in a moment</string>
     <string name="kids_times_up_subtitle">See you next time, %1$s</string>
     <plurals name="kids_minutes_left">
         <item quantity="one">%1$d minute left</item>
         <item quantity="other">%1$d minutes left</item>
+    </plurals>
+    <plurals name="kids_time_bar_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
     </plurals>
     <string name="kids_watch_again">Watch again</string>
     <string name="kids_nothing_to_play">Nothing to play here yet</string>
