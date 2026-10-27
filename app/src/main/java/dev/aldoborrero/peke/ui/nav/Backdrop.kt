@@ -148,7 +148,8 @@ fun Backdrop(
                     },
         )
     }
-    if (backdropStyle != BackdropStyle.BACKDROP_NONE) {
+    // Without an image the scrims below would darken the page's top corner on their own
+    if (backdropStyle != BackdropStyle.BACKDROP_NONE && backdrop.imageUrl != null) {
         Box(
             modifier = modifier.fillMaxSize(),
         ) {

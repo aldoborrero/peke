@@ -1130,4 +1130,16 @@
     <string name="peke_settings_this_tv">This TV</string>
     <string name="kids_code_cant_change">There is no parent code to change. Set it in Grown-ups as a server administrator.</string>
     <string name="kids_code_needs_grant">Open Grown-ups again to change the parent code</string>
+    <!-- 008 Phase 1: the kids home -->
+    <string name="kids_live_badge">LIVE</string>
+    <string name="kids_home_greeting">Hi, %1$s!</string>
+    <string name="kids_home_question">What do you want to watch?</string>
+    <plurals name="kids_home_time_left_today">
+        <item quantity="one">%1$d min left today</item>
+        <item quantity="other">%1$d min left today</item>
+    </plurals>
+    <plurals name="kids_home_time_left">
+        <item quantity="one">%1$d min left</item>
+        <item quantity="other">%1$d min left</item>
+    </plurals>
 </resources>

@@ -53,6 +53,9 @@ import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.data.model.HomeRowViewOptions
 import dev.aldoborrero.peke.data.model.QuickDetailsData
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.home.KidsHomeCard
+import dev.aldoborrero.peke.kids.home.KidsHomeHeader
+import dev.aldoborrero.peke.kids.home.kidsCardKind
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.preferences.UserPreferences
@@ -87,6 +90,7 @@ import dev.aldoborrero.peke.ui.playback.isPlayKeyUp
 import dev.aldoborrero.peke.ui.playback.playable
 import dev.aldoborrero.peke.ui.playback.scale
 import dev.aldoborrero.peke.ui.rememberPosition
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
@@ -219,21 +223,47 @@ fun HomePage(
                     }
                 }
 
-            HomePageContent(
-                homeRows = homeRows,
-                position = position,
-                onFocusPosition = onFocusPosition,
-                onClickItem = onClickItem,
-                onLongClickItem = onLongClickItem,
-                onClickPlay = onClickPlay,
-                loadingState = refreshing,
-                showClock = preferences.appPreferences.interfacePreferences.showClock,
-                onUpdateBackdrop = viewModel::updateBackdrop,
-                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                showViewMore = LocalInterfaceCustomization.current.allows(RestrictedFeature.VIEW_MORE),
-                onClickViewMore = onClickViewMore,
-                modifier = modifier,
-            )
+            val showClock = preferences.appPreferences.interfacePreferences.showClock
+            if (kidsMode) {
+                // The kids home of the canvas (HomeRailPekeTV): a greeting above the rows, no backdrop and no details
+                // of the focused item; the rows, clicks and the Play key are the same as everyone's
+                HomePageContent(
+                    homeRows = homeRows,
+                    position = position,
+                    onFocusPosition = onFocusPosition,
+                    onClickItem = onClickItem,
+                    onLongClickItem = onLongClickItem,
+                    onClickPlay = onClickPlay,
+                    loadingState = refreshing,
+                    showClock = showClock,
+                    onUpdateBackdrop = {},
+                    showLogo = false,
+                    showViewMore = LocalInterfaceCustomization.current.allows(RestrictedFeature.VIEW_MORE),
+                    onClickViewMore = onClickViewMore,
+                    kidsLayout = true,
+                    headerComposable = {
+                        KidsHomeHeader(showClock = showClock, modifier = Modifier.padding(end = 48.cpx, bottom = 26.cpx))
+                    },
+                    // The rows run to the right edge, as on the board
+                    modifier = modifier.padding(top = 40.cpx, start = 48.cpx),
+                )
+            } else {
+                HomePageContent(
+                    homeRows = homeRows,
+                    position = position,
+                    onFocusPosition = onFocusPosition,
+                    onClickItem = onClickItem,
+                    onLongClickItem = onLongClickItem,
+                    onClickPlay = onClickPlay,
+                    loadingState = refreshing,
+                    showClock = showClock,
+                    onUpdateBackdrop = viewModel::updateBackdrop,
+                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                    showViewMore = LocalInterfaceCustomization.current.allows(RestrictedFeature.VIEW_MORE),
+                    onClickViewMore = onClickViewMore,
+                    modifier = modifier,
+                )
+            }
             overviewDialog?.let { info ->
                 ItemDetailsDialog(
                     info = info,
@@ -331,6 +361,7 @@ fun HomePageContent(
         )
     },
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
+    kidsLayout: Boolean = false,
 ) {
     val focusedItem =
         remember(homeRows, position) {
@@ -387,7 +418,7 @@ fun HomePageContent(
                 remember(density) {
                     with(density) {
                         // The size of the row titles & spacing
-                        58.dp.toPx()
+                        (if (kidsLayout) 40.dp else 58.dp).toPx()
                     }
                 }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
@@ -409,7 +440,8 @@ fun HomePageContent(
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .padding(bottom = 12.dp)
+                                // Kids: 26 px between rows, less what the row leaves below its cards for the ring
+                                .padding(bottom = if (kidsLayout) KidsRowGap else 12.dp)
                         CompositionLocalProvider(
                             LocalBringIntoViewSpec provides defaultBringIntoViewSpec,
                         ) {
@@ -465,7 +497,8 @@ fun HomePageContent(
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
-                                            horizontalPadding = viewOptions.spacing.dp,
+                                            horizontalPadding = if (kidsLayout) KidsCardGap else viewOptions.spacing.dp,
+                                            kidsLayout = kidsLayout,
                                             cardContent = { index, item, cardModifier, onClick, onLongClick ->
                                                 val onFocus =
                                                     remember(rowIndex, index) {
@@ -495,17 +528,28 @@ fun HomePageContent(
                                                             }
                                                         }
                                                     }
-                                                HomePageCardContent(
-                                                    index = index,
-                                                    item = item,
-                                                    onClick = onClick,
-                                                    onLongClick = onLongClick,
-                                                    viewOptions = viewOptions,
-                                                    modifier =
-                                                        cardModifier
-                                                            .onFocusChanged { onFocus(it.isFocused) }
-                                                            .onKeyEvent { onKey(it) },
-                                                )
+                                                val homeCardModifier =
+                                                    cardModifier
+                                                        .onFocusChanged { onFocus(it.isFocused) }
+                                                        .onKeyEvent { onKey(it) }
+                                                if (kidsLayout) {
+                                                    KidsHomeCard(
+                                                        kind = kidsCardKind(row.rowType),
+                                                        item = item,
+                                                        onClick = onClick,
+                                                        onLongClick = onLongClick,
+                                                        modifier = homeCardModifier,
+                                                    )
+                                                } else {
+                                                    HomePageCardContent(
+                                                        index = index,
+                                                        item = item,
+                                                        onClick = onClick,
+                                                        onLongClick = onLongClick,
+                                                        viewOptions = viewOptions,
+                                                        modifier = homeCardModifier,
+                                                    )
+                                                }
                                             },
                                             showViewMore = showViewMore && row.showViewMore,
                                             viewMoreCardContent = { mod ->
@@ -792,3 +836,13 @@ fun HomePageViewMoreCard(
         showTitle = viewOptions.showTitles,
     )
 }
+
+/**
+ * The kids home's 22 px between cards (HomeRailPekeTV)
+ */
+private val KidsCardGap = 22.cpx
+
+/**
+ * 26 px between kids rows: the row already leaves 18 dp under its cards for the focus ring
+ */
+private val KidsRowGap = 2.dp

@@ -102,6 +102,8 @@ internal fun DestinationPage(
 ) {
     when (destination) {
         is Destination.Home -> {
+            // The kids home has no backdrop (HomeRailPekeTV)
+            if (LocalKidsMode.current.isActive) LaunchedEffect(Unit) { onClearBackdrop.invoke() }
             HomePage(
                 preferences = preferences,
                 modifier = modifier,

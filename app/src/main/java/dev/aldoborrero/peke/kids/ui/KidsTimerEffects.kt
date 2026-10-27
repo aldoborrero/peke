@@ -185,7 +185,9 @@ private fun KidsTimerEffectsContent(
     Box(modifier = modifier.fillMaxSize()) {
         val remaining = limits.remaining
         val total = limits.total
-        if (remaining != null && total != null && total.isPositive() && barPosition != KidsTimerBarPosition.HIDDEN) {
+        // The kids home shows the time left in its header instead (KidsHomeHeader)
+        val onHome = top is Destination.Home
+        if (remaining != null && total != null && total.isPositive() && barPosition != KidsTimerBarPosition.HIDDEN && !onHome) {
             TimeLeftBar(
                 remaining = remaining,
                 total = total,

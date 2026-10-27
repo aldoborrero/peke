@@ -946,4 +946,18 @@
     <string name="peke_settings_this_tv">Esta tele</string>
     <string name="kids_code_cant_change">No hay código de padres que cambiar. Ponlo en Adultos como administrador del servidor.</string>
     <string name="kids_code_needs_grant">Vuelve a abrir Adultos para cambiar el código de padres</string>
+    <!-- 008 Phase 1: the kids home -->
+    <string name="kids_live_badge">EN DIRECTO</string>
+    <string name="kids_home_greeting">¡Hola, %1$s!</string>
+    <string name="kids_home_question">¿Qué quieres ver?</string>
+    <plurals name="kids_home_time_left_today">
+        <item quantity="one">Queda %1$d min hoy</item>
+        <item quantity="many">Quedan %1$d min hoy</item>
+        <item quantity="other">Quedan %1$d min hoy</item>
+    </plurals>
+    <plurals name="kids_home_time_left">
+        <item quantity="one">Queda %1$d min</item>
+        <item quantity="many">Quedan %1$d min</item>
+        <item quantity="other">Quedan %1$d min</item>
+    </plurals>
 </resources>

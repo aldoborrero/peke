@@ -21,17 +21,23 @@
 
 package dev.aldoborrero.peke.ui.nav
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,24 +50,30 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.DrawerState
 import androidx.tv.material3.DrawerValue
-import androidx.tv.material3.ListItem
-import androidx.tv.material3.ListItemDefaults
-import androidx.tv.material3.NavigationDrawerItemColors
-import androidx.tv.material3.NavigationDrawerItemDefaults
+import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.NavigationDrawerScope
+import androidx.tv.material3.Surface
 import androidx.tv.material3.rememberDrawerState
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.pekeFocus
+import dev.aldoborrero.peke.ui.theme.rail
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
  * This is a re-implementation of [androidx.tv.material3.ModalNavigationDrawer].
  *
- * It changes padding, sizing, and animations that couldn't be changed in the Androidx implementation.
+ * It changes padding, sizing, and animations that couldn't be changed in the Androidx implementation. Peke draws it as
+ * the kids' sidebar of the canvas (HomeRailPekeTV, HomeDrawerPekeTV): a narrow rail in the rail colour that opens over
+ * the page instead of pushing it.
  *
  * Peke keeps one drawer per nav entry, all sharing [drawerState]: only the [activeEntry] (the page on top) takes focus
  * or opens and closes the drawer, and when it opens, focus goes to [initialFocus], the selected item.
@@ -76,17 +88,19 @@ fun ModalNavigationDrawer(
     content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier) {
+        content()
+
+        // Over the page, which it covers while open
         DrawerSheet(
             modifier =
                 Modifier
-                    .align(Alignment.CenterStart),
+                    .align(Alignment.CenterStart)
+                    .zIndex(1f),
             drawerState = drawerState,
             content = drawerContent,
             activeEntry = activeEntry,
             initialFocus = initialFocus,
         )
-
-        content()
     }
 }
 
@@ -112,19 +126,26 @@ private fun DrawerSheet(
         initializationComplete = true
     }
 
+    val open = drawerState.currentValue == DrawerValue.Open
+    val width by animateDpAsState(
+        targetValue = if (open) DrawerOpenWidth else DrawerRailWidth,
+        animationSpec = spring(stiffness = DrawerAnimationStiffness),
+        label = "drawer width",
+    )
+    val sidePadding by animateDpAsState(
+        targetValue = if (open) DrawerOpenPadding else (DrawerRailWidth - DrawerTileSize) / 2,
+        animationSpec = spring(stiffness = DrawerAnimationStiffness),
+        label = "drawer padding",
+    )
     val internalModifier =
         Modifier
             .focusRequester(focusRequester)
-            .animateContentSize(
-                animationSpec =
-                    spring(
-                        stiffness = DrawerAnimationStiffness,
-                        visibilityThreshold = IntSize.VisibilityThreshold,
-                    ),
-            ).fillMaxHeight()
-            // adding passed-in modifier here to ensure animateContentSize is called before other
-            // size based modifiers.
+            .fillMaxHeight()
+            .width(width)
+            // adding passed-in modifier here to ensure the size is set before other size based modifiers.
             .then(modifier)
+            .background(LocalPekeColors.current.rail)
+            .padding(horizontal = sidePadding, vertical = 32.cpx)
             .onFocusChanged {
                 focusState = it
 
@@ -135,7 +156,7 @@ private fun DrawerSheet(
             }.focusGroup()
 
     Box(modifier = internalModifier) {
-        NavigationDrawerScopeImpl(drawerState.currentValue == DrawerValue.Open).apply {
+        NavigationDrawerScopeImpl(open).apply {
             content(drawerState.currentValue)
         }
     }
@@ -145,102 +166,93 @@ internal class NavigationDrawerScopeImpl(
     override val hasFocus: Boolean,
 ) : NavigationDrawerScope
 
-internal val CollapsedDrawerItemWidth = 64.dp
-internal val ExpandedDrawerItemWidth = 224.dp
-internal val DrawerIconSize = 24.dp
-internal val DrawerIconPadding = (ListItemDefaults.IconSize - DrawerIconSize) / 2
+/**
+ * The closed rail: 104 canvas px
+ */
+internal val DrawerRailWidth = 104.cpx
+
+/**
+ * The open sheet: 380 canvas px
+ */
+internal val DrawerOpenWidth = 380.cpx
+
+/**
+ * The sheet's padding on each side while open: 24 canvas px
+ */
+internal val DrawerOpenPadding = 24.cpx
+
+/**
+ * A rail tile: 64 canvas px
+ */
+internal val DrawerTileSize = 64.cpx
+
+/**
+ * The icons: 36 canvas px
+ */
+internal val DrawerIconSize = 36.cpx
 internal val DrawerAnimationStiffness = Spring.StiffnessMedium
 
+/**
+ * An entry of the sidebar: a 64 px tile with its icon while the rail is closed, a row with the icon and the name while
+ * open. The page you're on ([current]) sits on the surface colour; the focused entry is primary, with "on primary" for
+ * its icon and text ([LocalContentColor]), and Peke's focus border and ring.
+ */
 @Composable
 internal fun NavigationDrawerScope.NavigationDrawerItem(
-    selected: Boolean,
     onClick: () -> Unit,
     leadingContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    onLongClick: (() -> Unit)? = null,
-    supportingContent: (@Composable () -> Unit)? = null,
-    trailingContent: (@Composable () -> Unit)? = null,
-    tonalElevation: Dp = NavigationDrawerItemDefaults.NavigationDrawerItemElevation,
-    colors: NavigationDrawerItemColors = NavigationDrawerItemDefaults.colors(),
+    current: Boolean = false,
+    height: Dp = DrawerTileSize,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    val animatedWidth by
-        animateDpAsState(
-            targetValue =
-                if (hasFocus) {
-                    ExpandedDrawerItemWidth
-                } else {
-                    CollapsedDrawerItemWidth
-                },
-            label = "NavigationDrawerItem width open/closed state of the drawer item",
-        )
-    val navDrawerItemHeight =
-        if (supportingContent == null) {
-            NavigationDrawerItemDefaults.ContainerHeightOneLine
-        } else {
-            NavigationDrawerItemDefaults.ContainerHeightTwoLine
-        }
-
-    ListItem(
-        selected = selected,
+    val source = interactionSource ?: remember { MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
+    val colors = LocalPekeColors.current
+    val shape = RoundedCornerShape(22.cpx)
+    Surface(
         onClick = onClick,
-        headlineContent = content,
-        leadingContent = {
-            Box(
-                Modifier
-                    .padding(horizontal = DrawerIconPadding)
-                    .size(DrawerIconSize),
-            ) { leadingContent() }
-        },
-        trailingContent = trailingContent,
-        supportingContent = supportingContent,
+        interactionSource = source,
+        shape = ClickableSurfaceDefaults.shape(shape),
+        scale = PekeFocus.surfaceScale,
+        border = PekeFocus.surfaceBorder(),
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = if (current) colors.surface else androidx.compose.ui.graphics.Color.Transparent,
+                contentColor = colors.text,
+                focusedContainerColor = colors.primary,
+                focusedContentColor = colors.onPrimary,
+            ),
         modifier =
             modifier
-                .layout { measurable, constraints ->
-                    val width = animatedWidth.roundToPx()
-                    val height = navDrawerItemHeight.roundToPx()
-                    val placeable =
-                        measurable.measure(
-                            constraints.copy(
-                                minWidth = width,
-                                maxWidth = width,
-                                minHeight = height,
-                                maxHeight = height,
-                            ),
-                        )
-                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                },
-        enabled = enabled,
-        onLongClick = onLongClick,
-        tonalElevation = tonalElevation,
-        colors = colors.toToggleableListItemColors(hasFocus),
-        scale = ListItemDefaults.scale(1f, 1f),
-        interactionSource = interactionSource,
-    )
+                .fillMaxWidth()
+                .height(height)
+                .pekeFocus(shape),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (hasFocus) Arrangement.spacedBy(18.cpx) else Arrangement.Center,
+            modifier = Modifier.fillMaxHeight().padding(horizontal = if (hasFocus) 16.cpx else 0.dp),
+        ) {
+            leadingContent()
+            if (hasFocus) {
+                Column(Modifier.weight(1f)) { content() }
+            }
+        }
+    }
 }
 
+/**
+ * The text colour of a sidebar entry: "on primary" while focused, the text colour for the page you're on, "text,
+ * secondary" otherwise
+ */
 @Composable
-private fun NavigationDrawerItemColors.toToggleableListItemColors(doesNavigationDrawerHaveFocus: Boolean) =
-    ListItemDefaults.colors(
-        containerColor = containerColor,
-        contentColor = if (doesNavigationDrawerHaveFocus) contentColor else inactiveContentColor,
-        focusedContainerColor = focusedContainerColor,
-        focusedContentColor = focusedContentColor,
-        pressedContainerColor = pressedContainerColor,
-        pressedContentColor = pressedContentColor,
-        selectedContainerColor = selectedContainerColor,
-        selectedContentColor = selectedContentColor,
-        disabledContainerColor = disabledContainerColor,
-        disabledContentColor =
-            if (doesNavigationDrawerHaveFocus) {
-                disabledContentColor
-            } else {
-                disabledInactiveContentColor
-            },
-        focusedSelectedContainerColor = focusedSelectedContainerColor,
-        focusedSelectedContentColor = focusedSelectedContentColor,
-        pressedSelectedContainerColor = pressedSelectedContainerColor,
-        pressedSelectedContentColor = pressedSelectedContentColor,
-    )
+internal fun drawerTextColor(
+    current: Boolean,
+    focused: Boolean,
+) = when {
+    focused -> LocalPekeColors.current.onPrimary
+    current -> MaterialTheme.colorScheme.onSurface
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
