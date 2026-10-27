@@ -140,19 +140,20 @@ private fun KidsTimerEffectsContent(
     val barPosition by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
     var warning by remember { mutableStateOf<Duration?>(null) }
 
-    // Runs again whenever the page on screen changes, so time added from the kids settings on top of time's up still
+    // Runs again whenever the page on screen changes, so time added from the kid's rules on top of time's up still
     // leaves it once the grown-up goes back to it
     val top = viewModel.navigationManager.backStack.lastOrNull()
-    LaunchedEffect(limits.expired, top) {
+    val holdStop by viewModel.timeLimits.holdStop.collectAsState()
+    LaunchedEffect(limits.expired, top, holdStop) {
         if (limits.expired) {
-            // A grown-up in the kids settings isn't interrupted mid-change: time's up shows when they leave
-            if (top !is Destination.KidsSettings) viewModel.showTimesUp()
-        } else if (top is Destination.KidsTimesUp) {
+            // A grown-up on the kid's rules isn't interrupted mid-change: time's up shows when they leave
+            if (top !is Destination.KidRules) viewModel.showTimesUp()
+        } else if (top is Destination.KidsTimesUp && !holdStop) {
             viewModel.leaveTimesUp()
         }
     }
     // The server counts playback, so ask for the allowance again as soon as playback ends, and when coming back to
-    // time's up, for example after a grown-up changed the allowance in the kids settings
+    // time's up, for example after a grown-up changed the daily time on the kid's rules
     val playing = top is Destination.Playback || top is Destination.PlaybackList
     val timesUp = top is Destination.KidsTimesUp
     LaunchedEffect(playing, timesUp) {

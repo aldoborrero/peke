@@ -8,6 +8,7 @@ import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
+import dev.aldoborrero.peke.kids.gate.KidsAuth
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.server.KidsApi
 import dev.aldoborrero.peke.kids.server.KidsCaller
@@ -46,6 +47,37 @@ import kotlin.time.Duration.Companion.seconds
 
 enum class BonusResult {
     ADDED,
+    NEEDS_GRANT,
+    UNREACHABLE,
+    FAILED,
+}
+
+/**
+ * A bonus sent to the server: how it went and, when the plugin can undo it, the bonus's id
+ *
+ * @param undoSeconds how long the server still accepts the undo, if it said
+ */
+data class BonusOutcome(
+    val result: BonusResult,
+    val bonusId: Long? = null,
+    val undoSeconds: Long? = null,
+)
+
+/**
+ * How a grown-up's change to today went: an undone bonus or an ended break
+ */
+enum class TodayChange {
+    DONE,
+
+    /**
+     * The bonus can no longer be undone (409)
+     */
+    TOO_LATE,
+
+    /**
+     * The server has no such bonus (404): it was undone elsewhere, or cleared by Reset today
+     */
+    ALREADY_UNDONE,
     NEEDS_GRANT,
     UNREACHABLE,
     FAILED,
@@ -114,6 +146,14 @@ class KidsAllowanceService
          */
         val refusal: StateFlow<KidsDenial?> = _refusal
 
+        private val _reachable = MutableStateFlow<Boolean?>(null)
+
+        /**
+         * Whether the last status request for the current kid had an answer from the server: null before the first
+         * one, false after a network error or timeout
+         */
+        val reachable: StateFlow<Boolean?> = _reachable
+
         private val _foreground = MutableStateFlow(false)
         val foreground: StateFlow<Boolean> = _foreground
 
@@ -152,6 +192,7 @@ class KidsAllowanceService
                             if (statusRowId != rowId) {
                                 statusRowId = rowId
                                 lastApplied = 0
+                                _reachable.value = null
                                 _refusal.value = null
                                 _snapshot.value = cached?.let { KidsSnapshot(it, clock.elapsedMillis()) }
                             }
@@ -217,7 +258,9 @@ class KidsAllowanceService
             if (current.user.rowId != rowId) return
             val token = current.user.accessToken ?: return
             val ticket = tickets.incrementAndGet()
-            when (val result = kidsApi.status(current.server.url, KidsCaller(token, current.user.id), current.user.id)) {
+            val result = kidsApi.status(current.server.url, KidsCaller(token, current.user.id), current.user.id)
+            if (current.user.rowId == statusRowId) _reachable.value = result != KidsResult.Unreachable
+            when (result) {
                 is KidsResult.Ok -> update(rowId, result.value, ticket)
 
                 // Not a kid any more, or the plugin went away: the profile refresh decides
@@ -330,28 +373,93 @@ class KidsAllowanceService
 
         /**
          * Add [minutes] to the current kid's allowance for today. Needs the parent grant.
+         *
+         * @return how it went, with the bonus's id when the plugin can undo it ([KidsFeatures.BONUS_UNDO])
          */
-        suspend fun addBonus(minutes: Int): BonusResult {
-            val auth = parentLockService.auth() ?: return BonusResult.NEEDS_GRANT
+        suspend fun addBonus(minutes: Int): BonusOutcome {
+            val auth = parentLockService.auth() ?: return BonusOutcome(BonusResult.NEEDS_GRANT)
             val ticket = tickets.incrementAndGet()
             return when (val result = kidsApi.bonus(auth.server.url, auth.caller, auth.grant, auth.user.id, minutes)) {
                 is KidsResult.Ok -> {
-                    update(auth.user.rowId, result.value, ticket)
-                    BonusResult.ADDED
+                    update(auth.user.rowId, result.value.status, ticket)
+                    val undoable = pluginService.state(auth.server.id).has(KidsFeatures.BONUS_UNDO)
+                    BonusOutcome(BonusResult.ADDED, result.value.bonusId?.takeIf { undoable }, result.value.undoSeconds)
                 }
 
                 KidsResult.Forbidden -> {
                     parentLockService.dropGrant()
-                    BonusResult.NEEDS_GRANT
+                    BonusOutcome(BonusResult.NEEDS_GRANT)
                 }
 
                 KidsResult.Unreachable -> {
-                    BonusResult.UNREACHABLE
+                    BonusOutcome(BonusResult.UNREACHABLE)
                 }
 
                 else -> {
                     Timber.w("Could not add time: %s", result)
-                    BonusResult.FAILED
+                    BonusOutcome(BonusResult.FAILED)
+                }
+            }
+        }
+
+        /**
+         * Take back the bonus [bonusId] just given to the current kid. Needs the parent grant. A bonus the server no
+         * longer has, undone elsewhere or cleared by Reset today, is [TodayChange.ALREADY_UNDONE].
+         */
+        suspend fun undoBonus(bonusId: Long): TodayChange =
+            todayChange(
+                "undo the bonus",
+                notFound = TodayChange.ALREADY_UNDONE,
+            ) { auth -> kidsApi.undoBonus(auth.server.url, auth.caller, auth.grant, auth.user.id, bonusId) }
+
+        /**
+         * End the current kid's break after the sitting, so they may watch again now. Needs the parent grant.
+         */
+        suspend fun endBreak(): TodayChange =
+            todayChange(
+                "end the break",
+                notFound = TodayChange.FAILED,
+            ) { auth -> kidsApi.endBreak(auth.server.url, auth.caller, auth.grant, auth.user.id) }
+
+        /**
+         * @param notFound what a 404 without the plugin's "not a kid" answer means for this change
+         */
+        private suspend fun todayChange(
+            what: String,
+            notFound: TodayChange,
+            call: suspend (KidsAuth) -> KidsResult<KidsStatus>,
+        ): TodayChange {
+            val auth = parentLockService.auth() ?: return TodayChange.NEEDS_GRANT
+            val ticket = tickets.incrementAndGet()
+            return when (val result = call(auth)) {
+                is KidsResult.Ok -> {
+                    update(auth.user.rowId, result.value, ticket)
+                    TodayChange.DONE
+                }
+
+                KidsResult.NotFound -> {
+                    // For an undo: already undone elsewhere, or cleared. Either way the status may have changed.
+                    Timber.d("No such thing to %s", what)
+                    refresh()
+                    notFound
+                }
+
+                is KidsResult.Conflict -> {
+                    TodayChange.TOO_LATE
+                }
+
+                KidsResult.Forbidden -> {
+                    parentLockService.dropGrant()
+                    TodayChange.NEEDS_GRANT
+                }
+
+                KidsResult.Unreachable -> {
+                    TodayChange.UNREACHABLE
+                }
+
+                else -> {
+                    Timber.w("Could not %s: %s", what, result)
+                    TodayChange.FAILED
                 }
             }
         }

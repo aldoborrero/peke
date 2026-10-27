@@ -159,23 +159,33 @@ class PekePreferencesTest {
     @Test
     fun settingsAreGroupedWithPlaybackAndAdvancedOnSubScreens() {
         assertEquals(
-            listOf(R.string.general, R.string.more, R.string.about, R.string.peke_this_tv_start_over),
+            listOf(
+                R.string.peke_settings_household,
+                R.string.peke_settings_this_tv,
+                R.string.more,
+                R.string.about,
+                R.string.peke_this_tv_start_over,
+            ),
             pekePreferences.map { it.title },
         )
+        // The household's parent code, then this TV, with its kids and the timer bar (spec 006 FR-019)
+        assertEquals(listOf(AppPreference.ChangeParentCode), pekePreferences.first().all())
         assertEquals(
             listOf(
                 AppPreference.ServerAddress,
+                AppPreference.KidsOnThisTv,
                 AppPreference.KidsVoiceSearch,
+                AppPreference.KidsTimerBar,
                 AppPreference.ScreensaverSettings,
                 AppPreference.ShowClock,
                 AppPreference.UserInterfaceLanguage,
                 AppPreference.SubtitleStyle,
             ),
-            pekePreferences.first().all(),
+            pekePreferences[1].all(),
         )
         assertEquals(
             listOf(AppPreference.PekePlaybackSettings, AppPreference.PekeAdvancedSettings),
-            pekePreferences[1].all(),
+            pekePreferences[2].all(),
         )
         assertEquals(listOf(PreferenceScreenOption.PEKE_PLAYBACK, PreferenceScreenOption.PEKE_ADVANCED), opened)
         // The sub-screens are settings pages, behind the parent gate like Settings

@@ -59,6 +59,16 @@ object KidsFeatures {
     const val LIVE_TV = "liveTv"
 
     /**
+     * Undo a bonus just given (plugin 0.0.9.0): `BonusId` in the bonus answer, `DELETE …/WatchTime/Bonus/{id}`
+     */
+    const val BONUS_UNDO = "bonusUndo"
+
+    /**
+     * End a kid's break after the sitting (plugin 0.0.9.0): `POST …/WatchTime/Break/End`
+     */
+    const val BREAK_END = "breakEnd"
+
+    /**
      * Kids mode needs all of these (plugin 0.0.5.0 or later), since only the server keeps time
      */
     val REQUIRED = listOf(PROFILES, PARENT_LOCK, ENFORCEMENT, SITTING)
@@ -244,6 +254,55 @@ data class KidsStatus(
 }
 
 /**
+ * The answer to a bonus: the kid's new status and, with [KidsFeatures.BONUS_UNDO], the id that takes it back
+ *
+ * @param undoSeconds how long the server still accepts the undo (`BonusUndoUntil` less `ServerTime`, both on the
+ * server's clock), or null if it didn't say
+ */
+data class KidsBonus(
+    val status: KidsStatus,
+    val bonusId: Long?,
+    val undoSeconds: Long? = null,
+) {
+    companion object {
+        fun of(
+            status: KidsStatus,
+            undo: BonusUndoDto,
+        ): KidsBonus {
+            val until = undo.undoUntil?.let(::instantOrNull)
+            val now = status.serverTime?.let(::instantOrNull)
+            val seconds =
+                if (until != null && now != null) {
+                    java.time.Duration
+                        .between(now, until)
+                        .seconds
+                } else {
+                    null
+                }
+            return KidsBonus(status, undo.bonusId, seconds)
+        }
+
+        private fun instantOrNull(value: String): java.time.Instant? =
+            try {
+                java.time.OffsetDateTime
+                    .parse(value)
+                    .toInstant()
+            } catch (_: java.time.format.DateTimeParseException) {
+                null
+            }
+    }
+}
+
+/**
+ * The bonus fields of the bonus answer (plugin 0.0.9.0)
+ */
+@Serializable
+data class BonusUndoDto(
+    @SerialName("BonusId") val bonusId: Long? = null,
+    @SerialName("BonusUndoUntil") val undoUntil: String? = null,
+)
+
+/**
  * Why the server does not let a kid watch now, from `DeniedReason` or the `X-Kids-Reason` header
  */
 enum class KidsDenial(
@@ -348,7 +407,7 @@ object KidProfileMapper {
      * The body of a `PUT` for [profile]: the last server object, with every field the app edits replaced, so fields
      * the app does not know are kept
      *
-     * @param revision 0 to mark a new kid, otherwise the revision the change is based on
+     * @param revision the revision the change is based on
      */
     fun toUpdate(
         profile: KidProfile,

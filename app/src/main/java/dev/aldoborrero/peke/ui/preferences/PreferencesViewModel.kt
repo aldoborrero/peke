@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
+import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
+import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.jellyfin.sdk.api.client.ApiClient
 import timber.log.Timber
 import javax.inject.Inject
@@ -42,6 +45,7 @@ class PreferencesViewModel
         private val serverReportService: ServerReportService,
         profilePolicy: ProfilePolicy,
         val voiceSearchSetting: VoiceSearchSetting,
+        val timerBarSetting: KidsTimerBarSetting,
         private val setupNavigationManager: SetupNavigationManager,
     ) : ViewModel() {
         /**
@@ -53,6 +57,20 @@ class PreferencesViewModel
             // The kid's pages come back before the setup page replaces these
             navigationManager.closeApart()
             setupNavigationManager.navigateTo(SetupDestination.ResetTv(fromKid = fromKid))
+        }
+
+        /**
+         * The kids on this TV, whose Back returns to the kid when Settings is among their pages, and otherwise to the
+         * picker
+         */
+        fun openKidsOnTv() {
+            val fromKid = !navigationManager.isApart
+            navigationManager.closeApart()
+            setupNavigationManager.navigateTo(SetupDestination.KidsOnTv(fromKid = fromKid))
+        }
+
+        fun setTimerBarPosition(position: KidsTimerBarPosition) {
+            viewModelScope.launch { timerBarSetting.set(position) }
         }
 
         /**

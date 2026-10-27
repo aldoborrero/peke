@@ -35,10 +35,11 @@ import dev.aldoborrero.peke.ui.components.BasicDialog
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
- * Parent gate entry, using the same PIN entry as the profile PIN
+ * Parent code entry, using the same entry as setting a code
  *
  * @param type which keys are accepted and what hint is shown
  * @param attempt change it to clear the entry, e.g. after a wrong passcode
+ * @param forgotHint show "Forgot it? Press OK with no code" under the entry, for the parent gate (F-G1)
  */
 @Composable
 fun KidsPasscodeDialog(
@@ -47,6 +48,7 @@ fun KidsPasscodeDialog(
     attempt: Int,
     onDismissRequest: () -> Unit,
     onConfirm: (String) -> Unit,
+    forgotHint: Boolean = false,
 ) {
     BasicDialog(onDismissRequest = onDismissRequest) {
         key(title, type, attempt) {
@@ -58,6 +60,7 @@ fun KidsPasscodeDialog(
                 onConfirm = onConfirm,
                 symbolFor = parentLockSymbol(type),
                 hint = { ParentLockHint(type, it) },
+                footer = if (forgotHint) R.string.kids_gate_forgot_hint else null,
                 modifier =
                     Modifier
                         .padding(16.dp)

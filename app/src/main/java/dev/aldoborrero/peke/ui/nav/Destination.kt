@@ -145,10 +145,16 @@ sealed class Destination(
     data object NowPlaying : Destination(true)
 
     @Serializable
-    data object KidsSettings : Destination(true)
+    data object KidRules : Destination(true)
 
     @Serializable
     data object KidsTimesUp : Destination(true)
+
+    /**
+     * A live channel the server refused for the kid: a message, and Grown-ups (spec 006 FR-016)
+     */
+    @Serializable
+    data object KidsChannelRefused : Destination(true)
 
     /**
      * A kid's live TV guide: only their channels, without recordings

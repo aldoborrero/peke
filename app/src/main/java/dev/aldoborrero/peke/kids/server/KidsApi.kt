@@ -202,13 +202,6 @@ class KidsApi
                 KidsJson.parseToJsonElement(it).jsonObject
             }
 
-        suspend fun deleteProfile(
-            baseUrl: String,
-            caller: KidsCaller,
-            grant: String?,
-            userId: UUID,
-        ): KidsResult<Unit> = call(baseUrl, "Kids/Users/$userId/Profile", caller, grant, "DELETE") { }
-
         suspend fun lock(
             baseUrl: String,
             caller: KidsCaller,
@@ -255,18 +248,50 @@ class KidsApi
         ): KidsResult<KidsItemsResult> =
             call(baseUrl, "Kids/Users/$userId/LiveTv/Channels", caller) { decode(KidsItemsResult.serializer(), it) }
 
+        /**
+         * Add [minutes] to the kid's today. With [KidsFeatures.BONUS_UNDO] the answer names the bonus, for [undoBonus].
+         */
         suspend fun bonus(
             baseUrl: String,
             caller: KidsCaller,
             grant: String?,
             userId: UUID,
             minutes: Int,
-        ): KidsResult<KidsStatus> {
+        ): KidsResult<KidsBonus> {
             val body = buildJsonObject { put("Minutes", minutes) }.toString().toJsonBody()
             return call(baseUrl, "Kids/Users/$userId/WatchTime/Bonus", caller, grant, "POST", body) {
-                decode(KidsStatus.serializer(), it)
+                KidsBonus.of(decode(KidsStatus.serializer(), it), decode(BonusUndoDto.serializer(), it))
             }
         }
+
+        /**
+         * Take back the bonus [bonusId] given a moment ago (`DELETE …/WatchTime/Bonus/{id}`, [KidsFeatures.BONUS_UNDO]).
+         * 404 means it's already gone, 409 that it's too old to undo.
+         */
+        suspend fun undoBonus(
+            baseUrl: String,
+            caller: KidsCaller,
+            grant: String?,
+            userId: UUID,
+            bonusId: Long,
+        ): KidsResult<KidsStatus> =
+            call(baseUrl, "Kids/Users/$userId/WatchTime/Bonus/$bonusId", caller, grant, "DELETE") {
+                decode(KidsStatus.serializer(), it)
+            }
+
+        /**
+         * End the kid's break after the sitting, so they may watch again now (`POST …/WatchTime/Break/End`,
+         * [KidsFeatures.BREAK_END]). It gives no screen time.
+         */
+        suspend fun endBreak(
+            baseUrl: String,
+            caller: KidsCaller,
+            grant: String?,
+            userId: UUID,
+        ): KidsResult<KidsStatus> =
+            call(baseUrl, "Kids/Users/$userId/WatchTime/Break/End", caller, grant, "POST", "{}".toJsonBody()) {
+                decode(KidsStatus.serializer(), it)
+            }
 
         /**
          * Whether the Quick Connect request with [secret] was approved (`GET /QuickConnect/Connect`), for an

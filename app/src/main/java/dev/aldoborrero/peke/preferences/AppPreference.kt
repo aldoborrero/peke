@@ -560,7 +560,7 @@ sealed interface AppPreference<Pref, T> {
         val KidsMode =
             AppDestinationPreference<AppPreferences>(
                 title = R.string.kids_mode,
-                destination = Destination.KidsSettings,
+                destination = Destination.KidRules,
                 summary = R.string.kids_mode_summary,
             )
 
@@ -724,6 +724,31 @@ sealed interface AppPreference<Pref, T> {
         val KidsVoiceSearch =
             AppClickablePreference<AppPreferences>(
                 title = R.string.peke_voice_search,
+            )
+
+        /**
+         * Settings › Household: change the parent code, keeping its type (spec 006 R10)
+         */
+        val ChangeParentCode =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.kids_change_passcode,
+                summary = R.string.kids_household_code_summary,
+            )
+
+        /**
+         * Settings › This TV: the kids on this TV, to add or remove one (spec 004 FR-014)
+         */
+        val KidsOnThisTv =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.peke_menu_kids_on_tv,
+            )
+
+        /**
+         * Settings › This TV: where the kids' timer bar shows, kept by [dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting]
+         */
+        val KidsTimerBar =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.kids_timer_bar,
             )
 
         /**
@@ -1250,18 +1275,25 @@ val advancedPreferences =
     }
 
 /**
- * Peke's settings, shown only to grown-ups in the grown-up shell: every app setting that makes sense for a kids TV.
- * Playback and the advanced settings open sub-screens ([pekePlaybackPreferences], [pekeAdvancedPreferences]); Reset
- * this TV comes last, on its own. The colour theme is left out until Peke has its own themes.
+ * Peke's settings, shown only to grown-ups in the grown-up shell, by level: the household (the parent code, the same on
+ * every TV of the server), then this TV. Playback and the advanced settings open sub-screens ([pekePlaybackPreferences],
+ * [pekeAdvancedPreferences]); Reset this TV comes last, on its own. The colour theme is left out until Peke has its own
+ * themes.
  */
 val pekePreferences =
     listOf(
         PreferenceGroup(
-            title = R.string.general,
+            title = R.string.peke_settings_household,
+            preferences = listOf(AppPreference.ChangeParentCode),
+        ),
+        PreferenceGroup(
+            title = R.string.peke_settings_this_tv,
             preferences =
                 listOf(
                     AppPreference.ServerAddress,
+                    AppPreference.KidsOnThisTv,
                     AppPreference.KidsVoiceSearch,
+                    AppPreference.KidsTimerBar,
                     AppPreference.ScreensaverSettings,
                     AppPreference.ShowClock,
                     AppPreference.UserInterfaceLanguage,

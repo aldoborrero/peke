@@ -67,7 +67,7 @@ object KidsLiveTv {
 
     /**
      * Whether kids mode shows live TV: the plugin offers it and the kid has at least one effective channel. Without
-     * channels there is no Live TV entry and no home row; the grown-ups' kids settings say where to pick them.
+     * channels there is no Live TV entry and no home row; the kid's rules say where to pick them.
      */
     fun shown(
         pluginHasLiveTv: Boolean,

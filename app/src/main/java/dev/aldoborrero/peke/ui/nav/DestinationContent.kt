@@ -14,9 +14,10 @@ import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlayPage
 import dev.aldoborrero.peke.kids.ui.GrownUpGuard
+import dev.aldoborrero.peke.kids.ui.KidsChannelRefusedPage
 import dev.aldoborrero.peke.kids.ui.KidsTimesUpPage
 import dev.aldoborrero.peke.kids.ui.isGrownUp
-import dev.aldoborrero.peke.kids.ui.settings.KidsSettingsPage
+import dev.aldoborrero.peke.kids.ui.rules.KidRulesPage
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.ItemGrid
@@ -147,12 +148,16 @@ internal fun DestinationPage(
             UserProfilePreferencesPage(modifier)
         }
 
-        Destination.KidsSettings -> {
-            KidsSettingsPage(modifier)
+        Destination.KidRules -> {
+            KidRulesPage(modifier)
         }
 
         Destination.KidsTimesUp -> {
             KidsTimesUpPage(modifier)
+        }
+
+        Destination.KidsChannelRefused -> {
+            KidsChannelRefusedPage(modifier)
         }
 
         Destination.KidsLiveTv -> {

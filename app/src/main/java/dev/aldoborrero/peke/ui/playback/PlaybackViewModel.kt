@@ -1465,21 +1465,32 @@ class PlaybackViewModel
          * gave one
          *
          * A live TV refusal is not about time: a channel the kid may not watch, or a recording, which kids mode hides.
-         * Playback is left with a short message, without a retry or a playback error.
+         * Playback is left for a page that says so, or a short message, without a retry or a playback error.
          *
          * @return whether a kids screen or message shows for it instead of an error
          */
         private suspend fun kidsRefused(reason: String?): Boolean {
             if (!kidsModeService.isActive) return false
-            val message =
-                when (KidsPlaybackRefusal.kindOf(reason)) {
-                    KidsPlaybackRefusal.Kind.LIVE_TV_CHANNEL -> R.string.kids_channel_not_available
-                    KidsPlaybackRefusal.Kind.LIVE_TV_RECORDING -> R.string.kids_not_available
-                    KidsPlaybackRefusal.Kind.TIME -> return kidsAllowanceService.refused(reason)
+            when (KidsPlaybackRefusal.kindOf(reason)) {
+                KidsPlaybackRefusal.Kind.TIME -> {
+                    return kidsAllowanceService.refused(reason)
                 }
-            Timber.i("Kids live TV playback refused: %s", reason)
-            showToast(context, context.getString(message), Toast.LENGTH_SHORT)
-            withContext(PekeDispatchers.Main) { navigationManager.goBack() }
+
+                KidsPlaybackRefusal.Kind.LIVE_TV_CHANNEL -> {
+                    // Not on the kid's list: a page that says so, with Grown-ups, in place of the player (spec 006 FR-016)
+                    Timber.i("Kids live TV channel refused: %s", reason)
+                    withContext(PekeDispatchers.Main) {
+                        navigationManager.goBack()
+                        navigationManager.navigateTo(Destination.KidsChannelRefused)
+                    }
+                }
+
+                KidsPlaybackRefusal.Kind.LIVE_TV_RECORDING -> {
+                    Timber.i("Kids live TV playback refused: %s", reason)
+                    showToast(context, context.getString(R.string.kids_not_available), Toast.LENGTH_SHORT)
+                    withContext(PekeDispatchers.Main) { navigationManager.goBack() }
+                }
+            }
             return true
         }
 
