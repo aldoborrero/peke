@@ -9,15 +9,20 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -34,13 +39,18 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import com.mikepenz.markdown.m3.Markdown
@@ -61,7 +71,13 @@ import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.dimAndBlur
 import dev.aldoborrero.peke.ui.formatBytes
 import dev.aldoborrero.peke.ui.launchIO
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.csp
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.LoadingState
 import dev.aldoborrero.peke.util.Version
@@ -225,6 +241,11 @@ fun InstallUpdatePage(
     }
 }
 
+/**
+ * The update page (OtherUpdatePekeTV): on the left the download icon, "Update available", the installed and the new
+ * version, and Download & Update over Later; on the right the release notes on a surface panel, scrolled with up and
+ * down. What the buttons do is unchanged.
+ */
 @Composable
 fun InstallUpdatePageContent(
     currentVersion: Version,
@@ -233,10 +254,56 @@ fun InstallUpdatePageContent(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalPekeColors.current
     Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(56.cpx),
+        modifier = modifier.padding(horizontal = 72.cpx, vertical = 56.cpx),
     ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(18.cpx),
+            modifier = Modifier.width(360.cpx),
+        ) {
+            Icon(
+                painter = painterResource(PekeIcon.DOWNLOAD.outline),
+                contentDescription = null,
+                tint = colors.secondary,
+                modifier = Modifier.size(120.cpx),
+            )
+            Text(
+                text = stringResource(R.string.update_available),
+                style = MaterialTheme.typography.displaySmall,
+                color = colors.text,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.cpx)) {
+                Text(
+                    text = stringResource(R.string.update_installed_version, currentVersion.toString()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textSecondary,
+                )
+                Text(
+                    text = stringResource(R.string.update_new_version, release.version.toString()),
+                    fontSize = 22.csp,
+                    fontWeight = FontWeight.W900,
+                    color = colors.time,
+                )
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.cpx),
+                modifier = Modifier.padding(top = 10.cpx),
+            ) {
+                UpdatePill(
+                    text = stringResource(R.string.download_and_update),
+                    primary = true,
+                    onClick = onInstallRelease,
+                )
+                UpdatePill(
+                    text = stringResource(R.string.update_later),
+                    primary = false,
+                    onClick = onCancel,
+                )
+            }
+        }
+
         val scrollAmount = 100f
         val columnState = rememberLazyListState()
         val scope = rememberCoroutineScope()
@@ -247,26 +314,19 @@ fun InstallUpdatePageContent(
             }
         }
         val columnInteractionSource = remember { MutableInteractionSource() }
-        val columnFocused by columnInteractionSource.collectIsFocusedAsState()
-        val columnColor =
-            if (columnFocused) {
-                MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
-            } else {
-                MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-            }
+        val panelShape = RoundedCornerShape(30.cpx)
         LazyColumn(
             state = columnState,
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 30.cpx, vertical = 28.cpx),
+            verticalArrangement = Arrangement.spacedBy(14.cpx),
             modifier =
                 Modifier
+                    .pekeFocus(panelShape)
                     .focusable(interactionSource = columnInteractionSource)
                     .fillMaxHeight()
-                    .fillMaxWidth(.6f)
-                    .background(
-                        columnColor,
-                        shape = RoundedCornerShape(16.dp),
-                    ).onKeyEvent {
+                    .weight(1f)
+                    .background(colors.surface, shape = panelShape)
+                    .onKeyEvent {
                         if (it.type == KeyEventType.KeyUp) {
                             return@onKeyEvent false
                         }
@@ -282,38 +342,53 @@ fun InstallUpdatePageContent(
                     },
         ) {
             item {
+                Text(
+                    text = stringResource(R.string.update_whats_new),
+                    fontSize = 22.csp,
+                    fontWeight = FontWeight.W900,
+                    color = colors.text,
+                )
+            }
+            item {
                 ReleaseNotes(release)
             }
         }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.CenterVertically)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-                        shape = RoundedCornerShape(16.dp),
-                    ).padding(16.dp),
-        ) {
+    }
+}
+
+/**
+ * A full-width pill of the update page: Download & Update 64 px in primary, Later 60 px on surface
+ */
+@Composable
+private fun UpdatePill(
+    text: String,
+    primary: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalPekeColors.current
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        scale = PekeFocus.surfaceScale,
+        border = PekeFocus.surfaceBorder(),
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = if (primary) colors.primary else colors.surface,
+                contentColor = if (primary) colors.onPrimary else colors.text,
+                focusedContainerColor = colors.primary,
+                focusedContentColor = colors.onPrimary,
+            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(if (primary) 64.cpx else 60.cpx)
+                .pekeFocus(CircleShape),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
-                text = stringResource(R.string.update_available),
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "$currentVersion => " + release.version.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            TextButton(
-                stringRes = R.string.download_and_update,
-                onClick = onInstallRelease,
-            )
-            TextButton(
-                stringRes = R.string.cancel,
-                onClick = onCancel,
+                text = text,
+                fontSize = if (primary) 22.csp else 20.csp,
+                fontWeight = if (primary) FontWeight.W900 else FontWeight.W800,
             )
         }
     }
@@ -369,16 +444,7 @@ fun DownloadDialog(
                     fontSize = 24.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                if (progress != null) {
-                    CircularProgressIndicator(
-                        progress = { progress },
-                        color = MaterialTheme.colorScheme.border,
-                        modifier =
-                            Modifier
-                                .size(48.dp)
-                                .padding(8.dp),
-                    )
-                } else {
+                if (progress == null) {
                     CircularProgressIndicator(
                         color = MaterialTheme.colorScheme.border,
                         modifier =
@@ -389,6 +455,21 @@ fun DownloadDialog(
                 }
             }
             if (progress != null) {
+                // OtherUpdatePekeTV: a 14 px bar in the secondary colour
+                val colors = LocalPekeColors.current
+                Box(
+                    Modifier
+                        .width(480.cpx)
+                        .height(14.cpx)
+                        .background(colors.background, CircleShape),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(progress.coerceIn(0f, 1f))
+                            .height(14.cpx)
+                            .background(colors.secondary, CircleShape),
+                    )
+                }
                 val bytes = formatBytes(bytesDownloaded)
                 val size = formatBytes(contentLength)
                 Text(

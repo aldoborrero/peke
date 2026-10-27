@@ -989,4 +989,10 @@
     <string name="kids_voice_back">Pulsa Atrás para parar</string>
     <string name="kids_favourites_title">Favoritos de %1$s</string>
     <string name="kids_favourites_hint">Pulsa el corazón en cualquier serie para guardarla aquí</string>
+    <!-- 008 Phase 6: update and microphone -->
+    <string name="peke_voice_search_allow">Permitir</string>
+    <string name="update_installed_version">Versión instalada %1$s</string>
+    <string name="update_new_version">Versión nueva %1$s</string>
+    <string name="update_whats_new">Novedades</string>
+    <string name="update_later">Más tarde</string>
 </resources>

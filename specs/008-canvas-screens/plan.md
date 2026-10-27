@@ -188,3 +188,14 @@ Clean debug builds, Phase 3 → Phase 4: arm64-v8a 39,226,602 → 39,243,099 (+1
 Clean debug builds, Phase 4 → Phase 5: arm64-v8a 39,243,099 → 39,245,453 (+2,354), armeabi-v7a 37,897,704 →
 37,900,056 (+2,352), x86_64 39,291,310 → 39,293,664 (+2,354). The new code and the filter icon pair (two small vectors)
 are mostly offset by what the voice page dropped (its status helper, constants and the old dialog card).
+
+### Phase 6 (2026-10-27, T043)
+
+Clean debug builds, Phase 5 → Phase 6: arm64-v8a 39,245,453 → 39,247,545 (+2,092), armeabi-v7a 37,900,056 →
+37,902,145 (+2,089), x86_64 39,293,664 → 39,295,750 (+2,086). The new update page, consent card and night scene, the
+download icon pair, and less screensaver code (the item art, its view model and the neutral and placeholder screens
+went).
+
+**Phases 1–6 against the base (`1ab9994c`)**: arm64-v8a 39,093,776 → 39,247,545 (+153,769), armeabi-v7a 37,748,378 →
+37,902,145 (+153,767), x86_64 39,141,987 → 39,295,750 (+153,763). All debug dex, strings and four small vectors; R8
+shrinks the dex in release.

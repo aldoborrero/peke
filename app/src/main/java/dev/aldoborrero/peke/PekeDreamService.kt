@@ -24,7 +24,6 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dagger.hilt.android.AndroidEntryPoint
 import dev.aldoborrero.peke.preferences.AppPreferences
-import dev.aldoborrero.peke.services.ScreensaverService
 import dev.aldoborrero.peke.services.hilt.AuthOkHttpClient
 import dev.aldoborrero.peke.ui.CoilConfig
 import dev.aldoborrero.peke.ui.components.AppScreensaverContent
@@ -40,9 +39,6 @@ import kotlin.time.Duration.Companion.milliseconds
 class PekeDreamService :
     DreamService(),
     SavedStateRegistryOwner {
-    @Inject
-    lateinit var screensaverService: ScreensaverService
-
     @Inject
     lateinit var preferencesDataStore: DataStore<AppPreferences>
 
@@ -72,7 +68,6 @@ class PekeDreamService :
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         Timber.d("onAttachedToWindow")
-        val itemFlow = screensaverService.createItemFlow(lifecycleScope)
         setContentView(
             ComposeView(this).apply {
                 setViewTreeLifecycleOwner(this@PekeDreamService)
@@ -92,10 +87,8 @@ class PekeDreamService :
                         PekeTheme(appThemeColors = prefs.interfacePreferences.appThemeColors) {
                             ProvideLocalClock {
                                 val screensaverPrefs = prefs.interfacePreferences.screensaverPreference
-                                val currentItem by itemFlow.collectAsState(null)
                                 Box(Modifier.fillMaxSize()) {
                                     AppScreensaverContent(
-                                        currentItem = currentItem,
                                         showClock = screensaverPrefs.showClock,
                                         duration = screensaverPrefs.duration.milliseconds,
                                         animate = screensaverPrefs.animate,

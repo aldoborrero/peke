@@ -39,6 +39,7 @@ class DrawablesTest {
                 "back",
                 "bedtime",
                 "break",
+                "download",
                 "episodes",
                 "favourites",
                 "filter",

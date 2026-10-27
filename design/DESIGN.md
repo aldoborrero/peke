@@ -139,8 +139,8 @@ Each avatar sits on a round background in its own PekeTV colour:
 
 ## Icons
 
-Twenty-one icons on a 48 grid (filter, the sliders on search and grids, joined the first twenty in spec 008), used
-at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
+Twenty-two icons on a 48 grid (filter, the sliders on search and grids, and download, on the update page, joined the
+first twenty in spec 008), used at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
 - **Two-tone** (`assets/icons/`): filled shapes in the PekeTV colours with a navy `#1F2747` outline. The colours are
   baked in, so this set is **PekeTV only**, and it is **only ever drawn on a light surface**, a chip or a pill: its
   outline is the PekeTV background and disappears on it. No screen has such a surface yet, so the app doesn't use the

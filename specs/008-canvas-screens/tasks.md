@@ -99,12 +99,12 @@ purpose).
 **Goal**: OtherScreensaverPekeTV, OtherUpdatePekeTV, OtherMicPekeTV.
 **Independent Test**: quickstart 6.
 
-- [ ] T038 [P] [US6] Draw `design/assets/icons/download.svg` and `outline/download.svg`; convert; `PekeIcon.DOWNLOAD`; icon tests green
-- [ ] T039 [US6] `ui/components/AppScreensaver.kt`: the night scene for a current kid (sky, stars, moon, hill, sleeping buddy moving every `duration`, clock when on); settings kept
-- [ ] T040 [US6] `ui/preferences/InstallUpdatePage.kt`: the board's layout; download and install unchanged
-- [ ] T041 [US6] `ui/preferences/VoiceSearchConsent.kt`: the board's dialog for every stage; the permission flow unchanged
-- [ ] T042 [US6] Strings: What's new, Later, Download & Update, versions, Allow, Not now, English and Spanish
-- [ ] T043 [US6] [US7] Validation, screenshots where reachable, size, `reports/phase-6.md`
+- [X] T038 [P] [US6] Draw `design/assets/icons/download.svg` and `outline/download.svg`; convert; `PekeIcon.DOWNLOAD`; icon tests green
+- [X] T039 [US6] `ui/components/AppScreensaver.kt`: the night scene for a current kid (sky, stars, moon, hill, sleeping buddy moving every `duration`, clock when on); settings kept
+- [X] T040 [US6] `ui/preferences/InstallUpdatePage.kt`: the board's layout; download and install unchanged
+- [X] T041 [US6] `ui/preferences/VoiceSearchConsent.kt`: the board's dialog for every stage; the permission flow unchanged
+- [X] T042 [US6] Strings: What's new, Later, Download & Update, versions, Allow, Not now, English and Spanish
+- [X] T043 [US6] [US7] Validation, screenshots where reachable, size, `reports/phase-6.md`
 
 ## Dependencies & Execution Order
 

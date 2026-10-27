@@ -1168,4 +1168,10 @@
     <string name="kids_voice_back">Press Back to stop</string>
     <string name="kids_favourites_title">%1$s\'s favourites</string>
     <string name="kids_favourites_hint">Press the heart on any show to keep it here</string>
+    <!-- 008 Phase 6: update and microphone -->
+    <string name="peke_voice_search_allow">Allow</string>
+    <string name="update_installed_version">Installed version %1$s</string>
+    <string name="update_new_version">New version %1$s</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_later">Later</string>
 </resources>
