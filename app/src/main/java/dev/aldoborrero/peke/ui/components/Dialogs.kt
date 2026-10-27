@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -70,6 +71,7 @@ import dev.aldoborrero.peke.ui.formatBitrate
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
 import dev.aldoborrero.peke.ui.playback.SimpleMediaStream
 import dev.aldoborrero.peke.ui.roundMinutes
+import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -211,6 +213,7 @@ data class DialogItem(
  * Show a dialog with a list of entries.
  *
  * @param waitToLoad items start as disabled for about ~1s, which is useful if the dialog spawned from a long press
+ * @param initialFocusIndex the entry focused when the dialog opens, such as the current choice; the first item if null
  */
 @Composable
 fun DialogPopup(
@@ -222,6 +225,7 @@ fun DialogPopup(
     waitToLoad: Boolean = true,
     properties: DialogProperties = DialogProperties(),
     elevation: Dp = 1.dp,
+    initialFocusIndex: Int? = null,
 ) {
     var waiting by remember { mutableStateOf(waitToLoad) }
     if (showDialog) {
@@ -248,6 +252,7 @@ fun DialogPopup(
                 onDismissRequest = onDismissRequest,
                 dismissOnClick = dismissOnClick,
                 elevation = elevation,
+                initialFocusIndex = initialFocusIndex,
                 modifier =
                     Modifier.onKeyEvent { event ->
                         val code = event.nativeKeyEvent.keyCode
@@ -268,6 +273,11 @@ fun DialogPopup(
     }
 }
 
+/**
+ * How many frames [DialogPopupContent] tries to focus its initial entry for
+ */
+private const val FOCUS_FRAMES = 5
+
 @Composable
 fun DialogPopupContent(
     title: String,
@@ -277,6 +287,7 @@ fun DialogPopupContent(
     modifier: Modifier = Modifier,
     dismissOnClick: Boolean = true,
     elevation: Dp = 8.dp,
+    initialFocusIndex: Int? = null,
 ) {
     val elevatedContainerColor =
         MaterialTheme.colorScheme.surfaceColorAtElevation(elevation)
@@ -302,6 +313,15 @@ fun DialogPopupContent(
         // Only items take focus, so the list wraps between the first and the last of them
         val firstItem = dialogItems.indexOfFirst { it is DialogItem }.coerceAtLeast(0)
         val lastItem = dialogItems.indexOfLast { it is DialogItem }.coerceAtLeast(0)
+        LaunchedEffect(Unit) {
+            val index = initialFocusIndex?.takeIf { dialogItems.getOrNull(it) is DialogItem } ?: return@LaunchedEffect
+            listState.scrollToItem(index)
+            // The row is laid out a frame after scrolling to it
+            repeat(FOCUS_FRAMES) {
+                withFrameNanos { }
+                if (focusRequesters[index].tryRequestFocus()) return@LaunchedEffect
+            }
+        }
         LazyColumn(
             state = listState,
             modifier = Modifier,

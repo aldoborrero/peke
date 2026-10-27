@@ -63,6 +63,7 @@ fun <T> ChoicePreference(
                 onDismissRequest = { dialogParams = null },
                 waitToLoad = false,
                 dismissOnClick = false,
+                initialFocusIndex = selectedIndex.takeIf { it >= 0 },
             )
         }
     }
