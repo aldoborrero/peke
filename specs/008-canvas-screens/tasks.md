@@ -76,11 +76,11 @@ purpose).
 **Goal**: LiveGuidePekeTV.
 **Independent Test**: `KidsLiveGuideTest`; quickstart 4.
 
-- [ ] T027 [P] [US4] `kids/KidsLiveGuideTest.kt`: now/next per channel ("now: the programme whose start ≤ now < end; next: the first that starts at or after now's end; progress = elapsed / length, 0–1"), no guide → no now
-- [ ] T028 [US4] `kids/livetv/KidsLiveGuide.kt`: `channelNowNext`, `KidsLiveGuide` (title, channel cards with tile, LIVE, name, programme, progress, next) on `LiveTvViewModel`; a click plays as the grid's channel cell does
-- [ ] T029 [US4] `ui/nav/DestinationContent.kt`: `KidsLiveTv` → `KidsLiveGuide`
-- [ ] T030 [US4] Strings: "Next: %s", English and Spanish
-- [ ] T031 [US4] [US7] Validation, screenshot of Live TV, size, `reports/phase-4.md`
+- [X] T027 [P] [US4] `kids/KidsLiveGuideTest.kt`: now/next per channel ("now: the programme whose start ≤ now < end; next: the first that starts at or after now's end; progress = elapsed / length, 0–1"), no guide → no now
+- [X] T028 [US4] `kids/livetv/KidsLiveGuide.kt`: `channelNowNext`, `KidsLiveGuide` (title, channel cards with tile, LIVE, name, programme, progress, next) on `LiveTvViewModel`; a click plays as the grid's channel cell does
+- [X] T029 [US4] `ui/nav/DestinationContent.kt`: `KidsLiveTv` → `KidsLiveGuide`
+- [X] T030 [US4] Strings: "Next: %s", English and Spanish
+- [X] T031 [US4] [US7] Validation, screenshot of Live TV, size, `reports/phase-4.md`
 
 ## Phase 5: Search, voice, favourites, library (US5, PR 5)
 

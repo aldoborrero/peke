@@ -177,3 +177,8 @@ in Phase 1 (unminified debug dex).
 Clean debug builds, Phase 2 → Phase 3: arm64-v8a 39,193,428 → 39,226,602 (+33,174), armeabi-v7a 37,848,029 →
 37,881,204 (+33,175), x86_64 39,241,640 → 39,274,807 (+33,167). Dex and strings, within the +5 to +30 KB estimate
 plus 10%.
+
+### Phase 4 (2026-10-27, T031)
+
+Clean debug builds, Phase 3 → Phase 4: arm64-v8a 39,226,602 → 39,243,099 (+16,497), armeabi-v7a 37,881,204 →
+37,897,704 (+16,500), x86_64 39,274,807 → 39,291,310 (+16,503). Within the +5 to +25 KB estimate.
