@@ -25,6 +25,7 @@ nix develop -c java -cp "$CP" Svg2Vd.java pairs.txt   # pairs.txt: "<svg> <xml>"
 | `opacity` on a shape | `fillAlpha` / `strokeAlpha` |
 | `currentColor` (outline icons) | not a VectorDrawable colour: replaced with `#FFFFFF` before converting, and tinted at runtime (Compose `Icon(tint = …)`) |
 | `<text>` (only in `logo-peke-text.svg`) | not converted: that file is the editable source; `logo-peke.svg` has the same wordmark as paths |
+| `stroke-linecap`, `stroke-linejoin` on the root `<svg>` (icons) | inherited: every converted path carries `strokeLineCap="round"` and `strokeLineJoin="round"` |
 
 None of the files uses gradients, masks, clip paths, filters, `<use>`, `<style>` or CSS, so nothing needed a
 workaround beyond `currentColor`. The converter printed no warnings for any of the 57 files.
@@ -51,3 +52,15 @@ Wholphin-era launcher art: `mipmap-*dpi/ic_launcher*.webp`, `mipmap-anydpi-v26/i
 `roundIcon` in the manifest), `mipmap-anydpi-v26/ic_banner.xml`, `mipmap-xhdpi/ic_banner*.png`,
 `values/ic_banner_background.xml`, and the debug build's "Wholphin Kids" banner in `app/src/debug/res/mipmap-xhdpi/`.
 The screensaver's floating picture is now the buddy.
+
+## Icon consistency pass
+
+The twenty icons were redrawn in both sets to DESIGN.md's Icons rules (report: `reports/icons.md`). Each icon was
+drawn once, as shared geometry, and written out as its two-tone and outline SVG, so the two sets match; the SVGs in
+`design/assets/icons` are the source from then on. The 40 drawables `ic_peke_*.xml` and `ic_peke_outline_*.xml` were
+converted again with the same `Svg2Vector` driver and the same `currentColor` → `#FFFFFF` step for the outline set;
+the converter printed no warnings. File names and sizes didn't change, so no Kotlin changed.
+
+`IconSpecTest` (JVM, no Robolectric) checks the SVG sources: the 48 grid and live area, stroke widths, round caps and
+joins on the root, explicit fills, corner radii from the scale, where the highlight is, that both sets of an icon have
+the same bounds, and that no code outside `PekeArt.kt` draws a two-tone icon.

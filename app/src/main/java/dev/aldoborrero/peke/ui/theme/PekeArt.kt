@@ -8,7 +8,8 @@ import dev.aldoborrero.peke.R
  * Peke's interface icons (design/assets/icons), on a 48 grid, used at 48, 32 and 24 dp
  *
  * @param source the file name in design/assets/icons
- * @param twoTone the filled icon in PekeTV's colours, baked in: PekeTV only
+ * @param twoTone the filled icon in PekeTV's colours, baked in: PekeTV only, and only on a light surface such as a chip,
+ * since its navy outline is the PekeTV background
  * @param outline the one-colour icon, drawn white to be tinted with the theme's roles
  */
 enum class PekeIcon(

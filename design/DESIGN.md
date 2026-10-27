@@ -140,13 +140,42 @@ Each avatar sits on a round background in its own PekeTV colour:
 ## Icons
 
 Twenty icons on a 48 grid, used at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
-- **Two-tone** (`assets/icons/`): filled shapes in the PekeTV colours, a 3.5 px navy outline and a small white
-  highlight on the rounder ones. The colours are baked in, so this set is **PekeTV only**.
+- **Two-tone** (`assets/icons/`): filled shapes in the PekeTV colours with a navy `#1F2747` outline. The colours are
+  baked in, so this set is **PekeTV only**, and it is **only ever drawn on a light surface**, a chip or a pill: its
+  outline is the PekeTV background and disappears on it. No screen has such a surface yet, so the app doesn't use the
+  set (`IconSpecTest` fails if code outside `PekeArt.kt` does).
 - **Outline** (`assets/icons/outline/`): the same twenty as single-colour strokes in `currentColor`, tinted at runtime.
-  The collapsed sidebar draws icons that aren't selected this way in "text, secondary", so the rail stays quiet.
+  Every dark screen uses this set. The collapsed sidebar draws icons that aren't selected in "text, secondary", so the
+  rail stays quiet.
 
 The other themes use the outline set tinted with their own roles, or a two-tone set recoloured with their values at
 build time.
+
+Both sets follow the same rules (`IconSpecTest` checks them on the SVGs):
+- **Grid and live area:** a `0 0 48 48` viewBox, and nothing outside 4–44, strokes included. Round shapes may reach
+  3.5–44.5 so they look as big as the square ones: play, pause, next episode, settings, time left, favourites, bedtime
+  and search. Wide shapes (back, watched, switch kid, subtitles) span the width and leave the extra space above
+  and below, so they keep the same weight as the square ones.
+- **Stroke:** 3.5 everywhere. 3 only for the small white triangles where 3.5 would clog: in play, next episode and on
+  episodes' front card. Bars (pause, next episode), hands and text lines are 3.5 lines, not outlined rects, so they
+  stay bars at 24 dp.
+- **Caps and joins:** `stroke-linecap="round"` and `stroke-linejoin="round"`, set once on the root `<svg>`.
+- **Fills:** every shape has an explicit `fill`: a PekeTV colour or `none` in two-tone, `none` or `currentColor` in
+  outline. Two-tone strokes are navy; outline strokes are `currentColor`. Small solid marks (the bedtime star, the
+  keyhole) are filled, not stroked, in both sets.
+- **Corners:** rect radii from the scale 4 (small parts: the door, the time-left button), 7 (medium: cards, the lock,
+  the microphone) and 9 (large: the TV, subtitles, the juice box), never more than half the short side.
+- **Highlight:** two-tone only, one white circle of radius 2.5 at the upper left of a large round filled object:
+  favourites, search, time left and voice. Not on the transport buttons, whose glyph fills the circle, the gear, which
+  has its hub, people, or the shapes that aren't round.
+- **One composition:** an icon's two sets draw the same picture with the same bounds; the outline set only drops the
+  fills and the highlight, and hides lines the two-tone set covers (the back card in episodes, the gear's petals
+  behind its body).
+- **The circle** is only for the player's transport buttons: play, pause and next episode. Back and watched are free
+  shapes like the rest (a fat arrow, a fat check).
+- **Ink:** in the outline set, icons with inner parts cover about 22–28% of the 48 square (21–28% measured). A
+  single closed shape that already fills the live area can't reach that with a 3.5 stroke: back, favourites, picks
+  and watched sit at 16–20%, and the open bedtime and search at about 19%.
 
 ## Screens
 
