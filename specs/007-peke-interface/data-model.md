@@ -43,8 +43,8 @@ Value → index: the position above, or 0 for anything else. Index → value: th
 
 ## Avatar (Phase 3)
 
-`KidAvatarName`: `leo`, `max`, `nico`, `lucy`, `sara`, `mia`, each with its drawable and background colour (DESIGN
-Avatars). Read from the plugin profile's `Avatar` when the plugin has `avatar`; stored with the kid in the kids
-database (new nullable column, Room migration). Anything else is null.
+`PekeAvatar` (`ui/theme/PekeArt.kt`): `leo`, `max`, `nico`, `lucy`, `sara`, `mia`, each with its drawable and background
+colour (DESIGN Avatars). Read from the plugin profile's `Avatar` when the cached plugin row has `avatar`, out of the
+profile JSON the server last sent (`KidProfile.serverJson`): no column or migration. Anything else is null.
 
 Display order: avatar → Jellyfin profile image → initial on a circle.

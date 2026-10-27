@@ -38,6 +38,7 @@ import kotlin.time.Duration.Companion.seconds
  * @param total the full length of that limit, for the remaining-time bar
  * @param denial why the kid may not watch now, which shows the time's up, bedtime or sitting over screen
  * @param breakRemaining the break left before the kid may watch again, on the sitting over screen
+ * @param firstWarning the server's first warning point (the latest of its `WarnAtSeconds`), null without any
  */
 data class KidsLimits(
     val remaining: Duration? = null,
@@ -46,8 +47,15 @@ data class KidsLimits(
     val breakRemaining: Duration? = null,
     val allowanceRemaining: Duration? = null,
     val sittingRemaining: Duration? = null,
+    val firstWarning: Duration? = null,
 ) {
     val expired: Boolean get() = denial != null
+
+    /**
+     * The time left has reached the first warning point: the timer bar stands out from here to the end
+     */
+    val nearEnd: Boolean
+        get() = remaining != null && firstWarning != null && remaining <= firstWarning
 
     companion object {
         /**
@@ -83,6 +91,7 @@ data class KidsLimits(
                 breakRemaining = breakRemaining,
                 allowanceRemaining = allowance?.first,
                 sittingRemaining = sitting?.first,
+                firstWarning = status?.warnAtSeconds?.maxOrNull()?.seconds,
             )
         }
 

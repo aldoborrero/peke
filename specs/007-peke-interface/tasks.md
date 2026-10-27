@@ -62,17 +62,17 @@ Paths are relative to `app/src/main/java/dev/aldoborrero/peke/` unless they star
 **Goal**: every SVG as a drawable, launcher icon and banner replaced.
 **Independent Test**: `DrawablesTest`; the launcher on the emulator.
 
-- [ ] T020 [US2] Find the SVG converter available in the devshell (AGP `vd-tool`, the `android` CLI) and record it in research R8; if none, ask to add one to `nix/devshell.nix`
-- [ ] T021 [P] [US2] `ui/theme/DrawablesTest.kt` (Robolectric): every drawable named in data-model's asset list inflates and has the source's viewport (48×48 icons; buddy, avatars per source)
-- [ ] T022 [P] [US2] Convert `design/assets/mascot/*.svg` to `app/src/main/res/drawable/peke_buddy*.xml` (six moods)
-- [ ] T023 [P] [US2] Convert `design/assets/avatars/*.svg` to `app/src/main/res/drawable/avatar_{leo,max,nico,lucy,sara,mia}.xml`
-- [ ] T024 [P] [US2] Convert `design/assets/icons/*.svg` to `app/src/main/res/drawable/ic_peke_*.xml` (two-tone, colours baked)
-- [ ] T025 [P] [US2] Convert `design/assets/icons/outline/*.svg` to `app/src/main/res/drawable/ic_peke_outline_*.xml` with a single tintable colour (`currentColor` → `@android:color/white` filled, tinted at runtime)
-- [ ] T026 [P] [US2] Convert `design/assets/logo-peke.svg` to `app/src/main/res/drawable/logo_peke.xml`
-- [ ] T027 [US2] Adaptive launcher icon from `design/assets/app-icon.svg`: `app/src/main/res/drawable/ic_launcher_{background,foreground,monochrome}.xml`, `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`; PNG fallbacks for API 23–25 in `mipmap-*dpi`, rendered from the SVG
-- [ ] T028 [US2] TV banner from `design/assets/tv-banner.svg` as `@mipmap/ic_banner` (vector, with an xhdpi PNG fallback if API 23 needs it) referenced by `app/src/main/AndroidManifest.xml`
-- [ ] T029 [US2] Write `specs/007-peke-interface/assets-conversion.md`: per file, converter result, unsupported features (`<style>`, `<use>`, masks, filters, gradients on API 23, `clip-path`) and workaround
-- [ ] T030 [US2] [US6] Validation as T017, launcher screenshot, size measured and recorded as T019
+- [X] T020 [US2] Find the SVG converter available in the devshell (AGP `vd-tool`, the `android` CLI) and record it in research R8; if none, ask to add one to `nix/devshell.nix`
+- [X] T021 [P] [US2] `ui/theme/DrawablesTest.kt` (Robolectric): every drawable named in data-model's asset list inflates and has the source's viewport (48×48 icons; buddy, avatars per source)
+- [X] T022 [P] [US2] Convert `design/assets/mascot/*.svg` to `app/src/main/res/drawable/peke_buddy*.xml` (six moods)
+- [X] T023 [P] [US2] Convert `design/assets/avatars/*.svg` to `app/src/main/res/drawable/avatar_{leo,max,nico,lucy,sara,mia}.xml`
+- [X] T024 [P] [US2] Convert `design/assets/icons/*.svg` to `app/src/main/res/drawable/ic_peke_*.xml` (two-tone, colours baked)
+- [X] T025 [P] [US2] Convert `design/assets/icons/outline/*.svg` to `app/src/main/res/drawable/ic_peke_outline_*.xml` with a single tintable colour (`currentColor` → `@android:color/white` filled, tinted at runtime)
+- [X] T026 [P] [US2] Convert `design/assets/logo-peke.svg` to `app/src/main/res/drawable/logo_peke.xml`
+- [X] T027 [US2] Adaptive launcher icon from `design/assets/app-icon.svg`: `app/src/main/res/drawable/ic_launcher_{background,foreground,monochrome}.xml`, `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`; PNG fallbacks for API 23–25 in `mipmap-*dpi`, rendered from the SVG
+- [X] T028 [US2] TV banner from `design/assets/tv-banner.svg` as `@mipmap/ic_banner` (vector, with an xhdpi PNG fallback if API 23 needs it) referenced by `app/src/main/AndroidManifest.xml`
+- [X] T029 [US2] Write `specs/007-peke-interface/assets-conversion.md`: per file, converter result, unsupported features (`<style>`, `<use>`, masks, filters, gradients on API 23, `clip-path`) and workaround
+- [X] T030 [US2] [US6] Validation as T017, launcher screenshot, size measured and recorded as T019
 
 ## Phase 3: Kid screens (US3, PR 3)
 
@@ -80,42 +80,42 @@ Paths are relative to `app/src/main/java/dev/aldoborrero/peke/` unless they star
 **Independent Test**: quickstart Phase 3.
 
 - [X] T031 [US3] Test in `kids/KidProfileRepositoryTest.kt`: a daily-time save sends the cached `Avatar` and an unknown field back unchanged. The plugin's `PUT` is a full replacement; `KidProfileMapper.toUpdate` already starts from the cached server JSON, so nothing is cleared (contracts/kids-api-avatar.md, "Writing the profile")
-- [ ] T032 [P] [US3] Tests in `kids/KidsApiTest.kt`: `ApiMinorVersion` read (missing = 0); `Avatar` read from `GET /Kids/Profiles` entries and the profile; values `leo`, `max`, `nico`, `lucy`, `sara`, `mia` matched lowercase, "Omitted when the kid has none", anything else treated as none; ignored without the `avatar` feature
-- [ ] T033 [P] [US3] Kids database migration test for the new nullable `avatar` column in `kids/KidsDatabaseMigrationTest.kt`
-- [ ] T034 [US3] Add `KidsFeatures.AVATAR = "avatar"`, `ApiMinorVersion` on `KidsInfo`, `Avatar` on `KidProfileRef` (`GET /Kids/Profiles`) and the profile DTO in `kids/server/KidsDtos.kt`; `KidProfileMapper.toUpdate` already sends it back (T031); `KidAvatarName` enum with drawable and background (DESIGN Avatars) in `kids/ui/KidAvatarName.kt`
-- [ ] T035 [US3] Cache the avatar with the kid in the kids Room database (entity, DAO, migration, exported schema) under `kids/data/`
-- [ ] T036 [P] [US3] Tests in `kids/KidAvatarTest.kt`: avatar → profile image → initial order; image error falls back to the initial
-- [ ] T037 [US3] `kids/setup/KidAvatar.kt`: draw the avatar on its colour, else the image, else the initial (FR-017, FR-018)
-- [ ] T038 [US3] Picker ("Who's watching?") per canvas 1b: avatar tiles with `pekeFocus(CircleShape)`, names in Headline, Grown-ups last and never first focus, in the kids picker files under `kids/setup/`
-- [ ] T039 [US3] Sidebar per DESIGN Behaviour with outline icons, avatar at the top, Grown-ups at the bottom, selected in primary and others in text secondary while closed: `ui/nav/NavDrawer.kt`, `ui/nav/NavigationDrawerAndroid.kt`
-- [ ] T040 [US3] Kids home rows and cards per canvas 2b/2c (spacing, corners, Section titles) in `ui/main/` home files
-- [ ] T041 [US3] Details pages (series, seasons, episodes, film) per canvas 3, 13–17 keeping 004's kid rules, in `ui/detail/`
-- [ ] T042 [US3] Player overlay per canvas 4 in `ui/playback/overlay/`
-- [ ] T043 [P] [US3] Tests in `kids/KidsTimerBarTest.kt`: position Top/Bottom/Hidden kept; prominent from the first `WarnAtSeconds` point; hidden for an unlimited kid
-- [ ] T044 [US3] Timer bar: time colour, outline time-left icon, minutes label; taller with Body label from the first warning, no flashing; in `kids/timer/KidsTimerBar.kt` and `kids/ui/KidsTimerEffects.kt` (R10)
-- [ ] T045 [US3] Strings for the picker, sidebar and timer bar, English and Spanish
-- [ ] T046 [US3] [US6] Validation as T017, screenshots, size measured and recorded
+- [X] T032 [P] [US3] Tests in `kids/KidAvatarsTest.kt`: `Avatar` read from the cached profile; values `leo`, `max`, `nico`, `lucy`, `sara`, `mia` matched lowercase, "Omitted when the kid has none", anything else treated as none; ignored without the `avatar` feature; another server's kid excluded. `ApiMinorVersion` isn't read: the plugin's contract says to check `Features`, which Peke does
+- [X] T033 [P] [US3] (changed) No Room migration: the avatar is read from the profile JSON the server last sent (`KidProfile.serverJson`), like the live TV channels, so it is cached with the profile and needs no column
+- [X] T034 [US3] `KidsFeatures.AVATAR = "avatar"` and `KidProfileMapper.avatarId` in `kids/server/KidsDtos.kt`; `KidProfileMapper.toUpdate` already sends it back (T031); the enum is `PekeAvatar` in `ui/theme/PekeArt.kt` (Phase 2). `KidProfileRef` isn't changed: profiles are refreshed when their revision changes, which an avatar change does
+- [X] T035 [US3] `kids/data/KidAvatars.kt`: each kid's avatar by row id from the cached profiles, empty while the cached plugin row lacks `avatar`; `KidProfileDao.observeAll()` (a query, no schema change)
+- [X] T036 [P] [US3] Tests in `kids/KidAvatarsTest.kt`: avatar → profile image → initial order; image error falls back to the initial; `kids/setup/KidsPickerTest.kt`: the picker shows each kid's avatar
+- [X] T037 [US3] `kids/setup/KidAvatar.kt`: draw the avatar on its colour, else the image, else the initial (FR-017, FR-018)
+- [X] T038 [US3] Picker ("Who's watching?") per canvas 1b: avatar tiles with `pekeFocus(CircleShape)`, names in Headline, Grown-ups last and never first focus, in `kids/setup/KidsPicker.kt`
+- [X] T039 [US3] Sidebar per DESIGN Behaviour with outline icons, avatar at the top, Grown-ups at the bottom, selected in primary and others in text secondary while closed: `ui/nav/NavDrawer.kt`, `ui/nav/ProfileGate.kt`, `kids/ui/KidsUi.kt`
+- [X] T040 [US3] Kids home rows and cards: an 18 dp minimum gap and room for the focus ring in `ui/cards/ItemRow.kt`, row spacing in `ui/main/HomePage.kt`; Section titles were already titleLarge
+- [X] T041 [US3] Details pages: Peke's play icon and spacing for the focus ring in `ui/components/PlayButtons.kt`; the pills, focus and type come from Phase 1. 004's kid rules unchanged
+- [X] T042 [US3] Player overlay: Peke's play, pause, subtitles and next-episode outline icons in `ui/playback/overlay/PlaybackControls.kt`
+- [X] T043 [P] [US3] Tests: `kids/KidsTimeLimitsTest.kt` (prominent from the first `WarnAtSeconds` point, counted down while playing, a sitting's own points, nothing when unlimited, stopped or without points) and `kids/TimeLeftBarTest.kt` (minutes rounded up, never 0)
+- [X] T044 [US3] Timer bar: `kids/ui/TimeLeftBar.kt` (time colour, outline time-left icon, minutes label; taller with a Section-size label from the first warning, no flashing), used by `kids/ui/KidsTimerEffects.kt`, whose warning now matches it; `KidsLimits.nearEnd` in `kids/timer/KidsTimeLimits.kt` (R10)
+- [X] T045 [US3] Strings: `kids_time_bar_minutes`, English and Spanish
+- [X] T046 [US3] [US6] Validation as T017, screenshots, size measured and recorded
 
 ## Phase 4: Stops and states (US4, PR 4)
 
 **Goal**: the mascot stop screens and the loading, empty and error states.
 **Independent Test**: quickstart Phase 4.
 
-- [ ] T047 [P] [US4] Tests in `kids/KidsStopScreenTest.kt`: each stop reason maps to its mood (time's up → waving, outside hours → sleeping, can't play → puzzled, offline → searching, episodes in a row → cheering, break → buddy) and Grown-ups is never the initial focus
-- [ ] T048 [US4] Shared stop layout (buddy, Display title, Supporting line, Grown-ups in the corner) in `kids/ui/KidsStopScreen.kt`
-- [ ] T049 [US4] Use it in `kids/ui/KidsTimesUpPage.kt`, `kids/ui/KidsEndScreen.kt` and the can't-play and offline pages
-- [ ] T050 [US4] Starting up, home loading, empty states and errors per canvas S1–S5 in `ui/components/` (loading page, error message, empty rows); kid errors without technical detail
-- [ ] T051 [US4] Strings per DESIGN Words, English and Spanish
-- [ ] T052 [US4] [US6] Validation as T017, screenshots, size measured and recorded
+- [X] T047 [P] [US4] Tests in `kids/KidsStopScreenTest.kt`: each stop reason maps to its mood (time's up → waving, outside hours → sleeping, break → buddy) and each kid error to offline (searching) or oops (puzzled) by its cause; Grown-ups never first focus is kept from 005 (focus starts on the message)
+- [X] T048 [US4] Shared stop layout in `kids/ui/KidsTimesUpPage.kt` (`KidsGrownUpsMessage`: buddy in its mood, Display title, Supporting line, Grown-ups small in the bottom corner); `kids/ui/KidsStop.kt` (new): `stopMood`, `KidsTrouble`, `KidsTroubleMessage`, `KidsEmptyMessage`, `isKidScreen`
+- [X] T049 [US4] Used by time's up, bedtime and the break (`KidsTimesUpPage`), the refused channel (puzzled), can't play (`ui/playback/PlaybackPage.kt` through `ErrorMessage`) and offline (any kid error caused by a network error); `kids/ui/KidsEndScreen.kt` gets the cheering buddy
+- [X] T050 [US4] `ui/components/ErrorMessage.kt`: kids get the buddy page, without the error or the log button (grown-up pages, marked by `LocalGrownUpPage` from `GrownUpGuard`, keep them); `ui/components/CircularProgress.kt`: the buddy above the spinner on kid screens and at start-up (`MainActivity`); empty grids (`ui/detail/CardGrid.kt`) and searches (`ui/search/SearchPage.kt`) show the buddy and a line; search errors no longer show kids the exception. Fixed on the way: the search box and the text input dialog drew text in a container's "on" colour, navy on navy in PekeTV (`ui/components/EditTextBox.kt`, `ui/preferences/StringInputDialog.kt`)
+- [X] T051 [US4] Strings `kids_oops_title`, `kids_oops_wont_play`, `kids_oops_hint`, `kids_offline_title`, `kids_offline_hint`, `kids_empty`, `kids_search_empty`, English and Spanish
+- [X] T052 [US4] [US6] Validation as T017, screenshots, size measured and recorded
 
 ## Phase 5: First setup (US5, PR 5)
 
 **Goal**: setup steps in the canvas look, behaviour unchanged.
 **Independent Test**: 004's setup tests unchanged and green; the owner walks setup after a reset.
 
-- [ ] T053 [US5] Buddy header and theme for every step (select server, add server, select user, sign in, Quick Connect, administrator) in `kids/setup/` pages, grown-up focus (no scale)
-- [ ] T054 [US5] Strings changed for the new layout, English and Spanish
-- [ ] T055 [US5] [US6] Validation as T017, size measured and recorded
+- [X] T053 [US5] Every setup step (select and add server, the administrator, the parent code, picking kids, their sign-in with Quick Connect, voice search) shares `SetupFlow`'s root in `kids/setup/SetupFlow.kt`: the Peke logo (buddy and wordmark) as the header, step titles in Title style, grown-up focus (border and ring, no scale) and errors with their details (`LocalPekeFocusScale` false, `LocalGrownUpPage` true); the shared spinner in `ui/components/CircularProgress.kt` is primary. 004's behaviour unchanged
+- [X] T054 [US5] Strings: none changed (the header reuses `app_name`)
+- [X] T055 [US5] [US6] Validation as T017, size measured and recorded; setup screenshots need a reset or the parent code, so the owner takes them
 
 ## Phase 6: Grown-ups screens full-screen (US7, PR 6) ⛔ Blocked
 

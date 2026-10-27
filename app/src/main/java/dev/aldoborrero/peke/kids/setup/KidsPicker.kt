@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,6 +40,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
@@ -47,12 +49,17 @@ import dev.aldoborrero.peke.kids.ui.KidsParentGate
 import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.Button
+import dev.aldoborrero.peke.ui.theme.PekeAvatar
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.tryRequestFocus
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.Jellyfin
@@ -121,10 +128,14 @@ fun pickAction(
         else -> PickAction.OPEN
     }
 
+/**
+ * @param avatar the avatar a grown-up picked in the Kids plugin, shown before [imageUrl]
+ */
 data class PickerKid(
     val user: JellyfinUser,
     val imageUrl: String?,
     val needsGrownUp: Boolean,
+    val avatar: PekeAvatar? = null,
 )
 
 /**
@@ -147,6 +158,7 @@ data class PickerState(
  * A grown-up's parent grant ends once a kid is chosen ([ParentLockService.forgetGrants]): the picker comes after the
  * gate when switching kids (spec FR-012, FR-012a), and the kid picked must not open grown-up pages with that grant.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class KidsPickerViewModel
     @Inject
@@ -157,6 +169,7 @@ class KidsPickerViewModel
         private val setupNavigationManager: SetupNavigationManager,
         private val parentLockService: ParentLockService,
         private val jellyfin: Jellyfin,
+        private val kidAvatars: KidAvatars,
     ) : ViewModel() {
         private val gate = MutableStateFlow<PickerGate?>(null)
 
@@ -166,19 +179,26 @@ class KidsPickerViewModel
          */
         private val grownUpPicking = parentLockService.consumePickGrant()
 
+        // The avatars as cached for this TV's server, so the picker opens without the server
+        private val avatars =
+            tvSetupRepository.state.flatMapLatest { tv ->
+                (tv as? TvState.SetUp)?.let { kidAvatars.observe(it.server.id) } ?: flowOf(emptyMap())
+            }
+
         val state: StateFlow<PickerState> =
-            combine(tvSetupRepository.state, gate, ::pickerState)
-                .stateIn(viewModelScope, SharingStarted.Eagerly, pickerState(tvSetupRepository.state.value, null))
+            combine(tvSetupRepository.state, gate, avatars, ::pickerState)
+                .stateIn(viewModelScope, SharingStarted.Eagerly, pickerState(tvSetupRepository.state.value, null, emptyMap()))
 
         private fun pickerState(
             tv: TvState,
             gate: PickerGate?,
+            avatars: Map<Int, PekeAvatar>,
         ): PickerState {
             val setUp = tv as? TvState.SetUp ?: return PickerState(gate = gate)
             val api = jellyfin.createApi(baseUrl = setUp.server.url)
             return PickerState(
                 server = setUp.server,
-                kids = setUp.kids.map { PickerKid(it, api.imageApi.getUserImageUrl(it.id), needsGrownUp(it)) },
+                kids = setUp.kids.map { PickerKid(it, api.imageApi.getUserImageUrl(it.id), needsGrownUp(it), avatars[it.rowId]) },
                 gate = gate,
             )
         }
@@ -266,12 +286,14 @@ fun KidsPicker(
         ) {
             Text(
                 text = stringResource(R.string.peke_picker_title),
-                style = MaterialTheme.typography.displaySmall,
+                // DESIGN's Title
+                style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
+                // Room around each avatar for its focus ring and scale-up
+                horizontalArrangement = Arrangement.spacedBy(32.dp),
+                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 24.dp),
                 modifier =
                     Modifier
                         .focusRestorer(firstFocus)
@@ -282,6 +304,7 @@ fun KidsPicker(
                         id = kid.user.id,
                         name = kid.user.name,
                         imageUrl = kid.imageUrl,
+                        avatar = kid.avatar,
                         caption = if (kid.needsGrownUp) stringResource(R.string.peke_picker_needs_grown_up) else null,
                         badge = if (kid.needsGrownUp) Icons.Default.Lock else null,
                         onClick = { viewModel.pick(kid.user) },
@@ -314,7 +337,7 @@ fun NoKidsPage(modifier: Modifier = Modifier) {
         ) {
             Text(
                 text = stringResource(R.string.peke_no_kids_title),
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -340,7 +363,7 @@ private fun GrownUpsButton(onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(horizontal = 8.dp),
         ) {
-            Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(20.dp))
+            Icon(painterResource(PekeIcon.GROWN_UPS.outline), contentDescription = null, modifier = Modifier.size(24.dp))
             Text(stringResource(R.string.kids_grown_ups))
             Spacer(Modifier.width(4.dp))
         }

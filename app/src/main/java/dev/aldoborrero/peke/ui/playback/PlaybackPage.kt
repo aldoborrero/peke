@@ -70,6 +70,7 @@ import androidx.media3.ui.compose.state.rememberPresentationState
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.mpv.MpvPlayer
+import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsAutoplayPolicy
@@ -134,7 +135,7 @@ fun PlaybackPage(
     val state by viewModel.state.collectAsState()
     when (val st = state.loading) {
         is LoadingState.Error -> {
-            ErrorMessage(st, modifier)
+            ErrorMessage(st, modifier, kidsTitle = R.string.kids_oops_wont_play)
         }
 
         LoadingState.Pending,

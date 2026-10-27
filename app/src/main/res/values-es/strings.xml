@@ -735,6 +735,11 @@
         <item quantity="many">Quedan %1$d minutos</item>
         <item quantity="other">Quedan %1$d minutos</item>
     </plurals>
+    <plurals name="kids_time_bar_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="kids_minutes_left_sitting">
         <item quantity="one">Queda %1$d minuto en este rato</item>
         <item quantity="many">Quedan %1$d minutos en este rato</item>
@@ -776,6 +781,13 @@
     <string name="kids_timer_bar_bottom">Abajo</string>
     <string name="kids_timer_bar_top">Arriba</string>
     <string name="kids_times_up">¡Se acabó el tiempo!</string>
+    <string name="kids_oops_title">Vaya, algo ha salido mal</string>
+    <string name="kids_empty">Aún no hay nada aquí</string>
+    <string name="kids_search_empty">No hemos encontrado nada. ¡Prueba otra palabra!</string>
+    <string name="kids_oops_wont_play">Vaya, este no se puede ver</string>
+    <string name="kids_oops_hint">Prueba con otro o pide ayuda a un adulto</string>
+    <string name="kids_offline_title">Peke no encuentra tus series</string>
+    <string name="kids_offline_hint">Volvemos a probar en un momento</string>
     <string name="kids_times_up_subtitle">Hasta la próxima, %1$s</string>
     <string name="kids_unlimited">Sin límite</string>
     <string name="kids_watch_again">Ver otra vez</string>

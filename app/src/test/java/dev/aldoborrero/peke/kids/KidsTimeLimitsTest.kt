@@ -393,4 +393,22 @@ class KidsTimeLimitsTest {
         assertEquals(KidsDenial.TIME_UP, cached.denial)
         assertTrue(isStopped(cached, null))
     }
+
+    @Test
+    fun `the timer bar stands out from the first warning point to the end`() {
+        // The plugin's first warning point is the latest one: 5 minutes by default
+        assertFalse(KidsLimits.of(status(remaining = 301)).nearEnd)
+        assertTrue(KidsLimits.of(status(remaining = 300)).nearEnd)
+        assertTrue(KidsLimits.of(status(remaining = 30)).nearEnd)
+        // Counted down between polls as the kid watches here
+        assertTrue(KidsLimits.of(status(remaining = 400), played = 2.minutes).nearEnd)
+        // A sitting that ends first counts, with the server's own warning points
+        val sitting = status(remaining = 2000).sitting(remaining = 500).copy(warnAtSeconds = listOf(600, 120))
+        assertTrue(KidsLimits.of(sitting).nearEnd)
+        // Nothing counting down, or the kid already stopped
+        assertFalse(KidsLimits.of(status(remaining = null)).nearEnd)
+        assertFalse(KidsLimits.of(status(remaining = 0, timeUp = true)).nearEnd)
+        // A server that sends no warning points has no near end
+        assertFalse(KidsLimits.of(status(remaining = 10).copy(warnAtSeconds = emptyList())).nearEnd)
+    }
 }

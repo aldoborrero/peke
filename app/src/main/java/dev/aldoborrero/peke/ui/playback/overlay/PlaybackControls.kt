@@ -78,6 +78,7 @@ import dev.aldoborrero.peke.ui.playback.PlaybackDialogType
 import dev.aldoborrero.peke.ui.seekBack
 import dev.aldoborrero.peke.ui.seekForward
 import dev.aldoborrero.peke.ui.skipStringRes
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -367,7 +368,7 @@ fun RightPlaybackButtons(
         // Captions
         PlaybackButton(
             enabled = true,
-            iconRes = R.drawable.captions_svgrepo_com,
+            iconRes = PekeIcon.SUBTITLES.outline,
             onClick = {
                 onControllerInteraction.invoke()
                 onClickPlaybackDialogType.invoke(PlaybackDialogType.CAPTIONS)
@@ -428,7 +429,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 modifier = Modifier.focusRequester(initialFocusRequester),
-                iconRes = if (showPlay) R.drawable.baseline_play_arrow_24 else R.drawable.baseline_pause_24,
+                iconRes = if (showPlay) PekeIcon.PLAY.outline else PekeIcon.PAUSE.outline,
                 onClick = {
                     onControllerInteraction.invoke()
                     if (showPlay) {
@@ -451,7 +452,7 @@ fun PlaybackButtons(
                 onControllerInteraction = onControllerInteraction,
             )
             PlaybackButton(
-                iconRes = R.drawable.baseline_skip_next_24,
+                iconRes = PekeIcon.NEXT_EPISODE.outline,
                 onClick = {
                     onControllerInteraction.invoke()
                     onPlaybackActionClick.invoke(PlaybackAction.Next)

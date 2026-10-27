@@ -54,6 +54,8 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
+import dev.aldoborrero.peke.kids.ui.KidsEmptyMessage
+import dev.aldoborrero.peke.kids.ui.isKidScreen
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.cards.GridCard
 import dev.aldoborrero.peke.ui.cards.ItemRow
@@ -309,6 +311,13 @@ fun SearchPage(
                     )
                 }
 
+                // Every kind searched and nothing found: kids get the buddy rather than a blank page
+                isKidScreen() &&
+                    state.includedSearchableTypes.isNotEmpty() &&
+                    state.includedSearchableTypes.all { (state.results[it] as? SearchResult.Success)?.items?.isEmpty() == true } -> {
+                    KidsEmptyMessage(R.string.kids_search_empty, Modifier.fillMaxSize())
+                }
+
                 else -> {
                     LazyColumn(
                         contentPadding =
@@ -452,7 +461,9 @@ fun SearchCombinedResults(
         }
 
         is SearchResult.Success -> {
-            if (result.items.isEmpty()) {
+            if (result.items.isEmpty() && isKidScreen()) {
+                KidsEmptyMessage(R.string.kids_search_empty, modifier.padding(16.dp))
+            } else if (result.items.isEmpty()) {
                 SearchResultPlaceholder(
                     title = stringResource(R.string.results),
                     message = stringResource(R.string.no_results),
@@ -546,7 +557,14 @@ fun SearchRowResult(
         is SearchResult.Error -> {
             SearchResultPlaceholder(
                 title = stringResource(title),
-                message = r.ex.localizedMessage ?: "Error occurred during search",
+                // Kids never see the technical error (design/DESIGN.md, Words)
+                message =
+                    if (isKidScreen()) {
+                        stringResource(R.string.kids_oops_title)
+                    } else {
+                        r.ex.localizedMessage
+                            ?: "Error occurred during search"
+                    },
                 messageColor = MaterialTheme.colorScheme.error,
                 modifier = Modifier,
             )

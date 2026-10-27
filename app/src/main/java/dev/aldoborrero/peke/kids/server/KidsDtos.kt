@@ -69,6 +69,12 @@ object KidsFeatures {
     const val BREAK_END = "breakEnd"
 
     /**
+     * Kid avatars (plugin 0.0.8.0, Kids API 1.1): `Avatar` in the kid profile, one of the six pictures Peke ships
+     * ([dev.aldoborrero.peke.ui.theme.PekeAvatar]), omitted when the kid has none
+     */
+    const val AVATAR = "avatar"
+
+    /**
      * Kids mode needs all of these (plugin 0.0.5.0 or later), since only the server keeps time
      */
     val REQUIRED = listOf(PROFILES, PARENT_LOCK, ENFORCEMENT, SITTING)
@@ -350,6 +356,7 @@ object KidProfileMapper {
     const val DAILY_ALLOWANCE_MINUTES = "DailyAllowanceMinutes"
     const val SESSION_LIMIT_MINUTES = "SessionLimitMinutes"
     const val LIVE_TV_CHANNEL_IDS = "LiveTvChannelIds"
+    private const val AVATAR = "Avatar"
 
     fun sectionName(section: KidsHomeSection): String = sectionNames.getValue(section)
 
@@ -402,6 +409,12 @@ object KidProfileMapper {
         (profile.serverObject()?.get(LIVE_TV_CHANNEL_IDS) as? JsonArray)
             ?.mapNotNull { it.asString()?.toUUIDOrNull() }
             .orEmpty()
+
+    /**
+     * The kid's avatar id as the server last sent it, or null when it sent none. Only the dashboard picks it, so it has
+     * no column of its own and is sent back unchanged with every save ([toUpdate]).
+     */
+    fun avatarId(profile: KidProfile): String? = profile.serverObject()?.get(AVATAR).asString()
 
     /**
      * The body of a `PUT` for [profile]: the last server object, with every field the app edits replaced, so fields

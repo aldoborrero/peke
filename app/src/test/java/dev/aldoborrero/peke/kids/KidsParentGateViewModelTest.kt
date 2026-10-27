@@ -4,6 +4,7 @@ import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.gate.AdminCheck
 import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.gate.LockChange
@@ -510,7 +511,15 @@ class KidsParentGateViewModelTest {
                 KnownKidsStatus(KidsStatus(timeUp = true), fresh = true, sinceFetch = Duration.ZERO)
             val launcher = mockk<TvLauncher>(relaxed = true)
             val picker =
-                KidsPickerViewModel(tvSetupRepository, allowanceService, launcher, setupNavigationManager, parentLockService, http.jellyfin)
+                KidsPickerViewModel(
+                    tvSetupRepository,
+                    allowanceService,
+                    launcher,
+                    setupNavigationManager,
+                    parentLockService,
+                    http.jellyfin,
+                    KidAvatars(FakeKidProfileDao(), FakeKidsServerDao()),
+                )
 
             picker.pick(lucia).join()
 
@@ -523,7 +532,15 @@ class KidsParentGateViewModelTest {
 
             // The next picker asks again: the pick grant was for that one picker only
             val next =
-                KidsPickerViewModel(tvSetupRepository, allowanceService, launcher, setupNavigationManager, parentLockService, http.jellyfin)
+                KidsPickerViewModel(
+                    tvSetupRepository,
+                    allowanceService,
+                    launcher,
+                    setupNavigationManager,
+                    parentLockService,
+                    http.jellyfin,
+                    KidAvatars(FakeKidProfileDao(), FakeKidsServerDao()),
+                )
             next.pick(lucia).join()
             assertTrue(next.state.value.gate != null)
         }

@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.kids.setup
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,10 +39,45 @@ import coil3.compose.AsyncImage
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.cards.rememberIdColor
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
+import dev.aldoborrero.peke.ui.theme.PekeAvatar
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import java.util.UUID
 
 /**
- * A kid's picture, or their initial on their own colour when there is none or it can't load
+ * What shows for a kid: their avatar, else their Jellyfin picture, else their initial
+ */
+sealed interface KidPicture {
+    data class Avatar(
+        val avatar: PekeAvatar,
+    ) : KidPicture
+
+    data class Image(
+        val url: String,
+    ) : KidPicture
+
+    data object Initial : KidPicture
+}
+
+/**
+ * The [KidPicture] for a kid with [avatar] (from the Kids plugin) and Jellyfin picture [imageUrl]
+ *
+ * @param imageFailed the picture at [imageUrl] couldn't be loaded
+ */
+fun kidPicture(
+    avatar: PekeAvatar?,
+    imageUrl: String?,
+    imageFailed: Boolean,
+): KidPicture =
+    when {
+        avatar != null -> KidPicture.Avatar(avatar)
+        imageUrl.isNotNullOrBlank() && !imageFailed -> KidPicture.Image(imageUrl)
+        else -> KidPicture.Initial
+    }
+
+/**
+ * A kid's avatar (picked by a grown-up in the Kids plugin), their Jellyfin picture, or their initial on their own
+ * colour when they have neither or the picture can't load
  *
  * @param alpha of the colour behind the initial
  * @param initialStyle of the initial, smaller for a small avatar such as the sidebar's
@@ -51,33 +88,46 @@ fun KidAvatar(
     name: String?,
     imageUrl: String?,
     modifier: Modifier = Modifier,
+    avatar: PekeAvatar? = null,
     alpha: Float = .6f,
-    initialStyle: TextStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+    initialStyle: TextStyle = MaterialTheme.typography.displaySmall,
 ) {
     var imageError by remember(imageUrl) { mutableStateOf(false) }
-    val color = rememberIdColor(id, alpha)
-    Box(
-        modifier = modifier.background(color, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (imageUrl.isNotNullOrBlank() && !imageError) {
+    when (val picture = kidPicture(avatar, imageUrl, imageError)) {
+        is KidPicture.Avatar -> {
+            // The avatar carries its own round background
+            Image(
+                painter = painterResource(picture.avatar.drawable),
+                contentDescription = name,
+                modifier = modifier.clip(CircleShape),
+            )
+        }
+
+        is KidPicture.Image -> {
             AsyncImage(
-                model = imageUrl,
+                model = picture.url,
                 contentDescription = name,
                 contentScale = ContentScale.Crop,
                 onError = { imageError = true },
                 modifier =
-                    Modifier
-                        .fillMaxSize()
+                    modifier
+                        .background(rememberIdColor(id, alpha), CircleShape)
                         .clip(CircleShape),
             )
-        } else {
-            Text(
-                text = remember(id, name) { (name ?: id.toString()).firstOrNull()?.uppercase() ?: "?" },
-                style = initialStyle,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-            )
+        }
+
+        KidPicture.Initial -> {
+            Box(
+                modifier = modifier.background(rememberIdColor(id, alpha), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = remember(id, name) { (name ?: id.toString()).firstOrNull()?.uppercase() ?: "?" },
+                    style = initialStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
@@ -87,6 +137,7 @@ fun KidAvatar(
  *
  * @param selected shows a check mark, for picking kids
  * @param caption a line under the name, such as that a grown-up is needed
+ * @param avatar the avatar a grown-up picked in the Kids plugin, shown before [imageUrl]
  * @param badge an icon over the avatar instead of the check mark
  */
 @Composable
@@ -96,6 +147,7 @@ fun KidAvatarCard(
     imageUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    avatar: PekeAvatar? = null,
     selected: Boolean = false,
     caption: String? = null,
     badge: ImageVector? = null,
@@ -108,7 +160,7 @@ fun KidAvatarCard(
     ) {
         Surface(
             onClick = onClick,
-            modifier = Modifier.size(size),
+            modifier = Modifier.size(size).pekeFocus(CircleShape),
             shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
             border =
                 ClickableSurfaceDefaults.border(
@@ -118,12 +170,12 @@ fun KidAvatarCard(
                         } else {
                             Border.None
                         },
-                    focusedBorder = Border(BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface), shape = CircleShape),
+                    focusedBorder = Border.None,
                 ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+            scale = PekeFocus.surfaceScale,
         ) {
             Box(Modifier.fillMaxSize()) {
-                KidAvatar(id = id, name = name, imageUrl = imageUrl, modifier = Modifier.fillMaxSize())
+                KidAvatar(id = id, name = name, imageUrl = imageUrl, avatar = avatar, modifier = Modifier.fillMaxSize())
                 val icon = badge ?: if (selected) Icons.Default.CheckCircle else null
                 icon?.let {
                     Icon(
@@ -142,8 +194,8 @@ fun KidAvatarCard(
         }
         Text(
             text = name ?: "",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            // DESIGN's Headline, for kid names on profiles
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 2,

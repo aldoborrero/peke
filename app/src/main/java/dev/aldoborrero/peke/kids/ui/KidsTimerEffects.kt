@@ -6,12 +6,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -22,11 +23,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.media3.common.Player
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,6 +44,8 @@ import dev.aldoborrero.peke.kids.timer.ResumePoint
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PlayerFactory
 import dev.aldoborrero.peke.ui.nav.Destination
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
@@ -181,23 +186,13 @@ private fun KidsTimerEffectsContent(
         val remaining = limits.remaining
         val total = limits.total
         if (remaining != null && total != null && total.isPositive() && barPosition != KidsTimerBarPosition.HIDDEN) {
-            val fraction = (remaining / total).toFloat().coerceIn(0f, 1f)
-            Box(
-                modifier =
-                    Modifier
-                        .align(if (barPosition == KidsTimerBarPosition.BOTTOM) Alignment.BottomCenter else Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .15f)),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(fraction)
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.primary),
-                )
-            }
+            TimeLeftBar(
+                remaining = remaining,
+                total = total,
+                nearEnd = limits.nearEnd,
+                position = barPosition,
+                modifier = Modifier.align(if (barPosition == KidsTimerBarPosition.BOTTOM) Alignment.BottomCenter else Alignment.TopCenter),
+            )
         }
         AnimatedVisibility(
             visible = warning != null,
@@ -206,18 +201,32 @@ private fun KidsTimerEffectsContent(
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 24.dp),
+                    // Below the time left when it is at the top
+                    .padding(top = if (barPosition == KidsTimerBarPosition.TOP) 88.dp else 24.dp),
         ) {
             val minutes = warning?.inWholeMinutes?.toInt() ?: 1
-            Text(
-                text = pluralStringResource(R.plurals.kids_minutes_left, minutes, minutes),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            // In the time colour with its icon, like the time left
+            val colors = LocalPekeColors.current
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-            )
+                        .background(colors.time, CircleShape)
+                        .padding(horizontal = 28.dp, vertical = 12.dp),
+            ) {
+                Icon(
+                    painter = painterResource(PekeIcon.TIME_LEFT.outline),
+                    contentDescription = null,
+                    tint = colors.background,
+                    modifier = Modifier.size(32.dp),
+                )
+                Text(
+                    text = pluralStringResource(R.plurals.kids_minutes_left, minutes, minutes),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.background,
+                )
+            }
         }
     }
 }

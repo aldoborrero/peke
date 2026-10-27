@@ -96,13 +96,13 @@
 
 ## R8. SVG to VectorDrawable (Phase 2)
 
-- **Decision**: convert with Android Studio's Vector Asset converter logic as packaged in the devshell's `android` CLI
-  or AGP's `vd-tool` if present; otherwise by hand-checked conversion. Each file is checked by rendering it (a
+- **Decision**: AGP's `Svg2Vector` (`com.android.tools:sdk-common` 32.2.1, the code behind Android Studio's Vector
+  Asset tool), run from the Gradle cache with the devshell's `java`; nothing installed (assets-conversion.md). Each file is checked by rendering it (a
   Robolectric test that inflates every drawable, and the emulator). Features VectorDrawable lacks: `<text>` (already
   paths), CSS `<style>`, `<use>`, masks, filters, `<pattern>`, and gradients before API 24 (minSdk 23: inline
   gradients need `aapt:attr` and render from API 24; on 23 they fall back to the first stop). The log lists any
   use per file and the workaround (flatten, expand `<use>`, replace gradients with solid fills).
-- To confirm at the start of Phase 2 which converter the devshell has.
+- Confirmed in Phase 2 (T020): the SVGs use none of the unsupported features; only `currentColor` needed replacing.
 
 ## R9. Avatars from the plugin (Phase 3)
 

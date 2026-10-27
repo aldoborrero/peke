@@ -44,7 +44,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -71,6 +73,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.setup.KidAvatar
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
@@ -85,12 +88,16 @@ import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.spacedByWithFooter
+import dev.aldoborrero.peke.ui.theme.PekeAvatar
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.toServerString
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
@@ -109,6 +116,7 @@ class NavDrawerViewModel
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
         private val musicService: MusicService,
+        private val kidAvatars: KidAvatars,
     ) : ViewModel() {
         val serviceState = navDrawerService.state
 
@@ -144,6 +152,11 @@ class NavDrawerViewModel
         }
 
         fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
+
+        /**
+         * The avatar a grown-up picked for [user] in the Kids plugin, if any
+         */
+        fun avatar(user: JellyfinUser): Flow<PekeAvatar?> = kidAvatars.observe(user.serverId).map { it[user.rowId] }
 
         /**
          * Determine which nav drawer item should be highlighted as currently selected
@@ -348,9 +361,11 @@ fun NavDrawer(
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
                     val userImageUrl = remember(user) { viewModel.getUserImage(user) }
+                    val avatar by remember(user) { viewModel.avatar(user) }.collectAsState(null)
                     ProfileIcon(
                         user = user,
                         imageUrl = userImageUrl,
+                        avatar = avatar,
                         serverName = server.name ?: server.url,
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
@@ -373,7 +388,7 @@ fun NavDrawer(
                         IconNavItem(
                             text = stringResource(R.string.now_playing),
                             subtext = serviceState.nowPlayingTitle,
-                            icon = Icons.Default.PlayArrow,
+                            icon = rememberVectorPainter(Icons.Default.PlayArrow),
                             selected = selectedIndex == NOW_PLAYING_INDEX,
                             drawerOpen = isOpen,
                             interactionSource = interactionSource,
@@ -412,7 +427,7 @@ fun NavDrawer(
                                 val interactionSource = remember { MutableInteractionSource() }
                                 IconNavItem(
                                     text = stringResource(R.string.search),
-                                    icon = Icons.Default.Search,
+                                    icon = painterResource(PekeIcon.SEARCH.outline),
                                     selected = selectedIndex == SEARCH_INDEX,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
@@ -434,7 +449,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.home),
-                                icon = Icons.Default.Home,
+                                icon = painterResource(PekeIcon.HOME.outline),
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
@@ -478,7 +493,7 @@ fun NavDrawer(
                                 val interactionSource = remember { MutableInteractionSource() }
                                 IconNavItem(
                                     text = stringResource(R.string.settings),
-                                    icon = Icons.Default.Settings,
+                                    icon = rememberVectorPainter(Icons.Default.Settings),
                                     selected = false,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
@@ -498,7 +513,7 @@ fun NavDrawer(
                                 val interactionSource = remember { MutableInteractionSource() }
                                 IconNavItem(
                                     text = stringResource(profileGate.title),
-                                    icon = profileGate.icon,
+                                    icon = painterResource(profileGate.icon),
                                     selected = false,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
@@ -542,6 +557,7 @@ fun NavDrawer(
 fun NavigationDrawerScope.ProfileIcon(
     user: JellyfinUser,
     imageUrl: String?,
+    avatar: PekeAvatar?,
     serverName: String,
     drawerOpen: Boolean,
     onClick: () -> Unit,
@@ -557,6 +573,7 @@ fun NavigationDrawerScope.ProfileIcon(
                 id = user.id,
                 name = user.name,
                 imageUrl = imageUrl,
+                avatar = avatar,
                 alpha = if (drawerOpen) 1f else .5f,
                 initialStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                 modifier = Modifier.size(DrawerIconSize),
@@ -581,7 +598,7 @@ fun NavigationDrawerScope.ProfileIcon(
 @Composable
 fun NavigationDrawerScope.IconNavItem(
     text: String,
-    icon: ImageVector,
+    icon: Painter,
     onClick: () -> Unit,
     selected: Boolean,
     drawerOpen: Boolean,
@@ -633,7 +650,14 @@ fun NavigationDrawerScope.NavItem(
     containerColor: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
-    val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
+    // The kids' entries use Peke's outline icons; libraries, which kids never see, keep Wholphin's
+    val pekeIcon =
+        when (library) {
+            NavDrawerItem.Favorites -> PekeIcon.FAVOURITES
+            NavDrawerItem.LiveTv -> PekeIcon.LIVE
+            else -> null
+        }
+    val useFont = pekeIcon == null && (library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV)
     val icon =
         remember(library) {
             when (library) {
@@ -671,7 +695,14 @@ fun NavigationDrawerScope.NavItem(
         leadingContent = {
             val color = navItemColor(selected, focused, drawerOpen)
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (useFont) {
+                if (pekeIcon != null) {
+                    Icon(
+                        painter = painterResource(pekeIcon.outline),
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(DrawerIconSize),
+                    )
+                } else if (useFont) {
                     Text(
                         text = stringResource(icon),
                         textAlign = TextAlign.Center,
@@ -706,22 +737,18 @@ fun navItemColor(
     selected: Boolean,
     focused: Boolean,
     drawerOpen: Boolean,
-): Color {
-    val alpha =
-        when {
-            drawerOpen -> .85f
-            selected && !drawerOpen -> .5f
-            else -> .2f
-        }
-    return when {
-        // The page you're on is drawn in the primary colour (design/DESIGN.md, Icons)
-        selected -> MaterialTheme.colorScheme.primary
-
+): Color =
+    when {
         focused -> LocalContentColor.current
 
-        else -> MaterialTheme.colorScheme.onSurface
-    }.copy(alpha = alpha)
-}
+        // The page you're on is drawn in the primary colour; the others in "text, secondary", so the closed rail stays
+        // quiet (design/DESIGN.md, Icons)
+        selected -> MaterialTheme.colorScheme.primary
+
+        drawerOpen -> MaterialTheme.colorScheme.onSurface
+
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .8f)
+    }
 
 val DrawerState.isOpen: Boolean get() = this.currentValue.isOpen
 

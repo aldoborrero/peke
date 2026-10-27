@@ -59,6 +59,7 @@ import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.data.ChooseVersionParams
 import dev.aldoborrero.peke.ui.data.SortAndDirection
 import dev.aldoborrero.peke.ui.ifElse
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.theme.PreviewInteractionSource
 import dev.aldoborrero.peke.ui.tryRequestFocus
@@ -104,8 +105,9 @@ fun ExpandablePlayButtons(
     val itemMenus = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
 
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        // Room for the focus ring
+        contentPadding = PaddingValues(12.dp),
         modifier =
             modifier
                 .focusGroup()
@@ -115,7 +117,7 @@ fun ExpandablePlayButtons(
             ExpandablePlayButton(
                 title = if (resumePosition > Duration.ZERO) R.string.resume else R.string.play,
                 resume = resumePosition,
-                icon = Icons.Default.PlayArrow,
+                icon = painterResource(PekeIcon.PLAY.outline),
                 onClick = playOnClick,
                 modifier =
                     Modifier

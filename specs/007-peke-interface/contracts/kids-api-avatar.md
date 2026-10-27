@@ -36,4 +36,5 @@ trimming; an unknown value gets `400` with `errors.Avatar`, after the revision c
 | `avatar` | one of the six | that avatar on its colour (DESIGN Avatars) |
 | `avatar` | omitted, or a value Peke doesn't ship | Jellyfin profile image, else the initial |
 
-The value is cached with the kid in the kids database, so an offline launch shows the same picture.
+The value is cached with the kid: it is read from the profile JSON the server last sent (`KidProfile.serverJson`), so an
+offline launch shows the same picture, with no column or migration of its own.

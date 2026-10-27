@@ -1,8 +1,12 @@
 package dev.aldoborrero.peke.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -15,8 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import dev.aldoborrero.peke.kids.ui.isKidScreen
+import dev.aldoborrero.peke.ui.theme.BuddyMood
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
@@ -26,7 +33,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun CircularProgress(modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.border,
+            color = MaterialTheme.colorScheme.primary,
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -37,11 +44,15 @@ fun CircularProgress(modifier: Modifier = Modifier) {
 
 /**
  * Fill the space with a loading indicator and take focus
+ *
+ * @param buddy shows the PekeTV buddy above the indicator, as kids see Peke starting up and loading (design/DESIGN.md);
+ * grown-up pages show the indicator alone
  */
 @Composable
 fun LoadingPage(
     modifier: Modifier = Modifier,
     focusEnabled: Boolean = true,
+    buddy: Boolean = isKidScreen(),
 ) {
     val focusRequester = remember { FocusRequester() }
     if (focusEnabled) {
@@ -55,13 +66,22 @@ fun LoadingPage(
                 .focusRequester(focusRequester)
                 .focusable(focusEnabled),
     ) {
-        CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.border,
-            modifier =
-                Modifier
-                    .align(Alignment.Center)
-                    .size(48.dp),
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.dp),
+        ) {
+            if (buddy) {
+                Image(
+                    painter = painterResource(BuddyMood.HAPPY.drawable),
+                    contentDescription = null,
+                    modifier = Modifier.height(160.dp),
+                )
+            }
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp),
+            )
+        }
     }
 }
 
@@ -93,7 +113,7 @@ fun DelayedLoadingPage(
     ) {
         if (show) {
             CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.border,
+                color = MaterialTheme.colorScheme.primary,
                 modifier =
                     Modifier
                         .align(Alignment.Center)

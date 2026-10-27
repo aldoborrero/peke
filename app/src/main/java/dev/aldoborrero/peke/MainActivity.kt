@@ -267,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                                         .fillMaxSize()
                                         .background(PekeTvPalette.background),
                             ) {
-                                LoadingPage()
+                                LoadingPage(buddy = true)
                             }
                         }
                     } else {

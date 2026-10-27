@@ -29,8 +29,7 @@ DESIGN.md built into the app, in six phases that each ship as their own PR:
   M3 components still used), Proto DataStore, Hilt, AboutLibraries (license screen). **No new dependency**: Nunito is a
   font resource and the pictures are vector drawables.
 - **Storage**: `AppThemeColors` in `PekeDataStore.proto` (values 8–11 added, 0–7 reserved); one `DataMigration` on the
-  app preferences DataStore. Phase 3 caches the avatar with the kid profile (Room, kids database: a migration and its
-  test, Principle VIII).
+  app preferences DataStore. Phase 3 reads the avatar from the cached kid profile JSON: no Room change.
 - **Testing**: JUnit4, MockK, Robolectric. `nix develop -c ./gradlew --console=plain assembleDebug testDebugUnitTest
   compileDebugAndroidTestKotlin`, `nix fmt` (twice), `nix develop -c pre-commit run --all-files`, then
   `nix develop -c ./gradlew --stop`.
@@ -56,7 +55,7 @@ DESIGN.md built into the app, in six phases that each ship as their own PR:
 | V. TV-first, D-pad | A stronger focus (border, ring, scale) on every shared component; no touch-only parts | Pass |
 | VI. Private by default | No permission, network call or data collection added. Nunito is bundled, never downloaded | Pass |
 | VII. GPLv2 and branding | Nunito (OFL 1.1) is listed on the license screen with its license; the app icon and banner are Peke's buddy, never the Jellyfin logo | Pass |
-| VIII. Tested where it matters | Tests for the theme migration, theme resolution and the Settings choice, DESIGN's contrast table, the type scale; Phase 3's Room change gets a migration test | Pass |
+| VIII. Tested where it matters | Tests for the theme migration, theme resolution and the Settings choice, DESIGN's contrast table, the type scale; Phase 3's avatars, picture order and timer bar; no Room change (the avatar is read from the cached profile JSON) | Pass |
 
 **Permissions (VI)**: none added or removed.
 
@@ -134,7 +133,7 @@ specs/007-peke-interface/assets-conversion.md   # conversion log (FR-014)
 
 # Phase 3
 kids/server/KidsDtos.kt, KidsApi.kt           # avatar feature and field (contracts/kids-api-avatar.md)
-kids/data/*                                   # avatar cached with the kid (Room migration + test)
+kids/data/KidAvatars.kt, KidProfileDao.kt        # avatars from the cached profile JSON (no migration)
 kids/setup/KidAvatar.kt, KidsPicker*          # avatars and fallbacks
 ui/nav/NavDrawer.kt, ui/main/*, ui/detail/*   # home, sidebar, details
 kids/timer/KidsTimerBar*.kt, kids/ui/KidsTimerEffects.kt   # timer bar
@@ -172,3 +171,27 @@ compressed, from 376 KB raw: the TTFs compress about 55%, better than the 35% ex
 dex +15.6 KB in one file and a few hundred bytes less in others (the eight Wholphin palettes deleted, the new theme
 code added). Inside the plan's estimate (+250 to +380 KB). Release builds weren't measured (they need the owner's
 extensions token); the fonts cost the same there, and R8 shrinks the dex change.
+
+### Phase 2 (2026-10-27, T030)
+
+Clean debug builds, Phase 1 → Phase 2: arm64-v8a 39,149,115 → 39,075,997 (−73,118), armeabi-v7a 37,803,715 →
+37,730,593 (−73,122), x86_64 39,197,316 → 39,124,198 (−73,118). The 57 vector drawables add 45 KB (`res/drawable/`
++38.6 KB, `resources.arsc` +6 KB); the Wholphin-era launcher WebPs and banner PNGs they replace come off (about
+150 KB). Below the estimate (+60 to +150 KB) because of what came off.
+
+### Phase 3 (2026-10-27, T046)
+
+Clean debug builds, Phase 2 → Phase 3: arm64-v8a +118, armeabi-v7a +122, x86_64 +120 bytes (code and two plurals;
+no asset, dependency or schema change).
+
+### Phase 4 (2026-10-27, T052)
+
+Clean debug builds, Phase 3 → Phase 4: arm64-v8a +17,331, armeabi-v7a +17,337, x86_64 +17,330 bytes (dex for the stop,
+error, empty and loading pages; `resources.arsc` +0.9 KB for the strings). No asset or dependency change.
+
+### Phase 5 (2026-10-27, T055)
+
+Clean debug builds, Phase 4 → Phase 5: arm64-v8a −6, armeabi-v7a −11, x86_64 0 bytes (the logo was added in Phase 2).
+
+**Phases 1–5 against the base (`0d9d65c9`)**: arm64-v8a 38,992,266 → 39,093,440 (+101,174), armeabi-v7a 37,646,858 →
+37,748,041 (+101,183), x86_64 39,040,457 → 39,141,648 (+101,191).
