@@ -187,31 +187,6 @@ class KidProfileRepository
          */
         suspend fun isKid(user: JellyfinUser): Boolean = kidProfileDao.get(user.rowId) != null
 
-        suspend fun mark(user: JellyfinUser): SaveResult {
-            val auth = parentLockService.auth() ?: return SaveResult.NEEDS_GRANT
-            val body = KidProfileMapper.toUpdate(KidProfile(userId = user.rowId), 0, sendSessionLimit(auth))
-            return handle(user, auth, kidsApi.putProfile(auth.server.url, auth.caller, auth.grant, user.id, body))
-        }
-
-        suspend fun unmark(user: JellyfinUser): SaveResult {
-            val auth = parentLockService.auth() ?: return SaveResult.NEEDS_GRANT
-            return when (val result = kidsApi.deleteProfile(auth.server.url, auth.caller, auth.grant, user.id)) {
-                is KidsResult.Ok -> {
-                    kidProfileDao.delete(user.rowId)
-                    answeredNotAKid(user.rowId)
-                    SaveResult.SAVED
-                }
-
-                KidsResult.NotAKid, KidsResult.NotFound -> {
-                    if (deleteIfNotAKid(auth.server, user, result)) SaveResult.SAVED else SaveResult.FAILED
-                }
-
-                else -> {
-                    failure(result)
-                }
-            }
-        }
-
         /**
          * Save [profile] on the server, based on its cached revision
          */
@@ -238,7 +213,6 @@ class KidProfileRepository
                 }
 
                 is KidsResult.Conflict -> {
-                    // Marking a user who already is a kid also ends here, with their current profile
                     result.current?.let { store(user, it) } ?: refresh(auth.server, user)
                     SaveResult.CONFLICT
                 }

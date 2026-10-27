@@ -338,48 +338,16 @@ class KidProfileRepositoryTest {
         runTest(UnconfinedTestDispatcher()) {
             val repository = repository()
             http.on("PUT", "/Kids/Users/${kid.id}/Profile", 403)
-            assertEquals(SaveResult.NEEDS_GRANT, repository.mark(kid))
+            val profile = KidProfile(userId = kid.rowId, revision = 1)
+            assertEquals(SaveResult.NEEDS_GRANT, repository.save(kid, profile))
             verify { lock.dropGrant() }
 
             every { lock.auth() } returns null
-            assertEquals(SaveResult.NEEDS_GRANT, repository.unmark(kid))
+            assertEquals(SaveResult.NEEDS_GRANT, repository.save(kid, profile))
 
             every { lock.auth() } returns KidsAuth(server, adult, "a", "g-1")
             http.offline = true
-            assertEquals(SaveResult.UNREACHABLE, repository.unmark(kid))
-        }
-
-    @Test
-    fun `marking and unmarking`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val repository = repository()
-            http.on("PUT", "/Kids/Users/${kid.id}/Profile", 200, profile(1))
-            assertEquals(SaveResult.SAVED, repository.mark(kid))
-            assertTrue(
-                http.requests
-                    .last()
-                    .body!!
-                    .contains("\"Revision\":0"),
-            )
-            assertEquals(1L, profileDao.get(kid.rowId)?.revision)
-
-            http.on("DELETE", "/Kids/Users/${kid.id}/Profile", 204)
-            assertEquals(SaveResult.SAVED, repository.unmark(kid))
-            assertNull(profileDao.get(kid.rowId))
-        }
-
-    @Test
-    fun `unmarking a kid the server no longer has`() =
-        runTest(UnconfinedTestDispatcher()) {
-            val repository = repository()
-            profileDao.upsert(KidProfile(userId = kid.rowId, revision = 1))
-            http.on("DELETE", "/Kids/Users/${kid.id}/Profile", 404)
-            assertEquals(SaveResult.FAILED, repository.unmark(kid))
-            assertEquals(1L, profileDao.get(kid.rowId)?.revision)
-
-            http.on("DELETE", "/Kids/Users/${kid.id}/Profile", 404, NOT_A_KID)
-            assertEquals(SaveResult.SAVED, repository.unmark(kid))
-            assertNull(profileDao.get(kid.rowId))
+            assertEquals(SaveResult.UNREACHABLE, repository.save(kid, profile))
         }
 
     companion object {

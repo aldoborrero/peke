@@ -72,6 +72,11 @@ enum class AdminCheck {
     WRONG,
     UNREACHABLE,
     FAILED,
+
+    /**
+     * Quick Connect is turned off on the server
+     */
+    QUICK_CONNECT_OFF,
 }
 
 sealed interface VerifyOutcome {
@@ -293,7 +298,7 @@ class ParentLockService
                 is AdminSignIn.Opened -> {
                     // Only the check was needed: the session ends right away
                     result.session.close()
-                    passedUntil = clock.elapsedMillis() + grantMillis(null)
+                    passedAsAdmin()
                     AdminCheck.ADMIN
                 }
 
@@ -314,6 +319,14 @@ class ParentLockService
                     AdminCheck.FAILED
                 }
             }
+        }
+
+        /**
+         * A server administrator signed in some other way, such as with Quick Connect, on a server whose plugin went
+         * away: as after [checkAdmin], they pass the gate, only to reset this TV
+         */
+        fun passedAsAdmin() {
+            passedUntil = clock.elapsedMillis() + grantMillis(null)
         }
 
         /**
@@ -465,6 +478,21 @@ class ParentLockService
         }
 
         /**
+         * How to make a household change, such as the parent code, also with no kid current (Settings from the picker):
+         * the current kid's grant, or else a live grant this TV holds for another of its kids on the gate's server.
+         * Never for a change to one kid, which [auth] makes as that kid.
+         */
+        suspend fun householdAuth(): KidsAuth? {
+            auth()?.let { return it }
+            val server = gateTarget()?.server ?: return null
+            val users = withContext(PekeDispatchers.IO) { serverDao.getServer(server.id) }?.users.orEmpty()
+            return users.firstNotNullOfOrNull { user ->
+                val token = user.accessToken ?: return@firstNotNullOfOrNull null
+                grantFor(server.id, user.rowId)?.let { KidsAuth(server, user, token, it) }
+            }
+        }
+
+        /**
          * Whether a code passed the gate a moment ago, checked by the server or offline: grown-up screens show only
          * then, and otherwise ask for the code (C12). Kept only in memory.
          */
@@ -476,7 +504,6 @@ class ParentLockService
         fun forgetGrants() {
             grants.clear()
             passedUntil = null
-            settingsGrant = false
             pickGrant = false
             refusedTokens.clear()
         }
@@ -517,12 +544,12 @@ class ParentLockService
             current: String?,
         ): LockChange {
             if (!PasscodeHasher.isValid(code, type)) return LockChange.Invalid
-            val auth = auth() ?: return LockChange.NeedsGrant
+            val auth = householdAuth() ?: return LockChange.NeedsGrant
             serverWaitSeconds(auth.server.id)?.let { return LockChange.Throttled(it) }
             val request = SetLockRequest(type.name, code, current)
             return when (val result = kidsApi.setLock(auth.server.url, auth.caller, auth.grant, request)) {
                 is KidsResult.Ok -> {
-                    dropGrant()
+                    grants.remove(auth.server.id to auth.user.rowId)
                     verify(code)
                     LockChange.Done
                 }
@@ -536,7 +563,7 @@ class ParentLockService
                 }
 
                 KidsResult.Forbidden -> {
-                    dropGrant()
+                    grants.remove(auth.server.id to auth.user.rowId)
                     LockChange.NeedsGrant
                 }
 
@@ -599,19 +626,6 @@ class ParentLockService
                     }
                 }
             }
-
-        @Volatile
-        private var settingsGrant = false
-
-        /**
-         * Lets the next opening of the kids settings skip the lock, right after passing the parent gate.
-         * Only kept in memory, so settings restored after the app was killed ask again.
-         */
-        fun grantSettings() {
-            settingsGrant = true
-        }
-
-        fun consumeSettingsGrant(): Boolean = settingsGrant.also { settingsGrant = false }
 
         @Volatile
         private var pickGrant = false

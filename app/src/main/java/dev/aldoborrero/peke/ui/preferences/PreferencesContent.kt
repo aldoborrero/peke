@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,6 +47,8 @@ import androidx.tv.material3.surfaceColorAtElevation
 import coil3.SingletonImageLoader
 import coil3.imageLoader
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
+import dev.aldoborrero.peke.kids.ui.ParentCodeChange
 import dev.aldoborrero.peke.preferences.AppPreference
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppSwitchPreference
@@ -434,6 +437,43 @@ fun PreferencesContent(
                                             onDismissRequest = { asking = false },
                                         )
                                     }
+                                }
+
+                                AppPreference.ChangeParentCode -> {
+                                    var changing by remember { mutableStateOf(false) }
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = { changing = true },
+                                        modifier = focusModifier,
+                                        summary = pref.summary(context, null),
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
+                                    )
+                                    if (changing) ParentCodeChange(onDismissRequest = { changing = false })
+                                }
+
+                                AppPreference.KidsOnThisTv -> {
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = viewModel::openKidsOnTv,
+                                        modifier = focusModifier,
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
+                                    )
+                                }
+
+                                AppPreference.KidsTimerBar -> {
+                                    val position by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
+                                    val values = stringArrayResource(R.array.kids_timer_bar_positions).toList()
+                                    ChoicePreference(
+                                        title = stringResource(pref.title),
+                                        summary = values[position.ordinal],
+                                        possibleValues = values,
+                                        selectedIndex = position.ordinal,
+                                        onValueChange = { viewModel.setTimerBarPosition(KidsTimerBarPosition.entries[it]) },
+                                        interactionSource = interactionSource,
+                                        modifier = focusModifier,
+                                    )
                                 }
 
                                 AppPreference.ResetThisTv -> {

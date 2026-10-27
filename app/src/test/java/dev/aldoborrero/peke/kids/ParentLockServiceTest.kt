@@ -16,6 +16,7 @@ import dev.aldoborrero.peke.kids.gate.ParentLockService
 import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.gate.PasscodeHasher
 import dev.aldoborrero.peke.kids.gate.VerifyOutcome
+import dev.aldoborrero.peke.kids.server.KidsApi
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.setup.AdminSession
 import dev.aldoborrero.peke.kids.setup.AdminSessions
@@ -328,6 +329,25 @@ class ParentLockServiceTest {
 
             http.on("PUT", "/Kids/Parent/Lock", 400, """{"status":400,"errors":{"Current":["wrong"]}}""")
             assertEquals(LockChange.WrongCurrent, service.setCode(ParentLockType.REMOTE, "UDLR", "0000"))
+        }
+
+    @Test
+    fun `the code can be changed from Settings with no kid current`() =
+        runTest(UnconfinedTestDispatcher()) {
+            serverLock()
+            verifyAnswer("""{"Valid":true,"Grant":"g-1"}""")
+            http.on("PUT", "/Kids/Parent/Lock", 200, """{"LockType":"NUMERIC"}""")
+            // The picker: no kid is current, and the gate checks the code with this TV's kid
+            current.value = null
+            val service = service()
+            service.verify("1234")
+            // A change to one kid still needs that kid current
+            assertNull(service.auth())
+
+            assertEquals(LockChange.Done, service.setCode(ParentLockType.NUMERIC, "4321", "1234"))
+            val put = http.requests.first { it.method == "PUT" }
+            assertEquals("g-1", put.headers[KidsApi.GRANT_HEADER])
+            assertTrue(put.headers["Authorization"]!!.contains("Token=\"k\""))
         }
 
     @Test

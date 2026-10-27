@@ -374,11 +374,11 @@
     <string name="discard_change">Discard changes?</string>
     <string name="subtitle_margin">Margin</string>
     <string name="verbose_logging">Verbose logging</string>
-    <string name="enter_pin">Enter PIN</string>
-    <string name="press_enter_to_confirm">Press center to confirm</string>
-    <string name="confirm_pin">Confirm PIN</string>
+    <string name="enter_pin">Type the new parent code</string>
+    <string name="press_enter_to_confirm">Press OK to confirm</string>
+    <string name="confirm_pin">Type it again</string>
     <string name="incorrect">Incorrect</string>
-    <string name="pin_too_short">PIN must be 4 keys or longer</string>
+    <string name="pin_too_short">Use at least 4 keys</string>
     <string name="pin_digits_hint">[0–9]</string>
     <string name="image_cache_size">Image disk cache size (MB)</string>
     <string name="disable_audio_offload">Disable audio hardware offload</string>
@@ -883,14 +883,13 @@
     <string name="kids_mode">Kids mode</string>
     <string name="kids_mode_summary">A simpler, parent-controlled experience for children</string>
     <string name="kids_grown_ups">Grown-ups</string>
-    <string name="kids_gate_passcode">Enter the parent passcode</string>
-    <string name="kids_gate_wrong_passcode">Wrong passcode</string>
+    <string name="kids_gate_passcode">Enter the parent code</string>
+    <string name="kids_gate_wrong_passcode">Wrong code</string>
     <string name="kids_add_time">Add time</string>
     <plurals name="kids_minutes_option">
         <item quantity="one">%1$d minute</item>
         <item quantity="other">%1$d minutes</item>
     </plurals>
-    <string name="kids_settings">Kids settings</string>
     <string name="kids_times_up">Time\'s up!</string>
     <string name="kids_times_up_subtitle">See you next time, %1$s</string>
     <plurals name="kids_minutes_left">
@@ -901,13 +900,8 @@
     <string name="kids_nothing_to_play">Nothing to play here yet</string>
     <string name="kids_channel_not_available">This channel isn\'t available</string>
     <string name="kids_not_available">This isn\'t available</string>
-    <string name="kids_live_tv_channels">Live TV channels</string>
     <string name="kids_live_tv_none">No channels picked, so there is no live TV. Pick channels on the Kids plugin\'s dashboard page.</string>
-    <plurals name="kids_live_tv_count">
-        <item quantity="one">%1$d channel picked. Change it on the Kids plugin\'s dashboard page.</item>
-        <item quantity="other">%1$d channels picked. Change them on the Kids plugin\'s dashboard page.</item>
-    </plurals>
-    <string name="kids_change_passcode">Change the code</string>
+    <string name="kids_change_passcode">Change the parent code</string>
     <string name="kids_lock_numeric">Number code</string>
     <string name="kids_lock_numeric_summary">A code of at least 4 digits</string>
     <string name="kids_lock_remote">Remote buttons code</string>
@@ -920,24 +914,6 @@
     </string-array>
     <string name="kids_timer_bar_top">At the top</string>
     <string name="kids_timer_bar_bottom">At the bottom</string>
-    <string name="kids_profiles">Kid profiles</string>
-    <string name="kids_profile_on">Opens in kids mode</string>
-    <string name="kids_profile_off">Grown-up: sets up this TV only</string>
-    <string name="kids_search_allowed">Allow search</string>
-    <string name="kids_autoplay">Autoplay next episode</string>
-    <string name="kids_autoplay_cap">Episodes in a row</string>
-    <string name="kids_picked">Picked by your grown-ups</string>
-    <string name="kids_picked_add_collection">Add a collection</string>
-    <string name="kids_picked_add_playlist">Add a playlist</string>
-    <string name="kids_picked_remove">Remove %1$s</string>
-    <string name="kids_sections">Home sections</string>
-    <string name="kids_section_keep_watching">Keep watching</string>
-    <string name="kids_section_libraries">Libraries</string>
-    <string name="kids_section_new">New</string>
-    <string name="kids_server_restrictions">Server restrictions</string>
-    <string name="kids_restrictions_where">Where to change them</string>
-    <string name="kids_restrictions_none">Not restricted</string>
-    <string name="kids_restrictions_hint">Set these in the Jellyfin dashboard for each kid account: library access, maximum parental rating, block items with no rating, and allowed hours.</string>
     <string name="kids_restrictions_warning">This account has no rating limit and allows unrated items, so the server isn\'t restricting what it can see.</string>
     <string name="kids_restriction_max_rating">Maximum parental rating score: %1$d</string>
     <string name="kids_restriction_no_max_rating">No maximum parental rating</string>
@@ -948,8 +924,6 @@
         <item quantity="one">Access to %1$d library</item>
         <item quantity="other">Access to %1$d libraries</item>
     </plurals>
-    <string name="kids_restriction_schedule">Allowed hours are set</string>
-    <string name="kids_restriction_no_schedule">No allowed hours set</string>
     <plurals name="kids_gate_wait">
         <item quantity="one">Too many tries. Wait %1$d second</item>
         <item quantity="other">Too many tries. Wait %1$d seconds</item>
@@ -964,7 +938,7 @@
     <string name="kids_plugin_gone">This server no longer has the Kids plugin</string>
     <string name="kids_plugin_gone_summary">Kids mode keeps working on this TV with the last settings it knew</string>
     <string name="kids_plugin_outdated">This server\'s Kids plugin is too old</string>
-    <string name="kids_plugin_outdated_summary">Update the Jellyfin Kids plugin on the server to version 0.0.5.0 or later. Until then, kids already on this TV keep the last settings it knew.</string>
+    <string name="kids_plugin_outdated_summary">Update the Jellyfin Kids plugin on the server to version 0.0.7.0 or later. Until then, kids already on this TV keep the last settings it knew.</string>
     <plurals name="kids_minutes_left_sitting">
         <item quantity="one">%1$d minute left in this sitting</item>
         <item quantity="other">%1$d minutes left in this sitting</item>
@@ -986,15 +960,9 @@
     <string name="kids_cant_reach_server">Can\'t reach the server. Try again in a moment.</string>
     <string name="kids_save_failed">Couldn\'t save the change</string>
     <string name="kids_changed_elsewhere">These settings changed on another device. Showing the current ones.</string>
-    <string name="kids_admin_needed">No parent code is set yet. A server administrator sets it from Grown-ups, or in the Kids page of the Jellyfin dashboard.</string>
-    <string name="kids_set_code_first">Set the household parent code first</string>
     <string name="kids_gate_current_passcode">Enter the current parent code</string>
     <string name="kids_daily_allowance">Daily time</string>
-    <string name="kids_daily_allowance_summary">Counted on the server across every device</string>
     <string name="kids_unlimited">Unlimited</string>
-    <string name="kids_session_limit">Time per sitting</string>
-    <string name="kids_session_limit_summary">Counted on the server across every device, then a break</string>
-    <string name="kids_household_code">Household parent code</string>
     <string name="kids_household_code_summary">The same code on every TV of this server</string>
     <string name="peke_license_credit">Peke for Jellyfin is a fork of Wholphin by damontecres, licensed under the GNU GPL version 2. Source: github.com/aldoborrero/peke. Wholphin: github.com/damontecres/Wholphin. Peke is not an official Jellyfin app.</string>
     <string name="peke_setup_server_title">Add your Jellyfin server</string>
@@ -1045,7 +1013,6 @@
     <string name="peke_settings_playback">Playback and player</string>
     <string name="peke_settings_advanced">Advanced</string>
     <string name="peke_menu_reset">Reset this TV</string>
-    <string name="peke_menu_kid_settings">Kid\'s settings</string>
     <string name="peke_menu_switch_kid">Switch kid</string>
     <string name="peke_this_tv_start_over">Start over</string>
     <string name="peke_this_tv_reset_summary">Sign every kid out and set this TV up again</string>
@@ -1061,7 +1028,7 @@
     <string name="peke_reset_offline">The server couldn\'t be reached, so the kids\' sessions on this TV may still be listed. Remove them in the Jellyfin dashboard, under Devices.</string>
     <string name="kids_gate_forgot">Forgot the code?</string>
     <string name="kids_gate_set_code_admin">Set the code as a server administrator</string>
-    <string name="kids_gate_code_changed">Parent code changed. Type the new code.</string>
+    <string name="kids_gate_code_changed">Parent code changed</string>
     <string name="peke_voice_search">Voice search for kids</string>
     <string name="peke_voice_search_on">On: kids with search can use the microphone</string>
     <string name="peke_voice_search_off">Off: kids don\'t see the microphone</string>
@@ -1079,4 +1046,81 @@
     <string name="peke_server_address">Server</string>
     <string name="peke_server_not_encrypted">%1$s · Not encrypted</string>
     <string name="peke_something_went_wrong">Oops, something went wrong</string>
+    <!-- Grown-ups screens (spec 006) -->
+    <string name="kids_parent_code">Parent code</string>
+    <string name="kids_gate_forgot_hint">Forgot it? Press OK with no code</string>
+    <string name="kids_add_time_for">Add time for %1$s</string>
+    <string name="kids_add_time_min">%1$d min</string>
+    <string name="kids_add_time_hours">%1$d h</string>
+    <string name="kids_add_time_hours_minutes">%1$d h %2$02d</string>
+    <string name="kids_add_time_until">Can watch until %1$s</string>
+    <string name="kids_add_time_had_left">Had %1$s left. Can watch until %2$s</string>
+    <string name="kids_add_time_bedtime">Bedtime starts at %1$s, so %2$s stops then</string>
+    <string name="kids_add_time_break">A break comes at %1$s</string>
+    <string name="kids_add_time_hint">OK adds the time · Back returns</string>
+    <string name="kids_add_time_sending">Adding the time…</string>
+    <string name="kids_add_time_unreachable">Can\'t reach the server. Press OK to try again.</string>
+    <string name="kids_add_time_failed">Couldn\'t add the time. Press OK to try again.</string>
+    <plurals name="kids_time_added">
+        <item quantity="one">%1$d more minute for %2$s · until %3$s</item>
+        <item quantity="other">%1$d more minutes for %2$s · until %3$s</item>
+    </plurals>
+    <string name="kids_done">Done</string>
+    <string name="kids_undo_countdown">Undo (%1$d)</string>
+    <string name="kids_undo_done">The time was taken back</string>
+    <string name="kids_undo_already">That time was already taken back</string>
+    <string name="kids_undo_too_late">This time can no longer be taken back</string>
+    <string name="kids_undo_failed">Couldn\'t take the time back</string>
+    <string name="kids_add_time_on_break">Break: ends at %1$s</string>
+    <string name="kids_add_time_on_break_unknown">On a break</string>
+    <string name="kids_add_time_bedtime_now">Bedtime: allowed hours are set in Jellyfin</string>
+    <string name="kids_add_time_unlimited">%1$s has no daily limit</string>
+    <string name="kids_add_time_offline">Can\'t reach the server to add time</string>
+    <string name="kids_keep_watching">Keep watching now</string>
+    <string name="kids_rules">Rules</string>
+    <string name="kids_rules_of">%1$s\'s rules</string>
+    <string name="kids_saving">Saving…</string>
+    <string name="kids_saved">Saved</string>
+    <string name="kids_not_saved">Not saved: the parent code is needed to save it</string>
+    <string name="kids_rules_today">Today</string>
+    <string name="kids_rules_today_of">%1$d of %2$d minutes</string>
+    <plurals name="kids_rules_today_used">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="kids_rules_in_a_row">Time in a row, then a break</string>
+    <string name="kids_rules_in_a_row_value">%1$d min</string>
+    <string name="kids_rules_in_a_row_break">%1$d min, then a %2$d min break</string>
+    <string name="kids_rules_allowed_hours">Allowed hours (set in Jellyfin)</string>
+    <string name="kids_rules_any_time">Any time</string>
+    <string name="kids_rules_not_today">None today</string>
+    <string name="kids_rules_hours_today">Today %1$s</string>
+    <string name="kids_rules_search">Search</string>
+    <string name="kids_rules_search_off">Not allowed</string>
+    <string name="kids_rules_search_voice_on">Allowed · voice search on for this TV</string>
+    <string name="kids_rules_search_voice_off">Allowed · voice search off on this TV</string>
+    <string name="kids_rules_autoplay">Autoplay</string>
+    <string name="kids_rules_autoplay_off">Off</string>
+    <plurals name="kids_rules_autoplay_cap">
+        <item quantity="one">Up to %1$d episode in a row</item>
+        <item quantity="other">Up to %1$d episodes in a row</item>
+    </plurals>
+    <string name="kids_rules_live_tv">Live TV</string>
+    <string name="kids_rules_live_tv_off">Live TV is off in Jellyfin</string>
+    <string name="kids_rules_picks">Picks</string>
+    <string name="kids_rules_picks_none">None</string>
+    <plurals name="kids_rules_picks_count">
+        <item quantity="one">%1$d pick</item>
+        <item quantity="other">%1$d picks</item>
+    </plurals>
+    <string name="kids_rules_jellyfin">What Jellyfin decides</string>
+    <string name="kids_rules_where">Daily time is the only rule changed on this TV. %1$s\'s other rules are on the dashboard, and what Jellyfin decides is in the Jellyfin dashboard\'s user settings.</string>
+    <string name="kids_rules_dashboard">Change %1$s\'s rules on the dashboard</string>
+    <string name="kids_rules_dashboard_pick">Open this address in a browser, then pick %1$s</string>
+    <string name="kids_channel_not_on_list">This channel isn\'t on %1$s\'s list</string>
+    <string name="kids_channel_not_on_list_hint">A grown-up can add it on the dashboard</string>
+    <string name="peke_settings_household">Household</string>
+    <string name="peke_settings_this_tv">This TV</string>
+    <string name="kids_code_cant_change">There is no parent code to change. Set it in Grown-ups as a server administrator.</string>
+    <string name="kids_code_needs_grant">Open Grown-ups again to change the parent code</string>
 </resources>

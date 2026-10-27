@@ -103,7 +103,7 @@ class TvLauncherTest {
             // The kid's details page, then This TV and the kids settings from the parent menu
             navigationManager.navigateTo(details)
             navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.PEKE))
-            navigationManager.navigateTo(Destination.KidsSettings)
+            navigationManager.navigateTo(Destination.KidRules)
 
             // Home or standby, then back
             launcher.launch()

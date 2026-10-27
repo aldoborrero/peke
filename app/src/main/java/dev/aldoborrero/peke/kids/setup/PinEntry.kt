@@ -58,6 +58,7 @@ fun pinSymbol(key: Key): String? =
 /**
  * @param symbolFor maps a key to the symbol it adds to the PIN, or null to ignore the key
  * @param hint shown above the entry, describing which keys can be used
+ * @param footer a line under the confirm hint, if any
  */
 @Composable
 fun PinEntryCreate(
@@ -67,6 +68,7 @@ fun PinEntryCreate(
     modifier: Modifier = Modifier,
     symbolFor: (Key) -> String? = ::pinSymbol,
     hint: @Composable (Modifier) -> Unit = { PinArrowRow(it) },
+    @StringRes footer: Int? = null,
 ) {
     var input by remember { mutableStateOf("") }
     Column(
@@ -102,6 +104,14 @@ fun PinEntryCreate(
                 text = stringResource(R.string.press_enter_to_confirm),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
+        footer?.let {
+            Text(
+                text = stringResource(it),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }

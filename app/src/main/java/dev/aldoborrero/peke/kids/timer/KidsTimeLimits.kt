@@ -235,6 +235,12 @@ class KidsTimeLimits
 
         val interrupted = KidsInterruptedPlayback()
 
+        /**
+         * Set while a grown-up adds time or ends a break from the parent menu: a stop screen behind it stays until the
+         * menu closes, so the confirmation and its Undo stay on screen
+         */
+        val holdStop = MutableStateFlow(false)
+
         companion object {
             private val TICK = 1.seconds
         }

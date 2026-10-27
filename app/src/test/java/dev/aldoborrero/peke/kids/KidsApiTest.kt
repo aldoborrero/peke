@@ -74,7 +74,7 @@ class KidsApiTest {
     }
 
     @Test
-    fun `a new kid is sent with revision 0 and defaults`() {
+    fun `a profile without a revision is sent with revision 0 and defaults`() {
         val body = KidProfileMapper.toUpdate(KidProfile(userId = 1, sessionLimitMinutes = 30), 0, sendSessionLimit = true)
         assertEquals(JsonPrimitive(0L), body["Revision"])
         assertEquals(JsonPrimitive(KidProfile.DEFAULT_AUTOPLAY_CAP), body["AutoplayCap"])
@@ -95,7 +95,6 @@ class KidsApiTest {
                 """{"PluginVersion":"0.0.3.0","ApiVersion":1,"Features":["profiles","parentLock"],"New":1}""",
             )
             server.on("PUT", "/Kids/Users/$userId/Profile", 409, profileJson)
-            server.on("DELETE", "/Kids/Users/$userId/Profile", 403)
             server.on("PUT", "/Kids/Parent/Lock", 429, """{"RetryAfterSeconds":12}""", mapOf("Retry-After" to "12"))
             // ASP.NET Core writes ValidationProblemDetails in camelCase
             server.on("POST", "/Kids/Parent/Verify", 400, """{"status":400,"errors":{"Code":["bad"]}}""")
@@ -112,7 +111,6 @@ class KidsApiTest {
             assertEquals("grant-1", put.headers[KidsApi.GRANT_HEADER])
             assertTrue(put.headers["Authorization"]!!.contains("Token=\"tok\""))
 
-            assertEquals(KidsResult.Forbidden, api.deleteProfile("http://jf.local", caller, null, userId))
             assertEquals(KidsResult.Throttled(12), api.setLock("http://jf.local", caller, "g", SetLockRequest("NUMERIC", "1234", "0000")))
             assertEquals(KidsResult.Invalid(setOf("Code")), api.verify("http://jf.local", caller, "1"))
             assertEquals(KidsResult.Failed(500), api.status("http://jf.local", caller, userId))
@@ -200,5 +198,50 @@ class KidsApiTest {
             assertEquals("secret=s3cret", request.query)
             // Anonymous: no token goes with it
             assertNull(request.headers["Authorization"])
+        }
+
+    @Test
+    fun `a bonus names its id, and undo and break end send the grant`() =
+        runTest {
+            val server = FakeKidsServer()
+            val api = server.api(StandardTestDispatcher(testScheduler))
+            val caller = KidsCaller("tok", userId)
+            server.on(
+                "POST",
+                "/Kids/Users/$userId/WatchTime/Bonus",
+                200,
+                """{"RemainingSeconds":900,"BonusSeconds":900,"ServerTime":"2026-10-26T18:02:00Z","BonusId":42,"BonusUndoUntil":"2026-10-26T18:12:00Z"}""",
+            )
+
+            val bonus = api.bonus("http://jf.local", caller, "g-1", userId, 15) as KidsResult.Ok
+            assertEquals(42L, bonus.value.bonusId)
+            // 600 s, on the server's clock
+            assertEquals(600L, bonus.value.undoSeconds)
+            assertEquals(900L, bonus.value.status.remainingSeconds)
+            assertEquals("""{"Minutes":15}""", server.requests.last().body)
+
+            // An older plugin names no bonus
+            server.on("POST", "/Kids/Users/$userId/WatchTime/Bonus", 200, """{"RemainingSeconds":900}""")
+            assertNull((api.bonus("http://jf.local", caller, "g-1", userId, 15) as KidsResult.Ok).value.bonusId)
+
+            server.on("DELETE", "/Kids/Users/$userId/WatchTime/Bonus/42", 200, """{"TimeUp":true}""")
+            val undone = api.undoBonus("http://jf.local", caller, "g-1", userId, 42) as KidsResult.Ok
+            assertTrue(undone.value.timeUp)
+            assertEquals("g-1", server.requests.last().headers[KidsApi.GRANT_HEADER])
+            server.on(
+                "DELETE",
+                "/Kids/Users/$userId/WatchTime/Bonus/42",
+                409,
+                """{"title":"This bonus can no longer be undone.","status":409}""",
+            )
+            assertTrue(api.undoBonus("http://jf.local", caller, "g-1", userId, 42) is KidsResult.Conflict)
+            server.on("DELETE", "/Kids/Users/$userId/WatchTime/Bonus/42", 404, """{"title":"No such bonus.","status":404}""")
+            assertEquals(KidsResult.NotFound, api.undoBonus("http://jf.local", caller, "g-1", userId, 42))
+
+            server.on("POST", "/Kids/Users/$userId/WatchTime/Break/End", 200, """{"SittingUsedSeconds":0}""")
+            assertTrue(api.endBreak("http://jf.local", caller, "g-2", userId) is KidsResult.Ok)
+            assertEquals("g-2", server.requests.last().headers[KidsApi.GRANT_HEADER])
+            server.on("POST", "/Kids/Users/$userId/WatchTime/Break/End", 403)
+            assertEquals(KidsResult.Forbidden, api.endBreak("http://jf.local", caller, null, userId))
         }
 }

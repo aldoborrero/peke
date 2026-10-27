@@ -99,6 +99,30 @@ fun KidsTimesUpPage(
 }
 
 /**
+ * A live channel the server refused for the kid (spec 006 FR-016): it says so, and Grown-ups leads through the code
+ * to the menu, where the kid's rules list their channels. Back returns to where the kid was.
+ */
+@Composable
+fun KidsChannelRefusedPage(modifier: Modifier = Modifier) {
+    val name = (LocalKidsMode.current as? KidsModeState.Active)?.user?.name.orEmpty()
+    var showGate by remember { mutableStateOf(false) }
+    KidsGrownUpsMessage(
+        title =
+            if (name.isBlank()) {
+                stringResource(R.string.kids_channel_not_available)
+            } else {
+                stringResource(R.string.kids_channel_not_on_list, name)
+            },
+        subtitle = stringResource(R.string.kids_channel_not_on_list_hint),
+        onClickGrownUps = { showGate = true },
+        modifier = modifier,
+    )
+    if (showGate) {
+        KidsParentGate(onDismissRequest = { showGate = false })
+    }
+}
+
+/**
  * A full screen message for children whose only action is the grown-ups button, which opens the parent gate. Focus
  * starts on the message, never on Grown-ups (constitution V, spec 005 FR-013): OK there does nothing, and Down reaches
  * Grown-ups.
