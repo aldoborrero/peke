@@ -180,8 +180,19 @@ Decided while testing the app:
   chosen, the grown-up's code stops counting, so the new kid can't open grown-up pages with it.
 - **Kids never type a code:** codes are for grown-ups only. A kid picks a picture; the parent code is asked only when
   a grown-up has to decide.
-- **After the parent code:** the parent menu (add time, this kid's settings, kids on this TV, This TV, license, Reset
-  this TV), never the user list. Leaving the menu ends the code's grant.
+- **After the parent code:** the parent menu, in a fixed order: the kid and their status, Add time (or a line that
+  says why not: a break, with "Keep watching now" when the plugin can end it; bedtime; no daily limit; offline),
+  Switch kid (2+ kids), "{Kid}'s rules" and Settings, never the user list. From the picker the code opens Settings
+  straight away. Settings holds Household (change the parent code), This TV (Kids on this TV, voice search, the timer
+  bar, screensaver, clock, language, subtitles), playback, Advanced, About with the license, and Reset this TV last.
+  Leaving the menu ends the code's grant.
+- **Add time:** a stepper (5, 10, 15, 20, 30, 45 min, 1 h, 1 h 30, 2 h; no wrap-around, the arrow at each end
+  dimmed) that opens on the last amount given on this TV, with who gets it and "Can watch until 19:15". OK adds,
+  Back returns to the menu; then "15 more minutes for Leo · until 19:15" with Undo for 10 seconds, and back to the kid.
+- **A kid's rules:** that kid only. Daily time is the one rule changed on the TV; the rest is text, with the
+  dashboard's address for changing it. Marking or unmarking kids is done in the dashboard only.
+- **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
+  an administrator signs in with a password or Quick Connect.
 - **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
   can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
 - **Opening videos:** items in "Continue watching" play straight away, resuming. Everywhere else a kid gets the
