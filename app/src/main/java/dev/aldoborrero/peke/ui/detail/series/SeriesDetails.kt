@@ -30,6 +30,8 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,14 @@ import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Person
 import dev.aldoborrero.peke.data.model.studioNames
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.ui.KidsChip
+import dev.aldoborrero.peke.kids.ui.KidsDetailsHeader
+import dev.aldoborrero.peke.kids.ui.KidsFavouriteButton
+import dev.aldoborrero.peke.kids.ui.KidsPictureCard
+import dev.aldoborrero.peke.kids.ui.KidsPlayPill
+import dev.aldoborrero.peke.kids.ui.KidsRoundButton
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.RequestOrRestoreFocus
@@ -73,12 +83,16 @@ import dev.aldoborrero.peke.ui.detail.PlaylistDialog
 import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.DataLoadingState
 import dev.aldoborrero.peke.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.serializer.toUUID
 import java.util.UUID
 import kotlin.time.Duration
@@ -323,6 +337,7 @@ fun SeriesDetailsContent(
     val playFocusRequester = remember { FocusRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
+    val kids = LocalKidsMode.current.isActive
     val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
     Box(
         modifier = modifier,
@@ -338,98 +353,82 @@ fun SeriesDetailsContent(
                 modifier = Modifier,
             ) {
                 item {
-                    SeriesDetailsHeader(
-                        series = series,
-                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                        overviewOnClick = overviewOnClick,
-                        bringIntoViewRequester = bringIntoViewRequester,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier =
-                            Modifier
-                                .padding(start = HeaderUtils.startPadding)
-                                .focusRequester(focusRequesters[HEADER_ROW])
-                                .focusRestorer(playFocusRequester)
-                                .focusGroup()
-                                .padding(bottom = 16.dp),
-                    ) {
-                        ExpandablePlayButton(
-                            title = R.string.play,
-                            resume = Duration.ZERO,
-                            icon = Icons.Default.PlayArrow,
-                            onClick = {
-                                position = HEADER_ROW
-                                playOnClick.invoke(false)
+                    if (kids) {
+                        KidsDetailsHeader(
+                            poster = series,
+                            title = series.name,
+                            overview = series.data.overview,
+                            chips = {
+                                series.data.productionYear?.let { KidsChip(text = it.toString()) }
+                                if (seasons.isNotEmpty()) {
+                                    KidsChip(text = pluralStringResource(R.plurals.kids_season_count, seasons.size, seasons.size))
+                                }
+                            },
+                            buttons = {
+                                KidsPlayPill(
+                                    text = stringResource(R.string.play),
+                                    onClick = {
+                                        position = HEADER_ROW
+                                        playOnClick.invoke(false)
+                                    },
+                                    modifier = Modifier.focusRequester(playFocusRequester),
+                                )
+                                KidsRoundButton(
+                                    description = R.string.shuffle,
+                                    glyph = R.string.fa_shuffle,
+                                    onClick = {
+                                        position = HEADER_ROW
+                                        playOnClick.invoke(true)
+                                    },
+                                )
+                                KidsRoundButton(
+                                    description = if (played) R.string.mark_unwatched else R.string.mark_watched,
+                                    icon = painterResource(PekeIcon.WATCHED.outline),
+                                    tint = if (played) LocalPekeColors.current.secondary else LocalPekeColors.current.textSecondary,
+                                    onClick = watchOnClick,
+                                )
+                                KidsFavouriteButton(favorite = favorite, onClick = favoriteOnClick)
                             },
                             modifier =
                                 Modifier
-                                    .focusRequester(playFocusRequester)
-                                    .onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
+                                    .padding(top = 48.cpx, start = 48.cpx, end = 48.cpx, bottom = 16.dp)
+                                    .focusRequester(focusRequesters[HEADER_ROW])
+                                    .focusRestorer(playFocusRequester)
+                                    .focusGroup(),
                         )
-                        ExpandableFaButton(
-                            title = R.string.shuffle,
-                            iconStringRes = R.string.fa_shuffle,
-                            onClick = {
-                                position = HEADER_ROW
-                                playOnClick.invoke(true)
-                            },
+                    } else {
+                        SeriesDetailsHeader(
+                            series = series,
+                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                            overviewOnClick = overviewOnClick,
+                            bringIntoViewRequester = bringIntoViewRequester,
                             modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
+                                Modifier
+                                    .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
+                                    .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
                         )
-                        ExpandableFaButton(
-                            title = if (played) R.string.mark_unwatched else R.string.mark_watched,
-                            iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
-                            onClick = watchOnClick,
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        ExpandableFaButton(
-                            title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                            iconStringRes = R.string.fa_heart,
-                            onClick = favoriteOnClick,
-                            iconColor = if (favorite) Color.Red else Color.Unspecified,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        if (canDelete) {
-                            DeleteButton(
-                                title = series.title ?: "",
-                                onConfirmDelete = {
+                                Modifier
+                                    .padding(start = HeaderUtils.startPadding)
+                                    .focusRequester(focusRequesters[HEADER_ROW])
+                                    .focusRestorer(playFocusRequester)
+                                    .focusGroup()
+                                    .padding(bottom = 16.dp),
+                        ) {
+                            ExpandablePlayButton(
+                                title = R.string.play,
+                                resume = Duration.ZERO,
+                                icon = Icons.Default.PlayArrow,
+                                onClick = {
                                     position = HEADER_ROW
-                                    actions.onDeleteItem.invoke(series)
+                                    playOnClick.invoke(false)
                                 },
                                 modifier =
                                     Modifier
+                                        .focusRequester(playFocusRequester)
                                         .onFocusChanged {
                                             if (it.isFocused) {
                                                 scope.launch(ExceptionHandler()) {
@@ -438,12 +437,74 @@ fun SeriesDetailsContent(
                                             }
                                         },
                             )
+                            ExpandableFaButton(
+                                title = R.string.shuffle,
+                                iconStringRes = R.string.fa_shuffle,
+                                onClick = {
+                                    position = HEADER_ROW
+                                    playOnClick.invoke(true)
+                                },
+                                modifier =
+                                    Modifier.onFocusChanged {
+                                        if (it.isFocused) {
+                                            scope.launch(ExceptionHandler()) {
+                                                bringIntoViewRequester.bringIntoView()
+                                            }
+                                        }
+                                    },
+                            )
+                            ExpandableFaButton(
+                                title = if (played) R.string.mark_unwatched else R.string.mark_watched,
+                                iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
+                                onClick = watchOnClick,
+                                modifier =
+                                    Modifier.onFocusChanged {
+                                        if (it.isFocused) {
+                                            scope.launch(ExceptionHandler()) {
+                                                bringIntoViewRequester.bringIntoView()
+                                            }
+                                        }
+                                    },
+                            )
+                            ExpandableFaButton(
+                                title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                                iconStringRes = R.string.fa_heart,
+                                onClick = favoriteOnClick,
+                                iconColor = if (favorite) Color.Red else Color.Unspecified,
+                                modifier =
+                                    Modifier.onFocusChanged {
+                                        if (it.isFocused) {
+                                            scope.launch(ExceptionHandler()) {
+                                                bringIntoViewRequester.bringIntoView()
+                                            }
+                                        }
+                                    },
+                            )
+                            if (canDelete) {
+                                DeleteButton(
+                                    title = series.title ?: "",
+                                    onConfirmDelete = {
+                                        position = HEADER_ROW
+                                        actions.onDeleteItem.invoke(series)
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .onFocusChanged {
+                                                if (it.isFocused) {
+                                                    scope.launch(ExceptionHandler()) {
+                                                        bringIntoViewRequester.bringIntoView()
+                                                    }
+                                                }
+                                            },
+                                )
+                            }
                         }
                     }
                 }
                 item {
                     ItemRow(
                         title = stringResource(R.string.tv_seasons) + " (${seasons.size})",
+                        kidsLayout = kids,
                         items = seasons,
                         onClickItem = { index, item ->
                             position = SEASONS_ROW
@@ -456,17 +517,32 @@ fun SeriesDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                .then(if (kids) Modifier.padding(start = 48.cpx) else Modifier)
                                 .focusRequester(focusRequesters[SEASONS_ROW]),
                         cardContent = @Composable { index, item, mod, onClick, onLongClick ->
-                            SeasonCard(
-                                item = item,
-                                onClick = onClick,
-                                onLongClick = onLongClick,
-                                imageHeight = Cards.height2x3,
-                                imageWidth = Dp.Unspecified,
-                                showImageOverlay = true,
-                                modifier = mod,
-                            )
+                            if (kids) {
+                                KidsPictureCard(
+                                    item = item,
+                                    title = item?.name,
+                                    imageType = ImageType.PRIMARY,
+                                    width = 180.cpx,
+                                    height = 264.cpx,
+                                    corner = 24.cpx,
+                                    onClick = onClick,
+                                    onLongClick = onLongClick,
+                                    modifier = mod,
+                                )
+                            } else {
+                                SeasonCard(
+                                    item = item,
+                                    onClick = onClick,
+                                    onLongClick = onLongClick,
+                                    imageHeight = Cards.height2x3,
+                                    imageWidth = Dp.Unspecified,
+                                    showImageOverlay = true,
+                                    modifier = mod,
+                                )
+                            }
                         },
                     )
                 }
@@ -540,20 +616,36 @@ fun SeriesDetailsContent(
                                     ),
                                 )
                             },
+                            kidsLayout = kids,
                             cardContent = { index, item, mod, onClick, onLongClick ->
-                                SeasonCard(
-                                    item = item,
-                                    onClick = onClick,
-                                    onLongClick = onLongClick,
-                                    modifier = mod,
-                                    showImageOverlay = true,
-                                    imageHeight = Cards.height2x3,
-                                    imageWidth = Dp.Unspecified,
-                                )
+                                if (kids) {
+                                    KidsPictureCard(
+                                        item = item,
+                                        title = item?.title,
+                                        imageType = ImageType.PRIMARY,
+                                        width = 180.cpx,
+                                        height = 264.cpx,
+                                        corner = 24.cpx,
+                                        onClick = onClick,
+                                        onLongClick = onLongClick,
+                                        modifier = mod,
+                                    )
+                                } else {
+                                    SeasonCard(
+                                        item = item,
+                                        onClick = onClick,
+                                        onLongClick = onLongClick,
+                                        modifier = mod,
+                                        showImageOverlay = true,
+                                        imageHeight = Cards.height2x3,
+                                        imageWidth = Dp.Unspecified,
+                                    )
+                                }
                             },
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .then(if (kids) Modifier.padding(start = 48.cpx) else Modifier)
                                     .focusRequester(focusRequesters[SIMILAR_ROW]),
                         )
                     }

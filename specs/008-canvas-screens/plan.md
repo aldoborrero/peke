@@ -164,3 +164,10 @@ Clean debug builds (`clean :app:assembleDebug`) of the base (`1ab9994c`) and Pha
 `apkanalyzer apk compare` (x86_64): dex +48.4 KB (two files take +17.6 and +17.3 KB: the new kids home, cards and drawer
 code, unminified in debug), `resources.arsc` +0.7 KB (strings). A little over the +40 KB estimate; R8 shrinks the dex
 in release.
+
+### Phase 2 (2026-10-27, T019)
+
+Clean debug builds, Phase 1 → Phase 2 (Phase 2 built alone in a scratch clone of the base with Phase 2's tree):
+arm64-v8a 39,143,649 → 39,193,428 (+49,779), armeabi-v7a 37,798,245 → 37,848,029 (+49,784), x86_64 39,191,851 →
+39,241,640 (+49,789). Dex for the details header, seasons list and season page; strings. Over the +40 KB estimate, as
+in Phase 1 (unminified debug dex).

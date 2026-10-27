@@ -23,6 +23,7 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
 import dev.aldoborrero.peke.preferences.UserPreferences
@@ -114,12 +115,15 @@ fun ApplicationContent(
         modifier = modifier,
     ) {
         val backdropStyle = preferences.appPreferences.interfacePreferences.backdropStyle
-        Backdrop(
-            drawerIsOpen = drawerState.isOpen,
-            backdropStyle = backdropStyle,
-            enableTopScrim = enableTopScrim,
-            viewModel = viewModel,
-        )
+        // Kid pages sit on the theme background, as on the canvas boards: no item art behind them
+        if (!LocalKidsMode.current.isActive) {
+            Backdrop(
+                drawerIsOpen = drawerState.isOpen,
+                backdropStyle = backdropStyle,
+                enableTopScrim = enableTopScrim,
+                viewModel = viewModel,
+            )
+        }
         val navDrawerListState = rememberLazyListState()
         // Peke is for kids: until it is known that the user is a kid nothing is shown, and anyone else goes back to the
         // launch rule

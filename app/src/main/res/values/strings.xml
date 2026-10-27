@@ -1142,4 +1142,18 @@
         <item quantity="one">%1$d min left</item>
         <item quantity="other">%1$d min left</item>
     </plurals>
+    <!-- 008 Phase 2: details and seasons -->
+    <string name="kids_play_episode">Play episode %1$d</string>
+    <plurals name="kids_episode_count">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <plurals name="kids_season_count">
+        <item quantity="one">%1$d season</item>
+        <item quantity="other">%1$d seasons</item>
+    </plurals>
+    <plurals name="kids_runtime">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
 </resources>

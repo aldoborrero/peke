@@ -48,6 +48,8 @@ import dev.aldoborrero.peke.data.ChosenStreams
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Person
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.cards.BannerCard
@@ -105,6 +107,30 @@ fun SeriesOverviewContent(
     onChooseVersion: (BaseItem, MediaSourceInfo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (LocalKidsMode.current.isActive) {
+        // The kids' season page of the canvas (DetailsPekeTV, KSeasonsPekeTV): same actions, Peke's layout
+        KidsSeriesOverviewContent(
+            series = series,
+            seasons = seasons,
+            episodes = episodes,
+            seasonExtras = seasonExtras,
+            chosenStreams = chosenStreams,
+            position = position,
+            firstItemFocusRequester = firstItemFocusRequester,
+            episodeRowFocusRequester = episodeRowFocusRequester,
+            extrasRowFocusRequester = extrasRowFocusRequester,
+            onChangeSeason = onChangeSeason,
+            onFocusEpisode = onFocusEpisode,
+            onClick = onClick,
+            playOnClick = playOnClick,
+            watchOnClick = watchOnClick,
+            favoriteOnClick = favoriteOnClick,
+            onClickExtra = onClickExtra,
+            onChooseVersion = onChooseVersion,
+            modifier = modifier,
+        )
+        return
+    }
     val scope = rememberCoroutineScope()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)

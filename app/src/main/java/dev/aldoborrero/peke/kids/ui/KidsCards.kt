@@ -78,12 +78,16 @@ fun KidsPictureCard(
     favorite: Boolean = false,
     playPercent: Double = 0.0,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    useSeriesForPrimary: Boolean? = null,
 ) {
     val imageUrlService = LocalImageUrlService.current
     val fillHeight = with(LocalDensity.current) { height.roundToPx() }
     val imageUrl =
-        remember(item, imageType, fillHeight) {
-            item?.let { it.imageUrlOverride ?: imageUrlService.getItemImageUrl(it, imageType, fillHeight = fillHeight) }
+        remember(item, imageType, fillHeight, useSeriesForPrimary) {
+            item?.let {
+                it.imageUrlOverride
+                    ?: imageUrlService.getItemImageUrl(it, imageType, fillHeight = fillHeight, useSeriesForPrimary = useSeriesForPrimary)
+            }
         }
     val focused by interactionSource.collectIsFocusedAsState()
     val shape = RoundedCornerShape(corner)

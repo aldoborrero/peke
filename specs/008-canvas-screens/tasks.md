@@ -48,14 +48,14 @@ tests are under `app/src/test/java/dev/aldoborrero/peke/`. Strings go in `app/sr
 **Goal**: DetailsPekeTV and KSeasonsPekeTV.
 **Independent Test**: quickstart 2; `KidsDetailsTest`; 004's details rules unchanged.
 
-- [ ] T012 [P] [US2] `kids/KidsDetailsTest.kt`: season circle colours ("not focused: secondary, tertiary, time, primary in turn with 'on primary'; focused: the background colour with the number in 'time'"), the episode label "{n}. {name}" (name alone without a number), the chips of a season, a series and a film
-- [ ] T013 [US2] `kids/ui/KidsDetails.kt`: `KidsDetailsHeader` (poster 260×380, Display title, chips, overview, Play pill 72 px, round favourite 72 px, extra round buttons for what the page already offers), `KidsSeasonsDialog`, `seasonCircle`, `episodeLabel`, chips helpers (T012 green)
-- [ ] T014 [US2] `ui/detail/series/SeriesOverviewContent.kt`, `SeriesOverview.kt`: kids branch with `KidsDetailsHeader` for the season (Play episode N on the focused episode, resume as today), the season chip opening `KidsSeasonsDialog` (more than one season), no TabRow, wide episode cards 260×146 with labels, watched badge and progress
-- [ ] T015 [US2] `ui/detail/series/SeriesDetails.kt`: kids branch with `KidsDetailsHeader` (Play next up, favourite, watched, shuffle as today) and season cards as kids posters
-- [ ] T016 [US2] `ui/detail/movie/MovieDetails.kt`: kids branch with `KidsDetailsHeader` (year and runtime chips, Play/Resume, favourite, watched, restart as today)
-- [ ] T017 [US2] No backdrop on kids details: `SeriesViewModel`, `MovieViewModel` skip `backdropService.submit` in kids mode and the pages clear it
-- [ ] T018 [US2] Strings for the chips, the seasons title and Play episode N, English and Spanish
-- [ ] T019 [US2] [US7] Validation, screenshots (series page, season page, seasons dialog, a film), size, `reports/phase-2.md`
+- [X] T012 [P] [US2] `kids/KidsDetailsTest.kt`: season circle colours ("not focused: secondary, tertiary, time, primary in turn with 'on primary'; focused: the background colour with the number in 'time'"), the episode label "{n}. {name}" (name alone without a number), the chips of a season, a series and a film
+- [X] T013 [US2] `kids/ui/KidsDetails.kt`: `KidsDetailsHeader` (poster 260×380, Display title, chips, overview, Play pill 72 px, round favourite 72 px, extra round buttons for what the page already offers), `KidsSeasonsDialog`, `seasonCircle`, `episodeLabel`, chips helpers (T012 green)
+- [X] T014 [US2] `ui/detail/series/SeriesOverviewContent.kt`, `SeriesOverview.kt`: kids branch with `KidsDetailsHeader` for the season (Play episode N on the focused episode, resume as today), the season chip opening `KidsSeasonsDialog` (more than one season), no TabRow, wide episode cards 260×146 with labels, watched badge and progress
+- [X] T015 [US2] `ui/detail/series/SeriesDetails.kt`: kids branch with `KidsDetailsHeader` (Play next up, favourite, watched, shuffle as today) and season cards as kids posters
+- [X] T016 [US2] `ui/detail/movie/MovieDetails.kt`: kids branch with `KidsDetailsHeader` (year and runtime chips, Play/Resume, favourite, watched, restart as today)
+- [X] T017 [US2] No backdrop on kids details: `SeriesViewModel`, `MovieViewModel` skip `backdropService.submit` in kids mode and the pages clear it
+- [X] T018 [US2] Strings for the chips, the seasons title and Play episode N, English and Spanish
+- [X] T019 [US2] [US7] Validation, screenshots (series page, season page, seasons dialog, a film), size, `reports/phase-2.md`
 
 ## Phase 3: Player and next-up (US3, PR 3)
 
