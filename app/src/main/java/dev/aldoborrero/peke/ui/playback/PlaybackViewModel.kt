@@ -1288,6 +1288,11 @@ class PlaybackViewModel
         private var autoPlayedInARow = 0
 
         /**
+         * Episodes autoplayed since the last interaction, read by the kids next-up panel's in-a-row chip
+         */
+        val autoPlayedInARowCount: Int get() = autoPlayedInARow
+
+        /**
          * Tracks interactions with the UI, which restart the kids autoplay cap
          */
         fun reportInteraction() {

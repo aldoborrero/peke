@@ -977,4 +977,9 @@
         <item quantity="many">%1$d min</item>
         <item quantity="other">%1$d min</item>
     </plurals>
+    <!-- 008 Phase 3: player and next-up -->
+    <string name="kids_episode_number">Episodio %1$d</string>
+    <string name="kids_play_now">Ver ya</string>
+    <string name="kids_stop">Parar</string>
+    <string name="kids_in_a_row">Episodio %1$d de %2$d seguidos</string>
 </resources>

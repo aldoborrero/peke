@@ -45,10 +45,14 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.ui.playback.ControllerViewState
 import dev.aldoborrero.peke.ui.playback.calculateSeekAccelerationMultiplier
 import dev.aldoborrero.peke.ui.playback.isDpadLeft
 import dev.aldoborrero.peke.ui.playback.isDpadRight
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.cpx
 import kotlinx.coroutines.FlowPreview
 import timber.log.Timber
 import kotlin.time.Duration
@@ -200,14 +204,19 @@ private fun SeekBarDisplay(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val color = MaterialTheme.colorScheme.border
+    // Kids (PlayerPekeTV): a 12 px bar in primary on the outline colour, twice as thick while focused
+    val kids = LocalKidsMode.current.isActive
+    val pekeColors = LocalPekeColors.current
+    val color = if (kids) pekeColors.primary else MaterialTheme.colorScheme.border
     val onSurface = MaterialTheme.colorScheme.onSurface
+    val track = if (kids) pekeColors.outline.copy(alpha = .5f) else onSurface.copy(alpha = 0.25f)
+    val buffered = if (kids) pekeColors.outline.copy(alpha = .75f) else onSurface.copy(alpha = .65f)
 
     val isFocused by interactionSource.collectIsFocusedAsState()
     var leftHandledByRepeat by remember { mutableStateOf(false) }
     var rightHandledByRepeat by remember { mutableStateOf(false) }
     val animatedIndicatorHeight by animateDpAsState(
-        targetValue = 6.dp.times((if (isFocused) 2f else 1f)),
+        targetValue = (if (kids) 12.cpx else 6.dp).times((if (isFocused) 2f else 1f)),
     )
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -285,14 +294,14 @@ private fun SeekBarDisplay(
             onDraw = {
                 val yOffset = size.height.div(2)
                 drawLine(
-                    color = onSurface.copy(alpha = 0.25f),
+                    color = track,
                     start = Offset(x = 0f, y = yOffset),
                     end = Offset(x = size.width, y = yOffset),
                     strokeWidth = size.height,
                     cap = StrokeCap.Round,
                 )
                 drawLine(
-                    color = onSurface.copy(alpha = .65f),
+                    color = buffered,
                     start = Offset(x = 0f, y = yOffset),
                     end =
                         Offset(

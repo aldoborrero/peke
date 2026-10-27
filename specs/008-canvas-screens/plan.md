@@ -171,3 +171,9 @@ Clean debug builds, Phase 1 → Phase 2 (Phase 2 built alone in a scratch clone 
 arm64-v8a 39,143,649 → 39,193,428 (+49,779), armeabi-v7a 37,798,245 → 37,848,029 (+49,784), x86_64 39,191,851 →
 39,241,640 (+49,789). Dex for the details header, seasons list and season page; strings. Over the +40 KB estimate, as
 in Phase 1 (unminified debug dex).
+
+### Phase 3 (2026-10-27, T026)
+
+Clean debug builds, Phase 2 → Phase 3: arm64-v8a 39,193,428 → 39,226,602 (+33,174), armeabi-v7a 37,848,029 →
+37,881,204 (+33,175), x86_64 39,241,640 → 39,274,807 (+33,167). Dex and strings, within the +5 to +30 KB estimate
+plus 10%.

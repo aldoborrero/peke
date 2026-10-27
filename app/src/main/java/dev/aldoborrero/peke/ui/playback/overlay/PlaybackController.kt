@@ -31,11 +31,16 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.playback.kidsPlayerTitle
 import dev.aldoborrero.peke.ui.formatTime
 import dev.aldoborrero.peke.ui.playback.ControllerViewState
 import dev.aldoborrero.peke.ui.playback.PlaybackDialogType
+import dev.aldoborrero.peke.ui.theme.csp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.MediaSegmentDto
 import java.time.LocalTime
 import kotlin.time.Duration
@@ -67,9 +72,24 @@ fun PlaybackController(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
+        val kids = LocalKidsMode.current.isActive
         Controller(
-            title = item?.title,
-            subtitle = item?.subtitleLong,
+            // PlayerPekeTV: "Space Pals · Episode 4" on one line
+            title =
+                if (kids) {
+                    kidsPlayerTitle(
+                        item?.title,
+                        item?.takeIf { it.type == BaseItemKind.EPISODE }?.data?.indexNumber?.let {
+                            stringResource(
+                                R.string.kids_episode_number,
+                                it,
+                            )
+                        },
+                    )
+                } else {
+                    item?.title
+                },
+            subtitle = if (kids) null else item?.subtitleLong,
             player = player,
             controllerViewState = controllerViewState,
             showPlay = showPlay,
@@ -143,6 +163,7 @@ fun Controller(
             ),
     )
 
+    val kids = LocalKidsMode.current.isActive
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
@@ -158,52 +179,55 @@ fun Controller(
                 Text(
                     text = it,
                     style = MaterialTheme.typography.titleLarge,
-                    fontSize = titleTextSize,
+                    fontSize = if (kids) 26.csp else titleTextSize,
                     maxLines = 1,
                     overflow = TextOverflow.MiddleEllipsis,
                     modifier = Modifier.fillMaxWidth(.75f),
                 )
             }
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.End),
-            ) {
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontSize = subtitleTextSize,
-                        maxLines = 1,
-                        overflow = TextOverflow.MiddleEllipsis,
-                        modifier = Modifier.fillMaxWidth(.75f),
-                    )
-                }
-
-                val context = LocalContext.current
-                var endTimeStr by remember { mutableStateOf("...") }
-                LaunchedEffect(player, context) {
-                    while (isActive) {
-                        val remaining =
-                            (player.duration - player.currentPosition)
-                                .div(player.playbackParameters.speed)
-                                .toLong()
-                                .milliseconds
-                        val endTime = LocalTime.now().plusSeconds(remaining.inWholeSeconds)
-                        endTimeStr = formatTime(context, endTime)
-                        delay(1.seconds)
-                    }
-                }
-                Text(
-                    text = stringResource(R.string.ends_at, endTimeStr),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.labelLarge,
+            // Kids see the title and the bar only (PlayerPekeTV): no "ends at"
+            if (!kids) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     modifier =
                         Modifier
-                            .padding(end = 32.dp),
-                )
+                            .fillMaxWidth()
+                            .align(Alignment.End),
+                ) {
+                    subtitle?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = subtitleTextSize,
+                            maxLines = 1,
+                            overflow = TextOverflow.MiddleEllipsis,
+                            modifier = Modifier.fillMaxWidth(.75f),
+                        )
+                    }
+
+                    val context = LocalContext.current
+                    var endTimeStr by remember { mutableStateOf("...") }
+                    LaunchedEffect(player, context) {
+                        while (isActive) {
+                            val remaining =
+                                (player.duration - player.currentPosition)
+                                    .div(player.playbackParameters.speed)
+                                    .toLong()
+                                    .milliseconds
+                            val endTime = LocalTime.now().plusSeconds(remaining.inWholeSeconds)
+                            endTimeStr = formatTime(context, endTime)
+                            delay(1.seconds)
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.ends_at, endTimeStr),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier =
+                            Modifier
+                                .padding(end = 32.dp),
+                    )
+                }
             }
         }
         PlaybackControls(

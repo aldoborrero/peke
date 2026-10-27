@@ -63,13 +63,13 @@ tests are under `app/src/test/java/dev/aldoborrero/peke/`. Strings go in `app/sr
 **Independent Test**: `KidsPlayerTest`; player tests unchanged; code review against the boards (playback isn't started on
 purpose).
 
-- [ ] T020 [P] [US3] `kids/KidsPlayerTest.kt`: the in-a-row chip ("shown only with a cap; n is the count of episodes played in a row including the one ending, capped at the cap"), the kids title "{Series} · {episode}" or the film's name
-- [ ] T021 [US3] `ui/playback/PlaybackViewModel.kt`: expose the existing `autoPlayedInARow` as a read-only `StateFlow` (no logic change); `kids/playback/KidsPlayerUi.kt` (new): `inARow`, `kidsPlayerTitle` (T020 green)
-- [ ] T022 [US3] `ui/playback/overlay/PlaybackController.kt`, `PlaybackControls.kt`, `SeekBar.kt`: kids look: 26 px title, 12 px bar in primary on outline 50%, round buttons (76 px play/pause in primary, 62 px others on outline 92%), Peke's audio icon
-- [ ] T023 [US3] `kids/ui/KidsTimerEffects.kt`: on the player, the warning is the dark pill at the top right with the buddy and the minutes in "time"; elsewhere unchanged
-- [ ] T024 [US3] `ui/playback/NextUpEpisode.kt`, `ui/playback/PlaybackPage.kt`: kids next-up panel at the bottom right (image, Next Up, "{n}. {name}", Play now with the countdown ring, Stop = Back's cancel) and the in-a-row chip at the bottom left
-- [ ] T025 [US3] Strings: in a row, Play now, Stop, English and Spanish
-- [ ] T026 [US3] [US7] Validation, screenshots where reachable, size, `reports/phase-3.md`
+- [X] T020 [P] [US3] `kids/KidsPlayerTest.kt`: the in-a-row chip ("shown only with a cap; n is the count of episodes played in a row including the one ending, capped at the cap"), the kids title "{Series} · {episode}" or the film's name
+- [X] T021 [US3] `ui/playback/PlaybackViewModel.kt`: expose the existing `autoPlayedInARow` read-only (a getter, read when next-up shows; no logic change); `kids/playback/KidsPlayerUi.kt` (new): `inARow`, `kidsPlayerTitle` (T020 green)
+- [X] T022 [US3] `ui/playback/overlay/PlaybackController.kt`, `PlaybackControls.kt`, `SeekBar.kt`: kids look: 26 px title, 12 px bar in primary on outline 50%, round buttons (76 px play/pause in primary, 62 px others on outline 92%), Peke's audio icon
+- [X] T023 [US3] `kids/ui/KidsTimerEffects.kt`: on the player, the warning is the dark pill at the top right with the buddy and the minutes in "time"; elsewhere unchanged
+- [X] T024 [US3] `ui/playback/NextUpEpisode.kt`, `ui/playback/PlaybackPage.kt`: kids next-up panel at the bottom right (image, Next Up, "{n}. {name}", Play now with the countdown ring, Stop = Back's cancel) and the in-a-row chip at the bottom left
+- [X] T025 [US3] Strings: in a row, Play now, Stop, English and Spanish
+- [X] T026 [US3] [US7] Validation, screenshots where reachable, size, `reports/phase-3.md`
 
 ## Phase 4: Live TV (US4, PR 4)
 

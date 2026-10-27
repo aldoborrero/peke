@@ -1156,4 +1156,9 @@
         <item quantity="one">%1$d min</item>
         <item quantity="other">%1$d min</item>
     </plurals>
+    <!-- 008 Phase 3: player and next-up -->
+    <string name="kids_episode_number">Episode %1$d</string>
+    <string name="kids_play_now">Play now</string>
+    <string name="kids_stop">Stop</string>
+    <string name="kids_in_a_row">Episode %1$d of %2$d in a row</string>
 </resources>

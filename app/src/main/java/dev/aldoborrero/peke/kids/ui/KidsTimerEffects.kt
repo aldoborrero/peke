@@ -37,6 +37,7 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.playback.KidsPlayerWarning
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
@@ -46,6 +47,7 @@ import dev.aldoborrero.peke.services.PlayerFactory
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
@@ -196,8 +198,21 @@ private fun KidsTimerEffectsContent(
                 modifier = Modifier.align(if (barPosition == KidsTimerBarPosition.BOTTOM) Alignment.BottomCenter else Alignment.TopCenter),
             )
         }
+        // On the player the warning is the dark pill with the buddy at the top right (PlayerPekeTV)
         AnimatedVisibility(
-            visible = warning != null,
+            visible = warning != null && playing,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    // Below the time left when it is at the top
+                    .padding(top = if (barPosition == KidsTimerBarPosition.TOP) 64.dp else 40.cpx, end = 56.cpx),
+        ) {
+            KidsPlayerWarning(minutes = warning?.inWholeMinutes?.toInt() ?: 1)
+        }
+        AnimatedVisibility(
+            visible = warning != null && !playing,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier =
