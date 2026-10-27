@@ -41,6 +41,7 @@ class DrawablesTest {
                 "break",
                 "episodes",
                 "favourites",
+                "filter",
                 "grown-ups",
                 "home",
                 "live",

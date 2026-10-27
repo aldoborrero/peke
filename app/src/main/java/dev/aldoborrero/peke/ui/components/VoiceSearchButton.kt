@@ -11,14 +11,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -30,45 +25,42 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.OutlinedButtonDefaults
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import androidx.tv.material3.surfaceColorAtElevation
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.ui.FontAwesome
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.csp
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import kotlinx.coroutines.delay
 
 private const val ERROR_AUTO_DISMISS_DELAY_MS = 3000L
 private const val SOUND_LEVEL_SCALE_FACTOR = 0.15f
-private val BUBBLE_SIZE = 160.dp
-private val MIC_ICON_FONT_SIZE = 56.sp
-private val BUTTON_ICON_FONT_SIZE = 20.sp
-private val CONTENT_SPACING = 48.dp
-private val HORIZONTAL_PADDING = 64.dp
-private val DISMISS_HINT_BOTTOM_PADDING = 32.dp
-private const val HINT_TEXT_ALPHA = 0.5f
 private const val SOUND_LEVEL_ANIM_MS = 100
 private const val BASE_PULSE_ANIM_MS = 800
 private const val RIPPLE_ANIM_MS = 1500
-private const val DOTS_ANIM_MS = 1200
 private const val RIPPLE_CANVAS_SCALE = 1.8f
 private const val MAX_RIPPLE_EXPANSION = 0.35f
 private val RIPPLE_STROKE_WIDTH = 2.dp
@@ -152,7 +144,9 @@ fun VoiceSearchButton(
         )
     }
 
-    Button(
+    // KSearchPekeTV: a 72 px circle in tertiary with Peke's voice icon
+    val colors = LocalPekeColors.current
+    Surface(
         onClick = {
             when (state) {
                 is VoiceInputState.Starting,
@@ -166,26 +160,26 @@ fun VoiceSearchButton(
                 }
             }
         },
-        modifier =
-            modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxWidth = MinButtonSize,
-                maxHeight = MinButtonSize,
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        scale = PekeFocus.surfaceScale,
+        border = PekeFocus.surfaceBorder(),
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = colors.tertiary,
+                contentColor = colors.onPrimary,
+                focusedContainerColor = colors.primary,
+                focusedContentColor = colors.onPrimary,
             ),
-        contentPadding = PaddingValues(0.dp),
+        modifier = modifier.size(72.cpx).pekeFocus(CircleShape),
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            val voiceSearchDesc = stringResource(R.string.voice_search)
-            Text(
-                text = stringResource(R.string.fa_microphone),
-                fontFamily = FontAwesome,
-                fontSize = BUTTON_ICON_FONT_SIZE,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.semantics { contentDescription = voiceSearchDesc },
+            Icon(
+                painter = painterResource(PekeIcon.VOICE.outline),
+                contentDescription = stringResource(R.string.voice_search),
+                modifier = Modifier.size(40.cpx),
             )
         }
     }
@@ -223,26 +217,6 @@ private fun VoiceRippleRings(
     }
 }
 
-private fun getStatusText(
-    errorMessage: String?,
-    partialResult: String,
-    isStarting: Boolean,
-    isProcessing: Boolean,
-    startingText: String,
-    processingText: String,
-    listeningText: String,
-    dotCount: Int,
-): Pair<String, String> {
-    val dots = ".".repeat(dotCount)
-    return when {
-        errorMessage != null -> errorMessage to errorMessage
-        isProcessing -> (processingText + dots) to processingText
-        isStarting -> (startingText + dots) to startingText
-        partialResult.isNotBlank() -> partialResult to partialResult
-        else -> (listeningText + dots) to listeningText
-    }
-}
-
 @Composable
 private fun VoiceSearchOverlay(
     soundLevel: Float,
@@ -254,8 +228,6 @@ private fun VoiceSearchOverlay(
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val errorColor = MaterialTheme.colorScheme.error
 
     val animatedSoundLevel by animateFloatAsState(
@@ -289,17 +261,6 @@ private fun VoiceSearchOverlay(
         label = "ripple",
     )
 
-    val dotAnimation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 4f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = DOTS_ANIM_MS),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "dots",
-    )
-
     val bubbleScale = basePulse + (animatedSoundLevel * SOUND_LEVEL_SCALE_FACTOR)
 
     val statusFocusRequester = remember { FocusRequester() }
@@ -307,6 +268,9 @@ private fun VoiceSearchOverlay(
         statusFocusRequester.requestFocus()
     }
 
+    // KVoicePekeTV: the whole screen, the microphone in two tertiary circles, "Speak to search", what was heard in a
+    // pill in the time colour, and how to stop
+    val colors = LocalPekeColors.current
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -316,107 +280,90 @@ private fun VoiceSearchOverlay(
                 usePlatformDefaultWidth = false,
             ),
     ) {
-        Box(
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.cpx, Alignment.CenterVertically),
             modifier =
                 Modifier
-                    .fillMaxWidth(0.85f)
-                    .wrapContentHeight()
-                    .padding(vertical = 48.dp)
-                    .clip(MaterialTheme.shapes.large)
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)),
-            contentAlignment = Alignment.Center,
+                    .fillMaxSize()
+                    .background(colors.background),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(CONTENT_SPACING),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    val rippleAlpha = if (shouldAnimateRipples) 1f else 0f
-                    Box(modifier = Modifier.graphicsLayer { alpha = rippleAlpha }) {
-                        VoiceRippleRings(
-                            rippleProgress = rippleProgress,
-                            bubbleSize = BUBBLE_SIZE,
-                            color = primaryColor,
-                        )
-                    }
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(BUBBLE_SIZE)
-                                .graphicsLayer {
-                                    scaleX = bubbleScale
-                                    scaleY = bubbleScale
-                                }.clip(CircleShape)
-                                .background(if (errorMessage != null) errorColor else primaryColor),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        val voiceSearchDesc = stringResource(R.string.voice_search)
-                        Text(
-                            text = stringResource(R.string.fa_microphone),
-                            fontFamily = FontAwesome,
-                            fontSize = MIC_ICON_FONT_SIZE,
-                            color = onPrimaryColor,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.semantics { contentDescription = voiceSearchDesc },
-                        )
-                    }
-                }
-
-                val startingText = stringResource(R.string.voice_starting)
-                val processingText = stringResource(R.string.processing)
-                val listeningText = stringResource(R.string.voice_search_prompt)
-                val (statusText, accessibilityDescription) =
-                    getStatusText(
-                        errorMessage = errorMessage,
-                        partialResult = partialResult,
-                        isStarting = isStarting,
-                        isProcessing = isProcessing,
-                        startingText = startingText,
-                        processingText = processingText,
-                        listeningText = listeningText,
-                        dotCount = dotAnimation.toInt(),
+            val circle = if (errorMessage != null) errorColor else colors.tertiary
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(300.cpx)) {
+                val rippleAlpha = if (shouldAnimateRipples) 1f else 0f
+                Box(modifier = Modifier.graphicsLayer { alpha = rippleAlpha }) {
+                    VoiceRippleRings(
+                        rippleProgress = rippleProgress,
+                        bubbleSize = 220.cpx,
+                        color = circle,
                     )
-
-                Column(
-                    modifier = Modifier.weight(1f).focusRequester(statusFocusRequester),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = if (errorMessage != null) errorColor else Color.White,
-                        modifier = Modifier.semantics { contentDescription = accessibilityDescription },
-                    )
-
-                    if (errorMessage != null && isRetryable) {
-                        OutlinedButton(
-                            onClick = onRetry,
-                            modifier = Modifier.padding(top = 16.dp),
-                            shape = ButtonDefaults.shape(RoundedCornerShape(50)),
-                            colors =
-                                OutlinedButtonDefaults.colors(
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.retry),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-                    }
                 }
+                Box(Modifier.size(300.cpx).background(circle.copy(alpha = .18f), CircleShape))
+                Box(
+                    modifier =
+                        Modifier
+                            .size(220.cpx)
+                            .graphicsLayer {
+                                scaleX = bubbleScale
+                                scaleY = bubbleScale
+                            }.background(circle.copy(alpha = .3f), CircleShape),
+                )
+                Icon(
+                    painter = painterResource(PekeIcon.VOICE.outline),
+                    contentDescription = stringResource(R.string.voice_search),
+                    tint = colors.text,
+                    modifier = Modifier.size(160.cpx),
+                )
             }
 
+            val title =
+                when {
+                    errorMessage != null -> errorMessage
+                    isProcessing -> stringResource(R.string.processing)
+                    isStarting -> stringResource(R.string.voice_starting)
+                    else -> stringResource(R.string.kids_voice_title)
+                }
             Text(
-                text = stringResource(R.string.press_back_to_cancel),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = HINT_TEXT_ALPHA),
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = DISMISS_HINT_BOTTOM_PADDING),
+                text = title,
+                fontSize = 52.csp,
+                fontWeight = FontWeight.W900,
+                color = if (errorMessage != null) errorColor else colors.text,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 56.cpx).focusRequester(statusFocusRequester),
+            )
+            if (partialResult.isNotBlank() && errorMessage == null) {
+                Text(
+                    text = "\"$partialResult\"",
+                    fontSize = 30.csp,
+                    fontWeight = FontWeight.W900,
+                    color = colors.time,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .background(colors.surface, RoundedCornerShape(30.cpx))
+                            .padding(horizontal = 28.cpx, vertical = 14.cpx),
+                )
+            }
+            if (errorMessage != null && isRetryable) {
+                OutlinedButton(
+                    onClick = onRetry,
+                    shape = ButtonDefaults.shape(RoundedCornerShape(50)),
+                    colors =
+                        OutlinedButtonDefaults.colors(
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.retry),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.kids_voice_back),
+                fontSize = 20.csp,
+                fontWeight = FontWeight.W800,
+                color = colors.textSecondary,
             )
         }
     }

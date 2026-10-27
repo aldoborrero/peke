@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,8 +24,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults.Container
@@ -35,7 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -46,8 +48,13 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.ui.PreviewTvSpec
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.csp
 
 /**
  * An input field for text customized for TV entry
@@ -190,13 +197,7 @@ fun SearchEditTextBox(
         onKeyboardAction = {
             onSearchClick.invoke()
         },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        },
+        leadingIcon = { SearchIcon() },
         enabled = enabled,
         readOnly = readOnly,
         interactionSource = interactionSource,
@@ -222,6 +223,7 @@ fun EditTextBox(
     supportingText: @Composable (() -> Unit)? = null,
     placeholder: @Composable (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
     val colors =
         TextFieldDefaults.colors(
@@ -246,7 +248,7 @@ fun EditTextBox(
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = MaterialTheme.typography.bodyLarge.merge(MaterialTheme.colorScheme.onSurface),
+            textStyle = textStyle.merge(MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(colors.cursorColor),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
@@ -326,6 +328,7 @@ fun SearchEditTextBox(
     height: Dp = 40.dp,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val kids = LocalKidsMode.current.isActive
     EditTextBox(
         value,
         onValueChange,
@@ -342,17 +345,34 @@ fun SearchEditTextBox(
                     this.defaultKeyboardAction(ImeAction.Search)
                 },
             ),
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        },
+        leadingIcon = { SearchIcon(Modifier.padding(start = if (kids) 16.cpx else 0.dp)) },
         enabled = enabled,
         readOnly = readOnly,
-        height = height,
+        // KSearchPekeTV: a 72 px pill with 28 px text for kids
+        height = if (kids) 72.cpx else height,
+        textStyle =
+            if (kids) {
+                MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 28.csp,
+                    fontWeight = FontWeight.W900,
+                )
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
         interactionSource = interactionSource,
+    )
+}
+
+/**
+ * Peke's search icon at the start of a search box, in the secondary colour
+ */
+@Composable
+private fun SearchIcon(modifier: Modifier = Modifier) {
+    Icon(
+        painter = painterResource(PekeIcon.SEARCH.outline),
+        contentDescription = stringResource(R.string.search),
+        tint = MaterialTheme.colorScheme.secondary,
+        modifier = modifier.size(32.cpx),
     )
 }
 
@@ -379,13 +399,7 @@ private fun EditTextBoxPreview() {
             )
             EditTextBox(
                 state = rememberTextFieldState("search"),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(R.string.search),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                },
+                leadingIcon = { SearchIcon() },
                 isInputValid = { true },
                 modifier = Modifier.width(280.dp),
             )

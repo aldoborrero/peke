@@ -23,6 +23,7 @@ enum class PekeIcon(
     BREAK("break", R.drawable.ic_peke_break, R.drawable.ic_peke_outline_break),
     EPISODES("episodes", R.drawable.ic_peke_episodes, R.drawable.ic_peke_outline_episodes),
     FAVOURITES("favourites", R.drawable.ic_peke_favourites, R.drawable.ic_peke_outline_favourites),
+    FILTER("filter", R.drawable.ic_peke_filter, R.drawable.ic_peke_outline_filter),
     GROWN_UPS("grown-ups", R.drawable.ic_peke_grown_ups, R.drawable.ic_peke_outline_grown_ups),
     HOME("home", R.drawable.ic_peke_home, R.drawable.ic_peke_outline_home),
     LIVE("live", R.drawable.ic_peke_live, R.drawable.ic_peke_outline_live),

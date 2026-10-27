@@ -87,12 +87,12 @@ purpose).
 **Goal**: KSearchPekeTV, KVoicePekeTV, KFavoritesPekeTV, KLibraryPekeTV; no Material search, mic or filter icons.
 **Independent Test**: quickstart 5; `IconSpecTest`, `DrawablesTest` with the new icon.
 
-- [ ] T032 [P] [US5] Draw `design/assets/icons/filter.svg` and `outline/filter.svg` (sliders) under DESIGN Icons; convert to `app/src/main/res/drawable/ic_peke_filter.xml`, `ic_peke_outline_filter.xml`; add `PekeIcon.FILTER` in `ui/theme/PekeArt.kt`; `IconSpecTest`, `DrawablesTest` green
-- [ ] T033 [US5] Search: `ui/components/EditTextBox.kt` (kids: 72 px pill, Peke's search icon), `ui/components/VoiceSearchButton.kt` (72 px tertiary circle with Peke's voice icon; listening page per KVoicePekeTV), `ui/search/SearchPage.kt` (view options with Peke's filter icon; rows with kids cards), `ui/search/SearchPageCard.kt`
-- [ ] T034 [US5] Favourites: `ui/detail/FavoritesPage.kt` and the grid it uses: the kid's title with the heart, tabs as chips, kids posters with the heart badge, no grid header for kids, the hint pill
-- [ ] T035 [US5] Library grids: `ui/components/CollectionFolderGrid.kt` header for kids: title 44 px, sort and filter as chips, Peke icons; kids posters in the grid
-- [ ] T036 [US5] Strings: favourites title and hint, Speak to search, Press Back to stop, English and Spanish
-- [ ] T037 [US5] [US7] Validation, screenshots (search, results, favourites, a folder), size, `reports/phase-5.md`
+- [X] T032 [P] [US5] Draw `design/assets/icons/filter.svg` and `outline/filter.svg` (sliders) under DESIGN Icons; convert to `app/src/main/res/drawable/ic_peke_filter.xml`, `ic_peke_outline_filter.xml`; add `PekeIcon.FILTER` in `ui/theme/PekeArt.kt`; `IconSpecTest`, `DrawablesTest` green
+- [X] T033 [US5] Search: `ui/components/EditTextBox.kt` (kids: 72 px pill, Peke's search icon), `ui/components/VoiceSearchButton.kt` (72 px tertiary circle with Peke's voice icon; listening page per KVoicePekeTV), `ui/search/SearchPage.kt` (view options with Peke's filter icon; rows with kids cards), `ui/search/SearchPageCard.kt`
+- [X] T034 [US5] Favourites: `ui/detail/FavoritesPage.kt` and the grid it uses: the kid's title with the heart, tabs as chips, kids posters with the heart badge, no grid header for kids, the hint pill
+- [X] T035 [US5] Library grids: `ui/components/CollectionFolderGrid.kt` header for kids: title 44 px, sort and filter as chips, Peke icons; kids posters in the grid
+- [X] T036 [US5] Strings: favourites title and hint, Speak to search, Press Back to stop, English and Spanish
+- [X] T037 [US5] [US7] Validation, screenshots (search, results, favourites, a folder), size, `reports/phase-5.md`
 
 ## Phase 6: Other screens (US6, PR 6)
 

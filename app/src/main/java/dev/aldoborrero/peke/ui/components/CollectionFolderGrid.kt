@@ -36,6 +36,9 @@ import dev.aldoborrero.peke.data.filter.FilterValueOption
 import dev.aldoborrero.peke.data.filter.ItemFilterBy
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.GetItemsFilter
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.ui.KidsPictureCard
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.cards.GridCard
@@ -45,9 +48,11 @@ import dev.aldoborrero.peke.ui.detail.GridItemDetails
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.main.HomePageHeader
 import dev.aldoborrero.peke.ui.playback.scale
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemSortBy
 import kotlin.time.Duration
 
@@ -69,6 +74,7 @@ fun CollectionFolderGrid(
     modifier: Modifier = Modifier,
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
 ) {
+    val kids = LocalKidsMode.current.isActive
     Box(modifier = modifier) {
         Column(
             verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -100,17 +106,35 @@ fun CollectionFolderGrid(
                 initialPosition = initialPosition,
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                    GridCard(
-                        item = item,
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                        imageContentScale = viewOptions.contentScale.scale,
-                        imageAspectRatio = viewOptions.aspectRatio.ratio,
-                        imageType = viewOptions.imageType,
-                        showTitle = viewOptions.showTitles,
-                        fillWidth = widthPx,
-                        modifier = mod,
-                    )
+                    if (kids) {
+                        // KLibraryPekeTV and KFavoritesPekeTV: posters with the title under them
+                        val width = with(density) { widthPx.toDp() }
+                        KidsPictureCard(
+                            item = item,
+                            title = item?.title,
+                            imageType = ImageType.PRIMARY,
+                            width = width,
+                            height = width * KIDS_POSTER_RATIO,
+                            corner = 22.cpx,
+                            titleSize = 17,
+                            favorite = item?.favorite ?: false,
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                            modifier = mod,
+                        )
+                    } else {
+                        GridCard(
+                            item = item,
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                            imageContentScale = viewOptions.contentScale.scale,
+                            imageAspectRatio = viewOptions.aspectRatio.ratio,
+                            imageType = viewOptions.imageType,
+                            showTitle = viewOptions.showTitles,
+                            fillWidth = widthPx,
+                            modifier = mod,
+                        )
+                    }
                 },
                 columns = viewOptions.columns,
                 spacing = viewOptions.spacing.dp,
@@ -311,6 +335,7 @@ fun CollectionFolderHeader(
     filterButtonFocusRequester: FocusRequester = remember { FocusRequester() },
     randomButtonFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
+    val kids = LocalKidsMode.current.isActive
     AnimatedVisibility(
         showHeader,
         enter = expandVertically(),
@@ -323,7 +348,19 @@ fun CollectionFolderHeader(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (showTitle) {
-                GridTitle(title)
+                if (kids) {
+                    // KLibraryPekeTV: the library's name in Title style at the start
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 16.dp, top = 40.cpx),
+                    )
+                } else {
+                    GridTitle(title)
+                }
             }
             val endPadding =
                 16.dp + if (sortAndDirection.sort == ItemSortBy.SORT_NAME) 24.dp else 0.dp
@@ -412,3 +449,8 @@ fun CollectionFolderHeader(
         }
     }
 }
+
+/**
+ * A kids poster's height to width on the grid boards (KLibraryPekeTV: 214 px tall in a 152 px column)
+ */
+private const val KIDS_POSTER_RATIO = 1.41f

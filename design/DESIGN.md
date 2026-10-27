@@ -139,12 +139,13 @@ Each avatar sits on a round background in its own PekeTV colour:
 
 ## Icons
 
-Twenty icons on a 48 grid, used at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
+Twenty-one icons on a 48 grid (filter, the sliders on search and grids, joined the first twenty in spec 008), used
+at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
 - **Two-tone** (`assets/icons/`): filled shapes in the PekeTV colours with a navy `#1F2747` outline. The colours are
   baked in, so this set is **PekeTV only**, and it is **only ever drawn on a light surface**, a chip or a pill: its
   outline is the PekeTV background and disappears on it. No screen has such a surface yet, so the app doesn't use the
   set (`IconSpecTest` fails if code outside `PekeArt.kt` does).
-- **Outline** (`assets/icons/outline/`): the same twenty as single-colour strokes in `currentColor`, tinted at runtime.
+- **Outline** (`assets/icons/outline/`): the same icons as single-colour strokes in `currentColor`, tinted at runtime.
   Every dark screen uses this set. The collapsed sidebar draws icons that aren't selected in "text, secondary", so the
   rail stays quiet.
 

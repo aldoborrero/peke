@@ -984,4 +984,9 @@
     <string name="kids_in_a_row">Episodio %1$d de %2$d seguidos</string>
     <!-- 008 Phase 4: live TV -->
     <string name="kids_next_programme">Después: %1$s</string>
+    <!-- 008 Phase 5: search, voice, favourites, library -->
+    <string name="kids_voice_title">Habla para buscar</string>
+    <string name="kids_voice_back">Pulsa Atrás para parar</string>
+    <string name="kids_favourites_title">Favoritos de %1$s</string>
+    <string name="kids_favourites_hint">Pulsa el corazón en cualquier serie para guardarla aquí</string>
 </resources>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -43,6 +44,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -55,12 +57,15 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.kids.ui.KidsEmptyMessage
+import dev.aldoborrero.peke.kids.ui.KidsPictureCard
+import dev.aldoborrero.peke.kids.ui.episodeLabel
 import dev.aldoborrero.peke.kids.ui.isKidScreen
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.cards.GridCard
 import dev.aldoborrero.peke.ui.cards.ItemRow
 import dev.aldoborrero.peke.ui.cards.ItemRowTitle
 import dev.aldoborrero.peke.ui.components.ExpandableFaButton
+import dev.aldoborrero.peke.ui.components.ExpandablePlayButton
 import dev.aldoborrero.peke.ui.components.SearchEditTextBox
 import dev.aldoborrero.peke.ui.components.VoiceSearchButton
 import dev.aldoborrero.peke.ui.components.rememberContextMenu
@@ -71,13 +76,17 @@ import dev.aldoborrero.peke.ui.detail.GridItemDetails
 import dev.aldoborrero.peke.ui.detail.livetv.ProgramDialog
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.onMain
+import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.titleStringRes
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 internal const val SEARCH_ROW = 0
@@ -236,26 +245,35 @@ fun SearchPage(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
-                        .focusGroup()
+                        .then(
+                            if (kidsMode) {
+                                Modifier.padding(start = 48.cpx, end = 48.cpx, top = 44.cpx, bottom = 16.dp)
+                            } else {
+                                Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                            },
+                        ).focusGroup()
                         .focusRestorer(textFieldFocusRequester)
                         .focusRequester(focusRequesters[SEARCH_ROW]),
             ) {
-                AnimatedVisibility(
-                    visible = voiceSearchButtonVisible,
-                    enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
-                    exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End),
-                ) {
-                    VoiceSearchButton(
-                        onSpeechResult = { spokenText ->
-                            query = spokenText
-                            triggerImmediateSearch(spokenText)
-                        },
-                        voiceInputManager = viewModel.voiceInputManager,
-                        enabled = prefs.kidsVoiceSearch,
-                        modifier = Modifier.padding(end = 12.dp),
-                    )
+                val voiceButton: @Composable RowScope.() -> Unit = {
+                    AnimatedVisibility(
+                        visible = voiceSearchButtonVisible,
+                        enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+                        exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End),
+                    ) {
+                        VoiceSearchButton(
+                            onSpeechResult = { spokenText ->
+                                query = spokenText
+                                triggerImmediateSearch(spokenText)
+                            },
+                            voiceInputManager = viewModel.voiceInputManager,
+                            enabled = prefs.kidsVoiceSearch,
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                        )
+                    }
                 }
+                // KSearchPekeTV puts the microphone after the field
+                if (!kidsMode) voiceButton()
 
                 SearchEditTextBox(
                     value = query,
@@ -267,6 +285,7 @@ fun SearchPage(
                     readOnly = !isSearchActive,
                     modifier =
                         Modifier
+                            .then(if (kidsMode) Modifier.weight(1f) else Modifier)
                             .focusRequester(textFieldFocusRequester)
                             .onFocusChanged { state ->
                                 isTextFieldFocused = state.isFocused
@@ -283,10 +302,12 @@ fun SearchPage(
                                 }
                             },
                 )
+                if (kidsMode) voiceButton()
 
-                ExpandableFaButton(
+                ExpandablePlayButton(
                     title = R.string.view_options,
-                    iconStringRes = R.string.fa_sliders,
+                    resume = Duration.ZERO,
+                    icon = painterResource(PekeIcon.FILTER.outline),
                     onClick = { showViewOptions = true },
                     modifier = Modifier.padding(start = 12.dp),
                 )
@@ -322,7 +343,7 @@ fun SearchPage(
                     LazyColumn(
                         contentPadding =
                             PaddingValues(
-                                start = 16.dp,
+                                start = if (kidsMode) 48.cpx else 16.dp,
                                 end = 16.dp,
                                 top = 8.dp,
                                 bottom = 44.dp,
@@ -350,16 +371,34 @@ fun SearchPage(
                                 onClickPosition = { setPosition(it) },
                                 modifier = Modifier.fillMaxWidth(),
                                 cardContent = { index, item, mod, onClick, onLongClick ->
-                                    SearchPageCard(
-                                        item = item,
-                                        type = type,
-                                        onClick = {
-                                            setPosition(RowColumn(rowIndex, index))
-                                            onClick.invoke()
-                                        },
-                                        onLongClick = onLongClick,
-                                        modifier = mod,
-                                    )
+                                    val click = {
+                                        setPosition(RowColumn(rowIndex, index))
+                                        onClick.invoke()
+                                    }
+                                    if (kidsMode) {
+                                        // KSearchPekeTV: posters with their titles; episodes wide
+                                        val episode = item?.type == BaseItemKind.EPISODE
+                                        KidsPictureCard(
+                                            item = item,
+                                            title = if (episode) episodeLabel(item?.data?.indexNumber, item?.name) else item?.title,
+                                            imageType = ImageType.PRIMARY,
+                                            width = if (episode) 260.cpx else 180.cpx,
+                                            height = if (episode) 146.cpx else 264.cpx,
+                                            corner = if (episode) 22.cpx else 24.cpx,
+                                            useSeriesForPrimary = if (episode) false else null,
+                                            onClick = click,
+                                            onLongClick = onLongClick,
+                                            modifier = mod,
+                                        )
+                                    } else {
+                                        SearchPageCard(
+                                            item = item,
+                                            type = type,
+                                            onClick = click,
+                                            onLongClick = onLongClick,
+                                            modifier = mod,
+                                        )
+                                    }
                                 },
                             )
                         }
@@ -590,6 +629,7 @@ fun SearchRowResult(
                     onClickItem = onClickItem,
                     onLongClickItem = onLongClickItem,
                     modifier = modifier.focusRequester(focusRequester),
+                    kidsLayout = isKidScreen(),
                     cardContent = cardContent,
                 )
             }

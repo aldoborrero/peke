@@ -27,11 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -50,8 +49,8 @@ import dev.aldoborrero.peke.data.filter.StudioFilter
 import dev.aldoborrero.peke.data.filter.VideoTypeFilter
 import dev.aldoborrero.peke.data.filter.YearFilter
 import dev.aldoborrero.peke.data.model.GetItemsFilter
-import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import java.util.UUID
@@ -400,14 +399,11 @@ fun ExpandableFilterButton(
                     .fillMaxHeight()
                     .widthIn(min = if (filterCount > 0 || isFocused) (MinButtonSize - 12.dp) else MinButtonSize),
         ) {
-            Text(
-                text = stringResource(R.string.fa_filter),
-                style = MaterialTheme.typography.titleSmall,
-                color = iconColor,
-                fontSize = 16.sp,
-                fontFamily = FontAwesome,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+            Icon(
+                painter = painterResource(PekeIcon.FILTER.outline),
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(22.dp).align(Alignment.Center),
             )
         }
         AnimatedVisibility(filterCount > 0) {

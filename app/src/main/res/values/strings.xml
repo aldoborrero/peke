@@ -1163,4 +1163,9 @@
     <string name="kids_in_a_row">Episode %1$d of %2$d in a row</string>
     <!-- 008 Phase 4: live TV -->
     <string name="kids_next_programme">Next: %1$s</string>
+    <!-- 008 Phase 5: search, voice, favourites, library -->
+    <string name="kids_voice_title">Speak to search</string>
+    <string name="kids_voice_back">Press Back to stop</string>
+    <string name="kids_favourites_title">%1$s\'s favourites</string>
+    <string name="kids_favourites_hint">Press the heart on any show to keep it here</string>
 </resources>

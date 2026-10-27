@@ -182,3 +182,9 @@ plus 10%.
 
 Clean debug builds, Phase 3 → Phase 4: arm64-v8a 39,226,602 → 39,243,099 (+16,497), armeabi-v7a 37,881,204 →
 37,897,704 (+16,500), x86_64 39,274,807 → 39,291,310 (+16,503). Within the +5 to +25 KB estimate.
+
+### Phase 5 (2026-10-27, T037)
+
+Clean debug builds, Phase 4 → Phase 5: arm64-v8a 39,243,099 → 39,245,453 (+2,354), armeabi-v7a 37,897,704 →
+37,900,056 (+2,352), x86_64 39,291,310 → 39,293,664 (+2,354). The new code and the filter icon pair (two small vectors)
+are mostly offset by what the voice page dropped (its status helper, constants and the old dialog card).
