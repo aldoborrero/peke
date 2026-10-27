@@ -100,7 +100,7 @@ covers at most about 19% with a 3.5 stroke, since coverage is roughly the perime
 Back and watched dropped from about 25% because their circle went, as decided. Getting them to 22% would take marks
 that change their meaning, or a thicker stroke. DESIGN.md records the band as measured (21–28% for icons with inner
 parts, 16–20% for the single shapes). This is a call for the owner: accept the lighter single shapes, or have them
-redrawn with inner detail.
+redrawn with inner detail. The owner chose more body for back and watched: see "Back and watched with more body" below.
 
 ## Contact sheets
 
@@ -156,4 +156,85 @@ of pause and next episode are lines, so they don't read as zeros.
 DESIGN.md spells out the rules, including that two-tone icons are
 drawn only on a light surface, and IconSpecTest checks them on the
 SVGs, along with keeping the two-tone set off the dark screens.
+```
+
+## Back and watched with more body
+
+The owner's decision: back and watched get more body so their outline ink lands inside 22–28% like the rest, with the
+matching change in two-tone. They stay without the circle, inside the live area, with 3.5 strokes, round caps and joins
+and radii from the scale. Builds on `e21102b5`.
+
+### What was tried
+
+Each candidate was drawn in both sets and measured with `check.py`. Each was rendered at 24, 32 and 48 dp (48, 64 and
+96 px on a 1080p TV), outline on night and two-tone on a cream chip (`…/scratchpad/icons/cand-preview.png`).
+
+| Candidate | Outline ink | Verdict |
+|---|---|---|
+| back: fuller fat arrow (head the full height, shaft 20 thick) | 17.9% | reads best as a plain arrow, but can't reach the band |
+| back: the same arrow with a line in the shaft | 19.9% | still short, and the line means nothing |
+| back: arrow on a rounded-square badge | 26.2% | in the band, but the arrow is tiny at 24 dp and reads as a keyboard key |
+| back: fat U-turn arrow | 24.8% | **chosen** |
+| watched: broader fat check | 17.3% | short, and it left the live area |
+| watched: check on a rounded-square badge | 24.6% | **chosen** |
+| watched: fat outlined check on the badge | 30.2% | over the band, and the double contour clogs at 24 dp |
+
+A single closed shape gains ink only through its perimeter, about 3.5 × the perimeter, so no fuller arrow or check
+reaches 22% inside the 4–44 square. Both chosen shapes add an inner contour:
+- **Back is a fat U-turn arrow**, the curved arrow on a remote's Back key. It is still a free shape, and the head stays
+  big and left-pointing, so at 24 dp it reads as "go back" and not as a plain left arrow (next to rewind and the
+  sidebar's chevrons). The inner curve gives it the second contour.
+- **Watched is a check on a rounded-square badge** (36 square, radius 9), a ticked box, which kids know as "done". Its
+  check is a 3.5 line, like the subtitles lines and the clock hand, and is still clear at 24 dp. The badge isn't the
+  transport circle, so the rule "the circle only on transport buttons" holds.
+
+### Before and after
+
+| Icon | Ink before | Ink after | Padding after (L T R B) |
+|---|---|---|---|
+| back, outline | 17.4% | 24.8% | 4.2 6.2 4.0 6.5 |
+| back, two-tone | 33.5% | 40.1% | 4.2 6.2 4.0 6.5 |
+| watched, outline | 16.5% | 24.6% | 4.2 4.2 4.2 4.2 |
+| watched, two-tone | 26.1% | 63.7% | 4.2 4.2 4.2 4.2 |
+
+- The checker still finds 0 of 40 icons breaking a rule.
+- Outline ink is 17.1–28.3% across the set, with 14 of 20 inside 22–28% (12 before).
+- Still under the band: favourites (17.1%) and picks (19.2%), which are single shapes; bedtime and search (18.8%),
+  which are open shapes; audio, voice and time left (21.2–21.6%).
+- The audit script agrees: back L4.2 T6.2 R4.0 B6.5 at 24.8%, watched 4.2 all round at 24.6%.
+- DESIGN.md: the shapes of back and watched, the badge in the 9 radius, and the measured ink bands.
+
+### Files
+
+- `design/assets/icons/back.svg`, `watched.svg`, and both in `outline/`.
+- `app/src/main/res/drawable/ic_peke_back.xml`, `ic_peke_outline_back.xml`, `ic_peke_watched.xml` and
+  `ic_peke_outline_watched.xml`, converted with the same `Svg2Vector` driver, with no warnings. The generator
+  reproduced the other 18 icons byte for byte.
+- `design/DESIGN.md`, Icons.
+- No code or test changed: `IconSpecTest` already covers the new shapes.
+
+Sheets, in `…/scratchpad/icons/`:
+- `after/sheet-night.png`, `after/sheet-cream.png` and `after/sheet-night-bare.png`;
+- `after/back-watched-sizes.png`, the two icons at 24, 32 and 48 dp;
+- `after-audit/icon-sheet.png` and `after-audit/icon-audit.md`.
+
+The sheets from before this change are in `body-before/after/`.
+
+### Validation
+
+- `IconSpecTest`: 8 tests, 0 failures.
+- `nix develop -c ./gradlew --console=plain assembleDebug testDebugUnitTest compileDebugAndroidTestKotlin`: BUILD
+  SUCCESSFUL, 829 tests, 0 failures.
+- `nix fmt`: 0 changed on both runs.
+- `nix develop -c pre-commit run --all-files`: all hooks passed.
+
+### Commit message
+
+```
+Give the back and watched icons more body
+
+Back becomes a fat U-turn arrow, like the Back key on a remote, and
+watched a check on a rounded-square badge. Both sets change together,
+and the outline icons now cover about a quarter of the grid, like the
+rest of the set, instead of looking thin next to them.
 ```
