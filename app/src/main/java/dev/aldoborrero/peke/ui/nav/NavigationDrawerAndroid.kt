@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -233,7 +234,8 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (hasFocus) Arrangement.spacedBy(18.cpx) else Arrangement.Center,
-            modifier = Modifier.fillMaxHeight().padding(horizontal = if (hasFocus) 16.cpx else 0.dp),
+            // The whole tile, so the closed rail centres every icon on the same line
+            modifier = Modifier.fillMaxSize().padding(horizontal = if (hasFocus) 16.cpx else 0.dp),
         ) {
             leadingContent()
             if (hasFocus) {

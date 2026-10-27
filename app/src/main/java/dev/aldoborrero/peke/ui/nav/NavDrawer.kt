@@ -605,7 +605,8 @@ fun NavigationDrawerScope.ProfileIcon(
 }
 
 /**
- * A sidebar entry with [icon]; [small] for Grown-ups at the bottom (20 px, quieter)
+ * A sidebar entry with [icon]; [small] for Grown-ups at the bottom, whose name is quieter (20 px). Its icon is the same
+ * size as the others', so the rail keeps one line of icons.
  */
 @Composable
 fun NavigationDrawerScope.IconNavItem(
@@ -625,12 +626,14 @@ fun NavigationDrawerScope.IconNavItem(
         onClick = onClick,
         current = selected,
         leadingContent = {
-            Icon(
-                icon,
-                contentDescription = if (drawerOpen) null else text,
-                tint = navItemColor(selected, focused, drawerOpen),
-                modifier = Modifier.size(if (small) DrawerIconSize * .8f else DrawerIconSize),
-            )
+            Box(modifier = Modifier.size(DrawerIconSize), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = if (drawerOpen) null else text,
+                    tint = navItemColor(selected, focused, drawerOpen),
+                    modifier = Modifier.size(DrawerIconSize),
+                )
+            }
         },
         interactionSource = interactionSource,
     ) {
