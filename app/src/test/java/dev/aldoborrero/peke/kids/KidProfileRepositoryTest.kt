@@ -323,6 +323,24 @@ class KidProfileRepositoryTest {
         }
 
     @Test
+    fun `saving the daily time keeps the kid's avatar and fields Peke doesn't know`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = repository()
+            // Plugin 0.0.8.0's avatar (spec 012), and a field from a later plugin
+            val withAvatar = profile(3).replace("\"Extra\":\"kept\"", "\"Avatar\":\"lucy\",\"Future\":{\"x\":1}")
+            http.on("GET", "/Kids/Users/${kid.id}/Profile", 200, withAvatar)
+            repository.refresh(server, kid)
+            http.on("PUT", "/Kids/Users/${kid.id}/Profile", 200, withAvatar.replace("\"Revision\":3", "\"Revision\":4"))
+            val cached = profileDao.get(kid.rowId)!!
+            assertEquals(SaveResult.SAVED, repository.save(kid, cached.copy(dailyAllowanceMinutes = 45)))
+            // The PUT is a full replacement: leaving the avatar out would clear it
+            val put = http.requests.last().body!!
+            assertTrue(put.contains("\"DailyAllowanceMinutes\":45"))
+            assertTrue(put.contains("\"Avatar\":\"lucy\""))
+            assertTrue(put.contains("\"Future\":{\"x\":1}"))
+        }
+
+    @Test
     fun `a conflict shows the server's values instead of overwriting them`() =
         runTest(UnconfinedTestDispatcher()) {
             val repository = repository()
