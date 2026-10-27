@@ -225,7 +225,7 @@ fun NextUpCard(
 @PreviewTvSpec
 @Composable
 private fun NextUpEpisodePreview() {
-    PekeTheme(true) {
+    PekeTheme {
         val theme = MaterialTheme.colorScheme
         val previewHandler =
             AsyncImagePreviewHandler {

@@ -31,6 +31,8 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.components.ViewOptionImageType
 import dev.aldoborrero.peke.ui.enableMarquee
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import kotlinx.coroutines.delay
 
 /**
@@ -73,10 +75,12 @@ fun GridCard(
         modifier = modifier,
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().pekeFocus(MaterialTheme.shapes.medium),
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
+            scale = PekeFocus.cardScale,
+            border = PekeFocus.cardBorder(),
             colors =
                 CardDefaults.colors(
                     containerColor = Color.Transparent,

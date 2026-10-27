@@ -6,7 +6,6 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.PreferenceGroup
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -72,8 +71,6 @@ class PekePreferencesTest {
                 AppPreference.ShowNextUpTiming,
                 AppPreference.UserProfileSettings,
                 AppPreference.KidsMode,
-                // Wholphin's themes, until Peke has its own; the preference stays
-                AppPreference.ThemeColors,
             )
         excluded.forEach { assertTrue("unexpected ${it.title}", it !in shown) }
     }
@@ -110,7 +107,7 @@ class PekePreferencesTest {
 
     @Test
     fun settingsKeepEveryItemInItsGroupOrSubScreen() {
-        // Every item Settings had before the regrouping, except the colour theme
+        // Every item Settings had before the regrouping
         val before =
             listOf(
                 AppPreference.UserInterfaceLanguage,
@@ -151,7 +148,6 @@ class PekePreferencesTest {
                 AppPreference.ResetThisTv,
             )
         before.forEach { assertTrue("missing ${it.title}", it in shown) }
-        assertFalse(AppPreference.ThemeColors in shown)
         // Each item shows once
         assertEquals(shown.distinct(), shown)
     }
@@ -168,7 +164,7 @@ class PekePreferencesTest {
             ),
             pekePreferences.map { it.title },
         )
-        // The household's parent code, then this TV, with its kids and the timer bar (spec 006 FR-019)
+        // The household's parent code, then this TV, with its kids, the timer bar (spec 006 FR-019) and the theme (spec 007)
         assertEquals(listOf(AppPreference.ChangeParentCode), pekePreferences.first().all())
         assertEquals(
             listOf(
@@ -176,6 +172,7 @@ class PekePreferencesTest {
                 AppPreference.KidsOnThisTv,
                 AppPreference.KidsVoiceSearch,
                 AppPreference.KidsTimerBar,
+                AppPreference.ThemeColors,
                 AppPreference.ScreensaverSettings,
                 AppPreference.ShowClock,
                 AppPreference.UserInterfaceLanguage,

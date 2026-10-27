@@ -72,7 +72,6 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.setup.KidAvatar
-import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.MusicService
@@ -86,7 +85,6 @@ import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.spacedByWithFooter
-import dev.aldoborrero.peke.ui.theme.LocalTheme
 import dev.aldoborrero.peke.ui.toServerString
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -709,54 +707,20 @@ fun navItemColor(
     focused: Boolean,
     drawerOpen: Boolean,
 ): Color {
-    val theme = LocalTheme.current
-    if (theme == AppThemeColors.OLED_BLACK) {
-        return when {
-            selected && focused -> Color.Black
-            selected && !drawerOpen -> Color.White.copy(alpha = .5f)
-            selected && drawerOpen -> Color.White.copy(alpha = .85f)
-            focused -> Color.Black.copy(alpha = .5f)
-            drawerOpen -> Color(0xFF707070)
-            else -> Color(0xFF505050).copy(alpha = .66f)
+    val alpha =
+        when {
+            drawerOpen -> .85f
+            selected && !drawerOpen -> .5f
+            else -> .2f
         }
-    } else {
-        val alpha =
-            when {
-                drawerOpen -> .85f
-                selected && !drawerOpen -> .5f
-                else -> .2f
-            }
-        return when {
-            selected && focused -> {
-                when (theme) {
-                    AppThemeColors.UNRECOGNIZED,
-                    AppThemeColors.PURPLE,
-                    AppThemeColors.BLUE,
-                    AppThemeColors.GREEN,
-                    AppThemeColors.ORANGE,
-                    AppThemeColors.RED,
-                    AppThemeColors.BROWN,
-                    -> MaterialTheme.colorScheme.border
+    return when {
+        // The page you're on is drawn in the primary colour (design/DESIGN.md, Icons)
+        selected -> MaterialTheme.colorScheme.primary
 
-                    AppThemeColors.BOLD_BLUE,
-                    AppThemeColors.OLED_BLACK,
-                    -> MaterialTheme.colorScheme.primary
-                }
-            }
+        focused -> LocalContentColor.current
 
-            selected -> {
-                MaterialTheme.colorScheme.border
-            }
-
-            focused -> {
-                LocalContentColor.current
-            }
-
-            else -> {
-                MaterialTheme.colorScheme.onSurface
-            }
-        }.copy(alpha = alpha)
-    }
+        else -> MaterialTheme.colorScheme.onSurface
+    }.copy(alpha = alpha)
 }
 
 val DrawerState.isOpen: Boolean get() = this.currentValue.isOpen

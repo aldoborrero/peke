@@ -23,6 +23,7 @@ import dev.aldoborrero.peke.data.RememberedTabDao
 import dev.aldoborrero.peke.data.SeriesTrackChoiceDao
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppPreferencesSerializer
+import dev.aldoborrero.peke.preferences.ThemeMigration
 import javax.inject.Singleton
 
 @Module
@@ -81,6 +82,7 @@ object DatabaseModule {
                 ReplaceFileCorruptionHandler(
                     produceNewData = { AppPreferences.getDefaultInstance() },
                 ),
+            migrations = listOf(ThemeMigration),
         )
 
     @Provides

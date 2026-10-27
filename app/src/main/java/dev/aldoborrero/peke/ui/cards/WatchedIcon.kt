@@ -14,9 +14,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
-import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.PreviewTvSpec
-import dev.aldoborrero.peke.ui.theme.LocalTheme
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 
 @Composable
@@ -37,35 +35,10 @@ fun WatchedIcon(
 }
 
 @Composable
-fun WatchedIconBackground(): Color =
-    when (LocalTheme.current) {
-        AppThemeColors.UNRECOGNIZED,
-        AppThemeColors.PURPLE,
-        AppThemeColors.BLUE,
-        AppThemeColors.GREEN,
-        AppThemeColors.ORANGE,
-        AppThemeColors.BOLD_BLUE,
-        AppThemeColors.RED,
-        AppThemeColors.BROWN,
-        -> MaterialTheme.colorScheme.border.copy(alpha = 1f)
-
-        AppThemeColors.OLED_BLACK -> MaterialTheme.colorScheme.secondaryContainer
-    }
+fun WatchedIconBackground(): Color = MaterialTheme.colorScheme.secondary
 
 @Composable
-fun WatchedIconColor(): Color =
-    when (LocalTheme.current) {
-        AppThemeColors.UNRECOGNIZED,
-        AppThemeColors.PURPLE,
-        AppThemeColors.BLUE,
-        AppThemeColors.GREEN,
-        AppThemeColors.ORANGE,
-        AppThemeColors.BOLD_BLUE,
-        AppThemeColors.OLED_BLACK,
-        AppThemeColors.RED,
-        AppThemeColors.BROWN,
-        -> Color.White // MaterialTheme.colorScheme.onSurface
-    }
+fun WatchedIconColor(): Color = MaterialTheme.colorScheme.onSecondary
 
 @PreviewTvSpec
 @Composable

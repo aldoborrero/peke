@@ -450,17 +450,23 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
+        /**
+         * Peke's four themes, in the order of R.array.app_theme_colors; anything else is shown as PekeTV (spec 007)
+         */
+        val THEMES =
+            listOf(AppThemeColors.PEKE_TV, AppThemeColors.MANDARINA, AppThemeColors.CARAMELO, AppThemeColors.PAPEL)
+
         val ThemeColors =
             AppChoicePreference<AppPreferences, AppThemeColors>(
                 title = R.string.app_theme,
-                defaultValue = AppThemeColors.PURPLE,
+                defaultValue = AppThemeColors.PEKE_TV,
                 getter = { it.interfacePreferences.appThemeColors },
                 setter = { prefs, value ->
                     prefs.updateInterfacePreferences { appThemeColors = value }
                 },
                 displayValues = R.array.app_theme_colors,
-                indexToValue = { AppThemeColors.forNumber(it) },
-                valueToIndex = { if (it != AppThemeColors.UNRECOGNIZED) it.number else 0 },
+                indexToValue = { THEMES.getOrElse(it) { AppThemeColors.PEKE_TV } },
+                valueToIndex = { THEMES.indexOf(it).coerceAtLeast(0) },
             )
 
         val ShowLogos =
@@ -1294,6 +1300,7 @@ val pekePreferences =
                     AppPreference.KidsOnThisTv,
                     AppPreference.KidsVoiceSearch,
                     AppPreference.KidsTimerBar,
+                    AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
                     AppPreference.ShowClock,
                     AppPreference.UserInterfaceLanguage,

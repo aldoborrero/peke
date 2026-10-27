@@ -32,6 +32,8 @@ import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.formatDuration
 import dev.aldoborrero.peke.ui.roundSeconds
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -60,10 +62,12 @@ fun ChapterCard(
         }
     var width by remember { mutableStateOf(AspectRatios.WIDE * cardHeight) }
     Card(
-        modifier = modifier.height(cardHeight),
+        modifier = modifier.height(cardHeight).pekeFocus(MaterialTheme.shapes.medium),
         onClick = onClick,
         onLongClick = onLongClick,
         interactionSource = interactionSource,
+        scale = PekeFocus.cardScale,
+        border = PekeFocus.cardBorder(),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(

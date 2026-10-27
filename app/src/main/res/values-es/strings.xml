@@ -87,7 +87,8 @@
     </plurals>
     <string name="advanced_settings">Configuración avanzada</string>
     <string name="advanced_ui">Interfaz avanzada</string>
-    <string name="app_theme">Tema de la aplicación</string>
+    <string name="app_theme">Tema</string>
+    <string name="theme_papel">Papel (de día)</string>
     <string name="installed_version">Versión instalada</string>
     <string name="settings">Configuración</string>
     <string name="critic_rating">Calificación de la crítica</string>
@@ -443,10 +444,6 @@
     <string name="volume_medium">Medio</string>
     <string name="volume_high">Alto</string>
     <string name="volume_full">Máximo</string>
-    <string name="purple">Morado</string>
-    <string name="orange">Naranja</string>
-    <string name="bold_blue">Azul intenso</string>
-    <string name="black">Negro</string>
     <string name="display_preset_default">Póster</string>
     <string name="display_preset_compact">Póster compacto</string>
     <string name="skip_ignore">Ignorar</string>
@@ -458,6 +455,7 @@
     <string name="next_up_playback_end">Al finalizar la reproducción</string>
     <string name="next_up_outro">Durante los créditos finales</string>
     <string name="white">Blanco</string>
+    <string name="black">Negro</string>
     <string name="light_gray">Gris claro</string>
     <string name="dark_gray">Gris oscuro</string>
     <string name="yellow">Amarillo</string>
@@ -646,7 +644,6 @@
     <string name="dpad_seek_mode_minimal_summary">Barra de progreso pequeña en la parte inferior de la pantalla (predeterminado)</string>
     <string name="dpad_seek_mode_trickplay_summary">Barra de progreso con vista previa de fotogramas</string>
     <string name="dpad_seek_mode_none_summary">Sin barra de progreso</string>
-    <string name="brown">Marrón</string>
     <string name="appears_on">Aparece en</string>
     <string name="disable_audio_offload">Desactivar el procesamiento de audio por hardware</string>
     <string name="disable_audio_offload_summary">Desactivar el procesamiento de audio por hardware puede solucionar los bloqueos de reproducción en algunos dispositivos</string>

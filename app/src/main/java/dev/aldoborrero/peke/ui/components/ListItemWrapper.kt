@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import androidx.tv.material3.Border
 import androidx.tv.material3.DenseListItem
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.ListItemBorder
@@ -14,6 +15,8 @@ import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.ListItemGlow
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.ListItemShape
+import androidx.tv.material3.MaterialTheme
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 
 /**
  * Displays either a [ListItem] or [DenseListItem] based on the dense parameter
@@ -35,8 +38,8 @@ fun ListItemWrapper(
     tonalElevation: Dp = ListItemDefaults.TonalElevation,
     shape: ListItemShape = ListItemDefaults.shape(),
     colors: ListItemColors = ListItemDefaults.colors(),
-    scale: ListItemScale = ListItemDefaults.scale(),
-    border: ListItemBorder = ListItemDefaults.border(),
+    scale: ListItemScale = ListItemScale.None,
+    border: ListItemBorder = ListItemDefaults.border(focusedBorder = Border.None, pressedBorder = Border.None),
     glow: ListItemGlow = ListItemDefaults.glow(),
     interactionSource: MutableInteractionSource? = null,
 ) = if (dense) {
@@ -44,7 +47,7 @@ fun ListItemWrapper(
         selected = selected,
         onClick = onClick,
         headlineContent = headlineContent,
-        modifier = modifier,
+        modifier = modifier.pekeFocus(MaterialTheme.shapes.medium),
         enabled = enabled,
         onLongClick = onLongClick,
         overlineContent = overlineContent,
@@ -64,7 +67,7 @@ fun ListItemWrapper(
         selected = selected,
         onClick = onClick,
         headlineContent = headlineContent,
-        modifier = modifier,
+        modifier = modifier.pekeFocus(MaterialTheme.shapes.medium),
         enabled = enabled,
         onLongClick = onLongClick,
         overlineContent = overlineContent,

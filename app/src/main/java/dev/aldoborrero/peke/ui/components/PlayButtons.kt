@@ -436,7 +436,7 @@ fun DeleteButton(
 @PreviewTvSpec
 @Composable
 private fun ExpandablePlayButtonsPreview() {
-    PekeTheme(true) {
+    PekeTheme {
         ExpandablePlayButtons(
             title = "Movie",
             resumePosition = 10.seconds,

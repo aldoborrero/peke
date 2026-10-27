@@ -34,6 +34,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 
 /**
  * This is a re-implementation of [androidx.tv.material3.Button] with altered sizing, padding, colors, etc
@@ -46,7 +48,7 @@ fun Button(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    scale: ClickableSurfaceScale = ClickableSurfaceDefaults.scale(),
+    scale: ClickableSurfaceScale = PekeFocus.surfaceScale,
     glow: ClickableSurfaceGlow = ClickableSurfaceDefaults.glow(),
     shape: ClickableSurfaceShape =
         ClickableSurfaceDefaults.shape(
@@ -56,10 +58,10 @@ fun Button(
         ClickableSurfaceDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
             contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-            focusedContainerColor = MaterialTheme.colorScheme.onSurface,
-            focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            pressedContainerColor = MaterialTheme.colorScheme.onSurface,
-            pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+            focusedContainerColor = MaterialTheme.colorScheme.primary,
+            focusedContentColor = MaterialTheme.colorScheme.onPrimary,
+            pressedContainerColor = MaterialTheme.colorScheme.primary,
+            pressedContentColor = MaterialTheme.colorScheme.onPrimary,
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
             disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
         ),
@@ -86,7 +88,7 @@ fun Button(
     content: @Composable RowScope.() -> Unit,
 ) {
     Surface(
-        modifier = modifier.semantics { role = Role.Button },
+        modifier = modifier.pekeFocus(CircleShape).semantics { role = Role.Button },
         onClick = onClick,
         onLongClick = onLongClick,
         enabled = enabled,

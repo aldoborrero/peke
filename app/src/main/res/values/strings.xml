@@ -311,7 +311,7 @@
     <string name="ac3_supported">Device supports AC3/Dolby Digital</string>
     <string name="advanced_settings">Advanced Settings</string>
     <string name="advanced_ui">Advanced UI</string>
-    <string name="app_theme">Application Theme</string>
+    <string name="app_theme">Theme</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="combine_continue_next"><![CDATA[Combine Continue Watching & Next Up]]></string>
@@ -557,20 +557,15 @@
     <string name="volume_high">High</string>
     <string name="volume_full">Full</string>
 
-    <string name="purple">Purple</string>
-    <string name="orange">Orange</string>
-    <string name="bold_blue">Bold Blue</string>
-    <string name="black">Black</string>
-    <string name="brown">Brown</string>
+    <string name="theme_peke_tv" translatable="false">PekeTV</string>
+    <string name="theme_mandarina" translatable="false">Mandarina</string>
+    <string name="theme_caramelo" translatable="false">Caramelo</string>
+    <string name="theme_papel">Papel (daytime)</string>
     <string-array name="app_theme_colors">
-        <item>@string/purple</item>
-        <item>@string/blue</item>
-        <item>@string/green</item>
-        <item>@string/orange</item>
-        <item>@string/bold_blue</item>
-        <item>@string/black</item>
-        <item>@string/red</item>
-        <item>@string/brown</item>
+        <item>@string/theme_peke_tv</item>
+        <item>@string/theme_mandarina</item>
+        <item>@string/theme_caramelo</item>
+        <item>@string/theme_papel</item>
     </string-array>
 
     <string name="skip_ignore">Ignore</string>
@@ -610,6 +605,7 @@
     </string-array>
 
     <string name="white">White</string>
+    <string name="black">Black</string>
     <string name="light_gray">Light gray</string>
     <string name="dark_gray">Dark gray</string>
     <string name="yellow">Yellow</string>

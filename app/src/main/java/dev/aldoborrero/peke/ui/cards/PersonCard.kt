@@ -1,6 +1,5 @@
 package dev.aldoborrero.peke.ui.cards
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -29,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.MaterialTheme
@@ -40,7 +38,9 @@ import dev.aldoborrero.peke.ui.AspectRatios
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
 import dev.aldoborrero.peke.ui.enableMarquee
+import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.PersonKind
@@ -100,23 +100,13 @@ fun PersonCard(
         modifier = modifier,
     ) {
         Card(
-            modifier = Modifier,
+            modifier = Modifier.pekeFocus(CircleShape),
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
+            scale = PekeFocus.cardScale,
+            border = PekeFocus.cardBorder(),
             shape = CardDefaults.shape(CircleShape),
-            border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border =
-                                BorderStroke(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.border,
-                                ),
-                            shape = CircleShape,
-                        ),
-                ),
             colors =
                 CardDefaults.colors(
                     containerColor = Color.Transparent,

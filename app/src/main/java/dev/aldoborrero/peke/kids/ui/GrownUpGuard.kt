@@ -3,6 +3,7 @@ package dev.aldoborrero.peke.kids.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.nav.DestinationPage
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
+import dev.aldoborrero.peke.ui.theme.LocalPekeFocusScale
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -123,7 +125,8 @@ fun GrownUpGuard(
         onPauseOrDispose { }
     }
     if (viewModel.allowed) {
-        content()
+        // Grown-up pages keep the focus border and ring, without the kids' scale-up (design/DESIGN.md, Focus)
+        CompositionLocalProvider(LocalPekeFocusScale provides false, content = content)
     } else {
         LoadingPage(modifier)
         KidsParentGate(
