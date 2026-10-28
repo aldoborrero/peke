@@ -36,11 +36,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -73,6 +68,7 @@ import dev.aldoborrero.peke.ui.components.ExpandablePlayButton
 import dev.aldoborrero.peke.ui.components.SearchEditTextBox
 import dev.aldoborrero.peke.ui.components.VoiceSearchButton
 import dev.aldoborrero.peke.ui.components.rememberContextMenu
+import dev.aldoborrero.peke.ui.components.searchBoxKeys
 import dev.aldoborrero.peke.ui.data.RowColumn
 import dev.aldoborrero.peke.ui.detail.CardGrid
 import dev.aldoborrero.peke.ui.detail.CardGridItem
@@ -295,16 +291,9 @@ fun SearchPage(
                             .onFocusChanged { state ->
                                 isTextFieldFocused = state.isFocused
                                 if (!state.isFocused) isSearchActive = false
-                            }.onPreviewKeyEvent { event ->
-                                val isActivationKey =
-                                    event.key in listOf(Key.DirectionCenter, Key.Enter)
-                                if (event.type == KeyEventType.KeyUp && isActivationKey && !isSearchActive) {
-                                    isSearchActive = true
-                                    keyboardController?.show()
-                                    true
-                                } else {
-                                    false
-                                }
+                            }.searchBoxKeys(editing = isSearchActive, focusManager = focusManager) {
+                                isSearchActive = true
+                                keyboardController?.show()
                             },
                 )
                 if (kidsMode) voiceButton()

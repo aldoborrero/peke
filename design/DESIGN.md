@@ -90,7 +90,8 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
   focused card is never cut and never touches a title, while unfocused cards still line up with the title above them;
   a card's title starts at its left edge, and moves with it as the card grows. Rows as wide as the page or the
   sidebar, such as the sidebar's, a seasons list's and the live guide's, don't scale up, so their ring fits the
-  padding.
+  padding. Buttons side by side or stacked keep the same rule: their gap grows beside a wide pill, which grows more
+  when focused, so a focused button's ring never touches the next one.
 - **Targets:** buttons are at least 52 px tall, main actions 72 px.
 
 ## Focus

@@ -33,7 +33,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -362,6 +369,46 @@ fun SearchEditTextBox(
         interactionSource = interactionSource,
     )
 }
+
+/**
+ * A search box's keys: OK starts typing ([onStartEditing] shows the keyboard) unless the kid is [editing], and the
+ * arrows move focus out of the box, so Down reaches the microphone or the results. Up and Down always leave, as a single
+ * line has nothing above or below, and the TV keyboard closes on Back without the page knowing typing ended; Left and
+ * Right move the cursor while typing. The text field lets arrows out only for a remote it knows as a D-pad; others, such
+ * as remotes that say they are keyboards, had them taken as cursor moves, and Down never left the box.
+ */
+fun Modifier.searchBoxKeys(
+    editing: Boolean,
+    focusManager: FocusManager,
+    onStartEditing: () -> Unit,
+): Modifier =
+    onPreviewKeyEvent { event ->
+        val direction = ArrowDirections[event.key]
+        when {
+            event.type == KeyEventType.KeyUp && !editing && (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
+                onStartEditing()
+                true
+            }
+
+            event.type == KeyEventType.KeyDown &&
+                direction != null &&
+                (!editing || direction == FocusDirection.Up || direction == FocusDirection.Down) -> {
+                focusManager.moveFocus(direction)
+            }
+
+            else -> {
+                false
+            }
+        }
+    }
+
+private val ArrowDirections =
+    mapOf(
+        Key.DirectionUp to FocusDirection.Up,
+        Key.DirectionDown to FocusDirection.Down,
+        Key.DirectionLeft to FocusDirection.Left,
+        Key.DirectionRight to FocusDirection.Right,
+    )
 
 /**
  * Peke's search icon at the start of a search box, in the secondary colour

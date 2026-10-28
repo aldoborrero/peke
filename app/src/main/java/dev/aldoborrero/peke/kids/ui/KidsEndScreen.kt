@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -29,6 +28,7 @@ import dev.aldoborrero.peke.ui.components.ExpandablePlayButton
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.theme.BuddyMood
 import dev.aldoborrero.peke.ui.theme.FocusRoom
+import dev.aldoborrero.peke.ui.theme.FocusRow
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import kotlin.time.Duration
 
@@ -56,8 +56,8 @@ fun KidsEndScreen(
             contentDescription = null,
             modifier = Modifier.height(120.dp),
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        FocusRow(
+            minGap = 8.dp,
             modifier =
                 Modifier
                     .focusGroup()

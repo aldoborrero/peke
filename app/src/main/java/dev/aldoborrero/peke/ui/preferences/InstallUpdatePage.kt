@@ -71,6 +71,7 @@ import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.dimAndBlur
 import dev.aldoborrero.peke.ui.formatBytes
 import dev.aldoborrero.peke.ui.launchIO
+import dev.aldoborrero.peke.ui.theme.FocusColumn
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -287,10 +288,7 @@ fun InstallUpdatePageContent(
                     color = colors.time,
                 )
             }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.cpx),
-                modifier = Modifier.padding(top = 10.cpx),
-            ) {
+            FocusColumn(minGap = 12.cpx, modifier = Modifier.padding(top = 10.cpx)) {
                 UpdatePill(
                     text = stringResource(R.string.download_and_update),
                     primary = true,

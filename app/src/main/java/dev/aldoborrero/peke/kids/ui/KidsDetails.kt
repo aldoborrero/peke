@@ -53,6 +53,7 @@ import dev.aldoborrero.peke.ui.components.DialogParams
 import dev.aldoborrero.peke.ui.components.DialogPopup
 import dev.aldoborrero.peke.ui.components.chooseVersionParams
 import dev.aldoborrero.peke.ui.data.ChooseVersionParams
+import dev.aldoborrero.peke.ui.theme.FocusRow
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -116,7 +117,7 @@ fun KidsDetailsHeader(
     overview: String?,
     modifier: Modifier = Modifier,
     chips: @Composable RowScope.() -> Unit = {},
-    buttons: @Composable RowScope.() -> Unit,
+    buttons: @Composable () -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(40.cpx),
@@ -146,12 +147,9 @@ fun KidsDetailsHeader(
                     modifier = Modifier.widthIn(max = 640.cpx),
                 )
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(20.cpx),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 8.cpx),
-                content = buttons,
-            )
+            // The board's 20 px between buttons, more beside the wide Play pill, which grows more when focused; the 28 px above
+            // leave room for its ring
+            FocusRow(minGap = 20.cpx, modifier = Modifier.padding(top = 8.cpx), content = buttons)
         }
     }
 }
@@ -303,7 +301,7 @@ fun KidsRoundButton(
  * favourite. Nothing is added; delete and the item menu are never there for kids (004).
  */
 @Composable
-fun RowScope.KidsPlayButtons(
+fun KidsPlayButtons(
     playText: String,
     resumePosition: Duration,
     watched: Boolean,

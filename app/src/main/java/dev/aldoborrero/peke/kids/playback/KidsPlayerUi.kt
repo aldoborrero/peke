@@ -38,6 +38,7 @@ import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.ui.KidsCardPicture
 import dev.aldoborrero.peke.ui.theme.BuddyMood
+import dev.aldoborrero.peke.ui.theme.FocusRow
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -121,7 +122,8 @@ fun KidsNextUpPanel(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.cpx), modifier = Modifier.padding(top = 6.cpx)) {
+            // Room above for a focused button's ring, clear of the title
+            FocusRow(minGap = 12.cpx, modifier = Modifier.padding(top = PekeFocus.clearance(PanelButtonHeight) - 8.cpx)) {
                 KidsPanelButton(
                     text = stringResource(R.string.kids_play_now),
                     primary = true,
@@ -175,6 +177,8 @@ private fun CountdownIcon(fraction: Float?) {
     }
 }
 
+private val PanelButtonHeight = 52.cpx
+
 /**
  * A 52 px pill on the next-up panel: primary for Play now, surface for Stop
  */
@@ -199,12 +203,12 @@ private fun KidsPanelButton(
                 focusedContainerColor = colors.primary,
                 focusedContentColor = colors.onPrimary,
             ),
-        modifier = modifier.height(52.cpx).pekeFocus(CircleShape),
+        modifier = modifier.height(PanelButtonHeight).pekeFocus(CircleShape),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.cpx),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(52.cpx).padding(horizontal = 22.cpx),
+            modifier = Modifier.height(PanelButtonHeight).padding(horizontal = 22.cpx),
         ) {
             icon()
             Text(text = text, fontSize = 20.csp, fontWeight = if (primary) FontWeight.W900 else FontWeight.W800)

@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,6 +39,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.ui.findActivity
+import dev.aldoborrero.peke.ui.theme.FocusRow
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -160,10 +160,7 @@ private fun MicCard(
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center,
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.cpx),
-                modifier = Modifier.padding(top = 8.cpx),
-            ) {
+            FocusRow(minGap = 16.cpx, modifier = Modifier.padding(top = 8.cpx)) {
                 MicPill(text = confirm, primary = true, onClick = onConfirm, modifier = Modifier.focusRequester(focusRequester))
                 cancel?.let { MicPill(text = it, primary = false, onClick = onDismissRequest) }
             }
