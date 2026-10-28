@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -57,7 +58,10 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.kids.ui.KidsEmptyMessage
+import dev.aldoborrero.peke.kids.ui.KidsEpisodeCardSize
+import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
+import dev.aldoborrero.peke.kids.ui.KidsPosterCardSize
 import dev.aldoborrero.peke.kids.ui.episodeLabel
 import dev.aldoborrero.peke.kids.ui.isKidScreen
 import dev.aldoborrero.peke.preferences.UserPreferences
@@ -76,6 +80,7 @@ import dev.aldoborrero.peke.ui.detail.GridItemDetails
 import dev.aldoborrero.peke.ui.detail.livetv.ProgramDialog
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.onMain
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.titleStringRes
@@ -382,8 +387,8 @@ fun SearchPage(
                                             item = item,
                                             title = if (episode) episodeLabel(item?.data?.indexNumber, item?.name) else item?.title,
                                             imageType = ImageType.PRIMARY,
-                                            width = if (episode) 260.cpx else 180.cpx,
-                                            height = if (episode) 146.cpx else 264.cpx,
+                                            width = if (episode) KidsEpisodeCardSize.width else KidsPosterCardSize.width,
+                                            height = if (episode) KidsEpisodeCardSize.height else KidsPosterCardSize.height,
                                             corner = if (episode) 22.cpx else 24.cpx,
                                             useSeriesForPrimary = if (episode) false else null,
                                             onClick = click,
@@ -545,11 +550,13 @@ private fun <T : CardGridItem> SearchGrid(
     positionCallback: (columns: Int, position: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val kids = isKidScreen()
     Column(
         verticalArrangement = Arrangement.spacedBy(0.dp),
-        modifier = modifier,
+        // Kids: where the search rows start, which leaves the grid room for a focused card
+        modifier = modifier.then(if (kids) Modifier.padding(start = 48.cpx, end = 16.dp) else Modifier),
     ) {
-        ItemRowTitle(stringResource(R.string.results))
+        ItemRowTitle(stringResource(R.string.results), startPadding = if (kids) 0.dp else 8.dp)
 
         CardGrid(
             pager = items,
@@ -569,6 +576,7 @@ private fun <T : CardGridItem> SearchGrid(
             positionCallback = positionCallback,
             modifier = Modifier.fillMaxSize(),
             cardContent = cardContent,
+            kidsRoom = if (kids) ({ _ -> KidsSearchRoom }) else null,
         )
     }
 }
@@ -630,6 +638,7 @@ fun SearchRowResult(
                     onLongClickItem = onLongClickItem,
                     modifier = modifier.focusRequester(focusRequester),
                     kidsLayout = isKidScreen(),
+                    kidsRoom = KidsSearchRoom,
                     cardContent = cardContent,
                 )
             }
@@ -660,3 +669,9 @@ fun SearchResultPlaceholder(
         )
     }
 }
+
+/**
+ * A kids search row's room: its posters and episodes, the widest and tallest of them (KSearchPekeTV)
+ */
+private val KidsSearchRoom =
+    FocusRoom.of(DpSize(KidsEpisodeCardSize.width, KidsPosterCardSize.height), KidsMinCardGap)

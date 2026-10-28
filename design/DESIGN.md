@@ -86,8 +86,11 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 - **Screen padding:** 48–64 px on the sides, 40–56 px top and bottom, so nothing sits in the TV's overscan edge.
 - **Gaps:** 20–24 px between cards in a row, widened where a focused card's scale-up, border and ring need it to clear
   the next card with room to spare (about 25 px between posters and 32 px between wide cards); 26–28 px between rows,
-  12–16 px inside lists. Rows that keep their place, such as the sidebar's, don't scale up, so their ring fits the
-  sidebar's padding.
+  12–16 px inside lists. Every row and grid of cards leaves the same room at its ends and above its cards, so a
+  focused card is never cut and never touches a title, while unfocused cards still line up with the title above them;
+  a card's title starts at its left edge, and moves with it as the card grows. Rows as wide as the page or the
+  sidebar, such as the sidebar's, a seasons list's and the live guide's, don't scale up, so their ring fits the
+  padding.
 - **Targets:** buttons are at least 52 px tall, main actions 72 px.
 
 ## Focus

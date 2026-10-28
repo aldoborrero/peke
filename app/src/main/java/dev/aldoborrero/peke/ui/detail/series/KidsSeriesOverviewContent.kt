@@ -4,11 +4,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -33,8 +31,11 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ChosenStreams
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.ui.KidsCardRow
 import dev.aldoborrero.peke.kids.ui.KidsChip
 import dev.aldoborrero.peke.kids.ui.KidsDetailsHeader
+import dev.aldoborrero.peke.kids.ui.KidsEpisodeCardSize
+import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
 import dev.aldoborrero.peke.kids.ui.KidsPlayButtons
 import dev.aldoborrero.peke.kids.ui.KidsSeasonsDialog
@@ -47,6 +48,7 @@ import dev.aldoborrero.peke.ui.data.ChooseVersionParams
 import dev.aldoborrero.peke.ui.formatSeasonNumber
 import dev.aldoborrero.peke.ui.playback.isPlayKeyUp
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import org.jellyfin.sdk.model.api.ImageType
@@ -139,77 +141,79 @@ fun KidsSeriesOverviewContent(
             },
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(14.cpx)) {
-            ItemRowTitle(stringResource(R.string.episodes), startPadding = 0.dp)
-            when (val eps = episodes) {
-                EpisodeList.Loading -> {
+        when (val eps = episodes) {
+            EpisodeList.Loading -> {
+                Column(verticalArrangement = Arrangement.spacedBy(14.cpx)) {
+                    ItemRowTitle(stringResource(R.string.episodes), startPadding = 0.dp)
                     LoadingPage()
                 }
+            }
 
-                is EpisodeList.Error -> {
+            is EpisodeList.Error -> {
+                Column(verticalArrangement = Arrangement.spacedBy(14.cpx)) {
+                    ItemRowTitle(stringResource(R.string.episodes), startPadding = 0.dp)
                     ErrorMessage(eps.message, eps.exception)
                 }
+            }
 
-                is EpisodeList.Success -> {
-                    if (requestFocusAfterSeason) {
-                        // Changing seasons, so move focus once the new episodes are loaded
-                        LaunchedEffect(Unit) {
-                            firstItemFocusRequester.tryRequestFocus()
-                            requestFocusAfterSeason = false
-                        }
+            is EpisodeList.Success -> {
+                if (requestFocusAfterSeason) {
+                    // Changing seasons, so move focus once the new episodes are loaded
+                    LaunchedEffect(Unit) {
+                        firstItemFocusRequester.tryRequestFocus()
+                        requestFocusAfterSeason = false
                     }
-                    val state = rememberLazyListState(position.episodeRowIndex)
-                    var epPosition by rememberInt(position.episodeRowIndex)
-                    LazyRow(
-                        state = state,
-                        horizontalArrangement = Arrangement.spacedBy(22.cpx),
-                        // Room for the focus ring
-                        contentPadding = PaddingValues(vertical = 18.dp, horizontal = 4.dp),
-                        modifier = Modifier.fillMaxWidth().focusRestorer(episodeRowFocusRequester),
-                    ) {
-                        itemsIndexed(eps.episodes) { episodeIndex, episode ->
-                            val interactionSource = remember { MutableInteractionSource() }
-                            if (interactionSource.collectIsFocusedAsState().value) {
-                                onFocusEpisode.invoke(episodeIndex)
-                            }
-                            val cardModifier =
-                                Modifier
-                                    .then(
-                                        if (episodeIndex == position.episodeRowIndex) {
-                                            Modifier.focusRequester(firstItemFocusRequester)
-                                        } else {
-                                            Modifier
-                                        },
-                                    ).then(
-                                        if (episodeIndex == epPosition) Modifier.focusRequester(episodeRowFocusRequester) else Modifier,
-                                    ).onKeyEvent {
-                                        if (episode != null && isPlayKeyUp(it)) {
-                                            onClick.invoke(episode)
-                                            true
-                                        } else {
-                                            false
-                                        }
-                                    }
-                            KidsPictureCard(
-                                item = episode,
-                                title = episodeLabel(episode?.data?.indexNumber, episode?.name),
-                                imageType = ImageType.PRIMARY,
-                                width = 260.cpx,
-                                height = 146.cpx,
-                                corner = 22.cpx,
-                                titleSize = 18,
-                                played = episode?.data?.userData?.played ?: false,
-                                playPercent = episode?.data?.userData?.playedPercentage ?: 0.0,
-                                useSeriesForPrimary = false,
-                                interactionSource = interactionSource,
-                                onClick = {
-                                    epPosition = episodeIndex
-                                    if (episode != null) onClick.invoke(episode)
-                                },
-                                onLongClick = { epPosition = episodeIndex },
-                                modifier = cardModifier,
-                            )
+                }
+                val state = rememberLazyListState(position.episodeRowIndex)
+                var epPosition by rememberInt(position.episodeRowIndex)
+                KidsCardRow(
+                    title = stringResource(R.string.episodes),
+                    room = FocusRoom.of(KidsEpisodeCardSize, KidsMinCardGap),
+                    state = state,
+                    rowModifier = Modifier.focusRestorer(episodeRowFocusRequester),
+                ) {
+                    itemsIndexed(eps.episodes) { episodeIndex, episode ->
+                        val interactionSource = remember { MutableInteractionSource() }
+                        if (interactionSource.collectIsFocusedAsState().value) {
+                            onFocusEpisode.invoke(episodeIndex)
                         }
+                        val cardModifier =
+                            Modifier
+                                .then(
+                                    if (episodeIndex == position.episodeRowIndex) {
+                                        Modifier.focusRequester(firstItemFocusRequester)
+                                    } else {
+                                        Modifier
+                                    },
+                                ).then(
+                                    if (episodeIndex == epPosition) Modifier.focusRequester(episodeRowFocusRequester) else Modifier,
+                                ).onKeyEvent {
+                                    if (episode != null && isPlayKeyUp(it)) {
+                                        onClick.invoke(episode)
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                        KidsPictureCard(
+                            item = episode,
+                            title = episodeLabel(episode?.data?.indexNumber, episode?.name),
+                            imageType = ImageType.PRIMARY,
+                            width = KidsEpisodeCardSize.width,
+                            height = KidsEpisodeCardSize.height,
+                            corner = 22.cpx,
+                            titleSize = 18,
+                            played = episode?.data?.userData?.played ?: false,
+                            playPercent = episode?.data?.userData?.playedPercentage ?: 0.0,
+                            useSeriesForPrimary = false,
+                            interactionSource = interactionSource,
+                            onClick = {
+                                epPosition = episodeIndex
+                                if (episode != null) onClick.invoke(episode)
+                            },
+                            onLongClick = { epPosition = episodeIndex },
+                            modifier = cardModifier,
+                        )
                     }
                 }
             }

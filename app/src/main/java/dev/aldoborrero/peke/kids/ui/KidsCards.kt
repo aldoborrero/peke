@@ -1,8 +1,9 @@
 package dev.aldoborrero.peke.kids.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -23,8 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -43,6 +46,7 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.LocalPekeFocusScale
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekePalette
@@ -90,7 +94,14 @@ fun KidsPictureCard(
                     ?: imageUrlService.getItemImageUrl(it, imageType, fillHeight = fillHeight, useSeriesForPrimary = useSeriesForPrimary)
             }
         }
-    val focused by interactionSource.collectIsFocusedAsState()
+    // The focus itself, which Peke's focus treatment follows too
+    var hasFocus by remember { mutableStateOf(false) }
+    // The focused card grows from its centre, and the title moves with its left edge
+    val growth by animateFloatAsState(
+        targetValue = if (hasFocus) PekeFocus.scale(LocalPekeFocusScale.current) - 1 else 0f,
+        animationSpec = tween(PekeFocus.ANIMATION_MILLIS),
+        label = "card growth",
+    )
     val shape = RoundedCornerShape(corner)
     Column(
         // The board's 10 px, widened so the focused card's scale-up, border and ring clear the title
@@ -102,7 +113,7 @@ fun KidsPictureCard(
             onLongClick = onLongClick,
             shape = shape,
             interactionSource = interactionSource,
-            modifier = Modifier.size(width, height),
+            modifier = Modifier.size(width, height).onFocusChanged { hasFocus = it.isFocused },
         ) {
             KidsCardPicture(imageUrl = imageUrl, title = title, id = item?.id)
             if (played && (playPercent <= 0 || playPercent >= 100)) {
@@ -118,12 +129,19 @@ fun KidsPictureCard(
                 )
             }
         }
-        KidsCardTitle(title = title, focused = focused, size = titleSize)
+        KidsCardTitle(
+            title = title,
+            focused = hasFocus,
+            size = titleSize,
+            modifier = Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 },
+        )
     }
 }
 
 /**
  * A card's clickable surface with Peke's focus and no tv-material scale or border
+ *
+ * @param grow false for cards as wide as the page, which keep their size and only gain the border and ring
  */
 @Composable
 fun KidsCardSurface(
@@ -133,6 +151,7 @@ fun KidsCardSurface(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource? = null,
     containerColor: Color = MaterialTheme.colorScheme.surface,
+    grow: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Card(
@@ -143,7 +162,7 @@ fun KidsCardSurface(
         scale = PekeFocus.cardScale,
         border = PekeFocus.cardBorder(),
         colors = CardDefaults.colors(containerColor = containerColor, focusedContainerColor = containerColor),
-        modifier = modifier.pekeFocus(shape),
+        modifier = modifier.pekeFocus(shape, grow),
     ) {
         Box(Modifier.fillMaxSize(), content = content)
     }

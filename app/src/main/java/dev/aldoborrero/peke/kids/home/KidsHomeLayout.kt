@@ -1,12 +1,12 @@
 package dev.aldoborrero.peke.kids.home
 
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
+import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
 import dev.aldoborrero.peke.kids.ui.barMinutes
-import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.cpx
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -93,11 +93,11 @@ val KidsCardKind.cardSize: DpSize
         }
 
 /**
- * The gap between a row's cards: DESIGN's 22 px, widened so a focused card's scale-up, border and ring clear the next
- * card
+ * The room a row of these cards leaves: DESIGN's 22 px between them, widened so a focused card's scale-up, border and
+ * ring clear the next card, the row's ends and the titles above and below
  */
-val KidsCardKind.cardGap: Dp
-    get() = maxOf(22.cpx, PekeFocus.clearance(cardSize.width))
+val KidsCardKind.focusRoom: FocusRoom
+    get() = FocusRoom.of(cardSize, KidsMinCardGap)
 
 /**
  * The channel whose picture a Watch live card shows, and the picture's tag when Jellyfin has one

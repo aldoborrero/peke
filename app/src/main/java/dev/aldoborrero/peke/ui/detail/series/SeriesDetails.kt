@@ -50,6 +50,7 @@ import dev.aldoborrero.peke.kids.ui.KidsDetailsHeader
 import dev.aldoborrero.peke.kids.ui.KidsFavouriteButton
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
 import dev.aldoborrero.peke.kids.ui.KidsPlayPill
+import dev.aldoborrero.peke.kids.ui.KidsPosterCardSize
 import dev.aldoborrero.peke.kids.ui.KidsRoundButton
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.Cards
@@ -525,8 +526,8 @@ fun SeriesDetailsContent(
                                     item = item,
                                     title = item?.name,
                                     imageType = ImageType.PRIMARY,
-                                    width = 180.cpx,
-                                    height = 264.cpx,
+                                    width = KidsPosterCardSize.width,
+                                    height = KidsPosterCardSize.height,
                                     corner = 24.cpx,
                                     onClick = onClick,
                                     onLongClick = onLongClick,
@@ -623,8 +624,8 @@ fun SeriesDetailsContent(
                                         item = item,
                                         title = item?.title,
                                         imageType = ImageType.PRIMARY,
-                                        width = 180.cpx,
-                                        height = 264.cpx,
+                                        width = KidsPosterCardSize.width,
+                                        height = KidsPosterCardSize.height,
                                         corner = 24.cpx,
                                         onClick = onClick,
                                         onLongClick = onLongClick,

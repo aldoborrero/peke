@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -38,6 +39,7 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.GetItemsFilter
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.AspectRatios
@@ -48,6 +50,7 @@ import dev.aldoborrero.peke.ui.detail.GridItemDetails
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.main.HomePageHeader
 import dev.aldoborrero.peke.ui.playback.scale
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -102,7 +105,9 @@ fun CollectionFolderGrid(
                 gridFocusRequester = gridFocusRequester,
                 showJumpButtons = false, // TODO add preference
                 showLetterButtons = sortAndDirection.sort == ItemSortBy.SORT_NAME,
-                modifier = Modifier.fillMaxSize(),
+                // Kids: the posters line up with the page's title, and the grid leaves room for a focused poster
+                modifier = Modifier.fillMaxSize().then(if (kids) Modifier.padding(horizontal = KidsGridInset) else Modifier),
+                kidsRoom = if (kids) KidsGridRoom else null,
                 initialPosition = initialPosition,
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
@@ -454,3 +459,13 @@ fun CollectionFolderHeader(
  * A kids poster's height to width on the grid boards (KLibraryPekeTV: 214 px tall in a 152 px column)
  */
 private const val KIDS_POSTER_RATIO = 1.41f
+
+/**
+ * Where a kids grid's posters start, as the library's and favourites' titles
+ */
+private val KidsGridInset = 16.dp
+
+/**
+ * The room a kids grid leaves for a focused poster a column wide, its title under it
+ */
+private val KidsGridRoom = { column: Dp -> FocusRoom.of(DpSize(column, column * KIDS_POSTER_RATIO), KidsMinCardGap) }

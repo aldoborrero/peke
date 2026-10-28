@@ -37,6 +37,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -392,7 +393,8 @@ fun KidsSeasonsDialog(
     val focusRequesters = remember(seasons) { List(seasons.size) { FocusRequester() } }
     Dialog(onDismissRequest = onDismissRequest) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(18.cpx),
+            // Room for a focused season's border and ring: the rows are as wide as the dialog, so focus doesn't grow them
+            verticalArrangement = Arrangement.spacedBy(maxOf(18.cpx, PekeFocus.clearance(0.dp, grow = false))),
             modifier =
                 Modifier
                     .widthIn(max = 640.cpx)
@@ -426,7 +428,7 @@ fun KidsSeasonsDialog(
                             focusedContainerColor = colors.primary,
                             focusedContentColor = colors.onPrimary,
                         ),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[index]).pekeFocus(shape),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[index]).pekeFocus(shape, grow = false),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.cpx),

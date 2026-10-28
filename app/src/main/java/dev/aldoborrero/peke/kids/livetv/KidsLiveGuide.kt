@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
@@ -52,7 +52,9 @@ import dev.aldoborrero.peke.ui.detail.livetv.TvChannel
 import dev.aldoborrero.peke.ui.detail.livetv.TvProgram
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.theme.BuddyMood
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.bleedHorizontally
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.tryRequestFocus
@@ -130,10 +132,11 @@ fun KidsLiveGuide(
                 if (state.channels.isEmpty()) {
                     KidsEmptyMessage(R.string.kids_empty)
                 } else {
+                    // The rows line up with the title, and the list leaves room for a focused row's border and ring
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(28.cpx),
-                        // Room for the focus ring
-                        contentPadding = PaddingValues(vertical = 16.dp, horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(maxOf(28.cpx, ChannelRoom.top)),
+                        contentPadding = ChannelRoom.padding,
+                        modifier = Modifier.bleedHorizontally(ChannelRoom.side),
                     ) {
                         itemsIndexed(state.channels, key = { _, channel -> channel.id }) { index, channel ->
                             KidsChannelRow(
@@ -170,7 +173,9 @@ private fun KidsChannelRow(
         onClick = onClick,
         onLongClick = {},
         shape = RoundedCornerShape(32.cpx),
-        modifier = modifier.fillMaxWidth().height(208.cpx),
+        // As wide as the page, so focus doesn't grow it past the page's sides
+        grow = false,
+        modifier = modifier.fillMaxWidth().height(ChannelRowHeight),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(28.cpx),
@@ -217,3 +222,13 @@ private fun KidsChannelRow(
         }
     }
 }
+
+/**
+ * A channel's row: 208 canvas px tall, as wide as the page
+ */
+private val ChannelRowHeight = 208.cpx
+
+/**
+ * The room the guide leaves for a focused channel row's border and ring, which doesn't grow
+ */
+private val ChannelRoom = FocusRoom.of(DpSize(0.dp, ChannelRowHeight), grow = false)

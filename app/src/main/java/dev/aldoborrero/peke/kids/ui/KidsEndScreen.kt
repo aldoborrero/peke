@@ -4,12 +4,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -23,15 +20,15 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.ui.cards.SeasonCard
 import dev.aldoborrero.peke.ui.components.ExpandablePlayButton
 import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.theme.BuddyMood
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import kotlin.time.Duration
 
@@ -81,24 +78,17 @@ fun KidsEndScreen(
             )
         }
         if (suggestions.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.more_like_this),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .focusRestorer(suggestionFocus),
+            KidsCardRow(
+                title = stringResource(R.string.more_like_this),
+                room = SuggestionRoom,
+                rowModifier = Modifier.focusRestorer(suggestionFocus),
             ) {
                 itemsIndexed(suggestions, key = { _, item -> item.id }) { index, item ->
                     SeasonCard(
                         item = item,
                         onClick = { onClickSuggestion(item) },
                         onLongClick = {},
-                        imageHeight = 140.dp,
+                        imageHeight = SuggestionHeight,
                         modifier = Modifier.ifElse(index == 0, Modifier.focusRequester(suggestionFocus)),
                     )
                 }
@@ -106,3 +96,13 @@ fun KidsEndScreen(
         }
     }
 }
+
+/**
+ * A suggestion's picture: 140 dp tall, up to 16:9 wide
+ */
+private val SuggestionHeight = 140.dp
+
+/**
+ * The room the suggestions leave for a focused one, as wide as a 16:9 picture
+ */
+private val SuggestionRoom = FocusRoom.of(DpSize(SuggestionHeight * 16 / 9, SuggestionHeight), KidsMinCardGap)

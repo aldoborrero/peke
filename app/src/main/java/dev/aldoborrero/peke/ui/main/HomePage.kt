@@ -55,7 +55,7 @@ import dev.aldoborrero.peke.data.model.QuickDetailsData
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.home.KidsHomeCard
 import dev.aldoborrero.peke.kids.home.KidsHomeHeader
-import dev.aldoborrero.peke.kids.home.cardGap
+import dev.aldoborrero.peke.kids.home.focusRoom
 import dev.aldoborrero.peke.kids.home.kidsCardKind
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
@@ -91,6 +91,7 @@ import dev.aldoborrero.peke.ui.playback.isPlayKeyUp
 import dev.aldoborrero.peke.ui.playback.playable
 import dev.aldoborrero.peke.ui.playback.scale
 import dev.aldoborrero.peke.ui.rememberPosition
+import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -498,15 +499,9 @@ fun HomePageContent(
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
-                                            horizontalPadding =
-                                                if (kidsLayout) {
-                                                    kidsCardKind(
-                                                        row.rowType,
-                                                    ).cardGap
-                                                } else {
-                                                    viewOptions.spacing.dp
-                                                },
+                                            horizontalPadding = viewOptions.spacing.dp,
                                             kidsLayout = kidsLayout,
+                                            kidsRoom = kidsCardKind(row.rowType).focusRoom,
                                             cardContent = { index, item, cardModifier, onClick, onLongClick ->
                                                 val onFocus =
                                                     remember(rowIndex, index) {
@@ -846,6 +841,6 @@ fun HomePageViewMoreCard(
 }
 
 /**
- * 26 px between kids rows: the row already leaves 18 dp under its cards for the focus ring
+ * 26 px between kids rows: the row already leaves room under its cards for the focus ring ([FocusRoom.bottom])
  */
 private val KidsRowGap = 2.dp

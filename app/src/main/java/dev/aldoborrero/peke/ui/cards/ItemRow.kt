@@ -20,12 +20,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
+import dev.aldoborrero.peke.kids.ui.KidsPosterCardSize
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.theme.FocusRoom
+import dev.aldoborrero.peke.ui.theme.bleedHorizontally
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
@@ -47,6 +50,7 @@ fun <T> ItemRow(
     showViewMore: Boolean = false,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
     kidsLayout: Boolean = false,
+    kidsRoom: FocusRoom = FocusRoom.of(KidsPosterCardSize, KidsMinCardGap),
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -67,17 +71,17 @@ fun <T> ItemRow(
     ) {
         ItemRowTitle(title, startPadding = if (kidsLayout) 0.dp else 8.dp)
 
-        // DESIGN's 20–24 px between cards, and room above and below for the focus ring and scale-up
-        val gap = maxOf(horizontalPadding, CardGap)
+        // DESIGN's 20–24 px between cards, and room above and below for the focus ring and scale-up. Kids (the canvas
+        // boards): [kidsRoom], with the first card lined up with the title and the row reaching past both sides into the
+        // room its first and last cards' rings need
+        val gap = if (kidsLayout) kidsRoom.gap else maxOf(horizontalPadding, CardGap)
         LazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(gap),
-            // Kids (the canvas boards): the first card lines up with the title and the row reaches past both sides by
-            // the gap, so the focus ring isn't cut; 14 px from the title to the cards, widened to 18 dp so the ring and scale-up (about 15 dp) clear the title
-            contentPadding = PaddingValues(horizontal = gap, vertical = if (kidsLayout) KidsRowRingRoom else 16.dp),
+            contentPadding = if (kidsLayout) kidsRoom.padding else PaddingValues(horizontal = gap, vertical = 16.dp),
             modifier =
                 Modifier
-                    .then(if (kidsLayout) Modifier.bleed(gap) else Modifier)
+                    .then(if (kidsLayout) Modifier.bleedHorizontally(kidsRoom.side) else Modifier)
                     .fillMaxWidth()
                     .focusGroup()
                     .focusRestorer(firstFocus)
@@ -151,26 +155,3 @@ fun ItemRowTitle(
  * The smallest gap between cards in a row: 24 canvas px (design/DESIGN.md, Shape and space)
  */
 val CardGap = 18.dp
-
-/**
- * Lays the row out [by] wider on each side than its parent and shifts it left by as much, so its content padding sits
- * outside the parent's edges
- */
-private fun Modifier.bleed(by: Dp): Modifier =
-    layout { measurable, constraints ->
-        val px = by.roundToPx()
-        val wider =
-            if (constraints.hasBoundedWidth) {
-                constraints.copy(maxWidth = constraints.maxWidth + 2 * px, minWidth = constraints.minWidth + 2 * px)
-            } else {
-                constraints
-            }
-        val placeable = measurable.measure(wider)
-        layout((placeable.width - 2 * px).coerceAtLeast(0), placeable.height) { placeable.place(-px, 0) }
-    }
-
-/**
- * Above and below a kids row's cards: the board's 14 px to the title, widened so a focused card's ring and scale-up
- * (4.5 + 6 dp and 3.5%) don't cover the title
- */
-private val KidsRowRingRoom = 18.dp
