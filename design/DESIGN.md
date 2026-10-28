@@ -84,7 +84,10 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 - **Corners:** posters and episode cards 20–24 px, home cards 24, list rows 22, dialogs 36, buttons and chips fully
   rounded (pills), avatars round.
 - **Screen padding:** 48–64 px on the sides, 40–56 px top and bottom, so nothing sits in the TV's overscan edge.
-- **Gaps:** 20–24 px between cards in a row, 26–28 px between rows, 12–16 px inside lists.
+- **Gaps:** 20–24 px between cards in a row, widened where a focused card's scale-up, border and ring need it to clear
+  the next card with room to spare (about 25 px between posters and 32 px between wide cards); 26–28 px between rows,
+  12–16 px inside lists. Rows that keep their place, such as the sidebar's, don't scale up, so their ring fits the
+  sidebar's padding.
 - **Targets:** buttons are at least 52 px tall, main actions 72 px.
 
 ## Focus

@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,14 +38,17 @@ import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
 import dev.aldoborrero.peke.kids.ui.KidsCardSurface
 import dev.aldoborrero.peke.kids.ui.KidsCardTitle
+import dev.aldoborrero.peke.kids.ui.KidsChannelPicture
 import dev.aldoborrero.peke.kids.ui.KidsLiveBadge
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
+import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.util.LocalClock
 import org.jellyfin.sdk.model.api.ImageType
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -155,8 +159,8 @@ fun KidsTimeLeftPill(
 }
 
 /**
- * A kids home card of [kind] (HomeRailPekeTV): wide 320×180 for keep watching, a 240×112 channel card for live,
- * a 140×200 poster otherwise
+ * A kids home card of [kind] (HomeRailPekeTV), at its [cardSize]: wide for keep watching, a channel card for live, a
+ * poster otherwise
  */
 @Composable
 fun KidsHomeCard(
@@ -166,14 +170,15 @@ fun KidsHomeCard(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val size = kind.cardSize
     when (kind) {
         KidsCardKind.WIDE -> {
             KidsPictureCard(
                 item = item,
                 title = item?.title,
                 imageType = ImageType.THUMB,
-                width = 320.cpx,
-                height = 180.cpx,
+                width = size.width,
+                height = size.height,
                 corner = 24.cpx,
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -183,8 +188,22 @@ fun KidsHomeCard(
         }
 
         KidsCardKind.CHANNEL -> {
+            val imageUrlService = LocalImageUrlService.current
+            val picture = remember(item) { item?.let { channelPicture(it.data) } }
+            val imageUrl =
+                remember(picture) {
+                    picture?.tag?.let {
+                        imageUrlService.getItemImageUrl(
+                            itemId = picture.channelId,
+                            imageType = ImageType.PRIMARY,
+                            tag = it,
+                        )
+                    }
+                }
             KidsChannelCard(
+                id = picture?.channelId ?: item?.id,
                 name = item?.data?.channelName ?: item?.name,
+                imageUrl = imageUrl,
                 onClick = onClick,
                 onLongClick = onLongClick,
                 modifier = modifier,
@@ -196,8 +215,8 @@ fun KidsHomeCard(
                 item = item,
                 title = item?.title,
                 imageType = ImageType.PRIMARY,
-                width = 140.cpx,
-                height = 200.cpx,
+                width = size.width,
+                height = size.height,
                 corner = 22.cpx,
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -209,11 +228,14 @@ fun KidsHomeCard(
 }
 
 /**
- * A live channel on the home: a surface card with the LIVE badge and the channel's name
+ * A live channel on the home: a surface card with the channel's picture on a coloured tile (Peke's TV when it has
+ * none), the LIVE badge and the channel's name
  */
 @Composable
 fun KidsChannelCard(
+    id: UUID?,
     name: String?,
+    imageUrl: String?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -222,14 +244,19 @@ fun KidsChannelCard(
         onClick = onClick,
         onLongClick = onLongClick,
         shape = RoundedCornerShape(24.cpx),
-        modifier = modifier.size(240.cpx, 112.cpx),
+        modifier = modifier.size(KidsCardKind.CHANNEL.cardSize),
     ) {
-        KidsLiveBadge(Modifier.align(Alignment.TopStart).padding(horizontal = 16.cpx, vertical = 14.cpx))
-        // The channel name is the card's own text, always in the text colour
-        KidsCardTitle(
-            title = name,
-            focused = true,
-            modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 16.cpx, vertical = 14.cpx),
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.cpx),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxSize().padding(16.cpx),
+        ) {
+            KidsChannelPicture(id = id, imageUrl = imageUrl, name = name, size = 80.cpx, corner = 18.cpx)
+            Column(verticalArrangement = Arrangement.spacedBy(10.cpx)) {
+                KidsLiveBadge()
+                // The channel name is the card's own text, always in the text colour
+                KidsCardTitle(title = name, focused = true)
+            }
+        }
     }
 }

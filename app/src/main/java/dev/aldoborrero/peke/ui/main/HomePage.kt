@@ -55,6 +55,7 @@ import dev.aldoborrero.peke.data.model.QuickDetailsData
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.home.KidsHomeCard
 import dev.aldoborrero.peke.kids.home.KidsHomeHeader
+import dev.aldoborrero.peke.kids.home.cardGap
 import dev.aldoborrero.peke.kids.home.kidsCardKind
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
@@ -497,7 +498,14 @@ fun HomePageContent(
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
-                                            horizontalPadding = if (kidsLayout) KidsCardGap else viewOptions.spacing.dp,
+                                            horizontalPadding =
+                                                if (kidsLayout) {
+                                                    kidsCardKind(
+                                                        row.rowType,
+                                                    ).cardGap
+                                                } else {
+                                                    viewOptions.spacing.dp
+                                                },
                                             kidsLayout = kidsLayout,
                                             cardContent = { index, item, cardModifier, onClick, onLongClick ->
                                                 val onFocus =
@@ -836,11 +844,6 @@ fun HomePageViewMoreCard(
         showTitle = viewOptions.showTitles,
     )
 }
-
-/**
- * The kids home's 22 px between cards (HomeRailPekeTV)
- */
-private val KidsCardGap = 22.cpx
 
 /**
  * 26 px between kids rows: the row already leaves 18 dp under its cards for the focus ring

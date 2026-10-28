@@ -401,7 +401,8 @@ fun NavDrawer(
                     }
                     LazyColumn(
                         state = navDrawerListState,
-                        contentPadding = PaddingValues(0.dp),
+                        // Room for the first and last rows' focus rings, which the list would cut
+                        contentPadding = PaddingValues(vertical = DrawerRingRoom),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
                         modifier =
@@ -415,7 +416,8 @@ fun NavDrawer(
                                             focusRequester.tryRequestFocus()
                                         }
                                     }
-                                }.fillMaxHeight(),
+                                }.fillMaxHeight()
+                                .drawerRingRoom(),
                     ) {
                         if (customization.allows(RestrictedFeature.SEARCH)) {
                             item {

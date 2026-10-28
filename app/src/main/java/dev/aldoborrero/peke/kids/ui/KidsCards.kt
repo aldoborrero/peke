@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
@@ -92,8 +93,8 @@ fun KidsPictureCard(
     val focused by interactionSource.collectIsFocusedAsState()
     val shape = RoundedCornerShape(corner)
     Column(
-        // The board's 10 px, widened so the focus ring doesn't cover the title
-        verticalArrangement = Arrangement.spacedBy(TitleGap),
+        // The board's 10 px, widened so the focused card's scale-up, border and ring clear the title
+        verticalArrangement = Arrangement.spacedBy(maxOf(TitleGap, PekeFocus.clearance(height))),
         modifier = modifier.width(width),
     ) {
         KidsCardSurface(
@@ -194,6 +195,44 @@ fun tileColor(
 ): Color {
     val tiles = listOf(colors.primary, colors.secondary, colors.tertiary, colors.time)
     return tiles[Math.floorMod(id?.hashCode() ?: 0, tiles.size)]
+}
+
+/**
+ * A channel's picture on a tile in one of the theme's colours, or Peke's TV in "on primary" when it has none or it can't
+ * load (LiveGuidePekeTV)
+ */
+@Composable
+fun KidsChannelPicture(
+    id: UUID?,
+    imageUrl: String?,
+    name: String?,
+    size: Dp,
+    corner: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalPekeColors.current
+    var imageError by remember(imageUrl) { mutableStateOf(false) }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier.size(size).clip(RoundedCornerShape(corner)).background(tileColor(colors, id)),
+    ) {
+        if (imageUrl != null && !imageError) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = name,
+                contentScale = ContentScale.Fit,
+                onError = { imageError = true },
+                modifier = Modifier.size(size * .75f),
+            )
+        } else {
+            Icon(
+                painter = painterResource(PekeIcon.LIVE.outline),
+                contentDescription = null,
+                tint = colors.onPrimary,
+                modifier = Modifier.size(size * .55f),
+            )
+        }
+    }
 }
 
 /**
@@ -303,6 +342,6 @@ fun KidsLiveBadge(
 }
 
 /**
- * Between a card and its title: past the focus ring (4.5 + 6 dp) and the scale-up
+ * Between a card and its title at least: past the focus ring (4.5 + 6 dp) and the scale-up of a small card
  */
 private val TitleGap = 16.dp

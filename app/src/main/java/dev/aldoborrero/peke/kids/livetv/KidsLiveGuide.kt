@@ -41,9 +41,9 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.ui.KidsCardSurface
+import dev.aldoborrero.peke.kids.ui.KidsChannelPicture
 import dev.aldoborrero.peke.kids.ui.KidsEmptyMessage
 import dev.aldoborrero.peke.kids.ui.KidsLiveBadge
-import dev.aldoborrero.peke.kids.ui.tileColor
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.data.RowColumn
@@ -93,7 +93,7 @@ fun channelNowNext(
 
 /**
  * The kid's live TV (LiveGuidePekeTV): "Watch live" and a full-width card per channel, with the channel's picture on a
- * coloured tile (the buddy when it has none), LIVE and its name, the programme on now, how far it has gone and what
+ * coloured tile (Peke's TV when it has none), LIVE and its name, the programme on now, how far it has gone and what
  * comes next. Clicking a card plays the channel, as the guide's channel cell did; the channels are the kid's own
  * (004, [LiveTvViewModel]).
  */
@@ -177,7 +177,7 @@ private fun KidsChannelRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxSize().padding(24.cpx),
         ) {
-            ChannelTile(channel)
+            KidsChannelPicture(id = channel.id, imageUrl = channel.imageUrl, name = channel.name, size = 160.cpx, corner = 30.cpx)
             Column(verticalArrangement = Arrangement.spacedBy(10.cpx), modifier = Modifier.weight(1f)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.cpx), verticalAlignment = Alignment.CenterVertically) {
                     KidsLiveBadge(size = 16)
@@ -214,35 +214,6 @@ private fun KidsChannelRow(
                     )
                 }
             }
-        }
-    }
-}
-
-/**
- * The channel's picture on a 160 px tile in one of the theme's colours, or the buddy when it has none or it can't load
- */
-@Composable
-private fun ChannelTile(channel: TvChannel) {
-    val colors = LocalPekeColors.current
-    var imageError by remember(channel.imageUrl) { mutableStateOf(false) }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(160.cpx).clip(RoundedCornerShape(30.cpx)).background(tileColor(colors, channel.id)),
-    ) {
-        if (channel.imageUrl != null && !imageError) {
-            AsyncImage(
-                model = channel.imageUrl,
-                contentDescription = channel.name,
-                contentScale = ContentScale.Fit,
-                onError = { imageError = true },
-                modifier = Modifier.size(120.cpx),
-            )
-        } else {
-            Image(
-                painter = painterResource(BuddyMood.HAPPY.drawable),
-                contentDescription = null,
-                modifier = Modifier.size(120.cpx, 100.cpx),
-            )
         }
     }
 }

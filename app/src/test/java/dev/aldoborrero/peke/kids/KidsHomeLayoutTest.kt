@@ -1,14 +1,22 @@
 package dev.aldoborrero.peke.kids
 
 import dev.aldoborrero.peke.data.model.HomeRowConfig
+import dev.aldoborrero.peke.kids.home.ChannelPicture
 import dev.aldoborrero.peke.kids.home.HomeTimeLeft
 import dev.aldoborrero.peke.kids.home.KidsCardKind
+import dev.aldoborrero.peke.kids.home.cardGap
+import dev.aldoborrero.peke.kids.home.cardSize
+import dev.aldoborrero.peke.kids.home.channelPicture
 import dev.aldoborrero.peke.kids.home.homeTimeLeft
 import dev.aldoborrero.peke.kids.home.kidsCardKind
 import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
+import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
@@ -67,5 +75,43 @@ class KidsHomeLayoutTest {
                 firstWarning = 5.minutes,
             )
         assertEquals(HomeTimeLeft(minutes = 5, today = true, nearEnd = true), homeTimeLeft(limits, KidsTimerBarPosition.TOP))
+    }
+
+    @Test
+    fun `a row leaves room for a focused card's scale-up, border and ring before the next card`() {
+        KidsCardKind.entries.forEach { kind ->
+            val width = kind.cardSize.width.value
+            // DESIGN: 7% scale-up, half of it on each side, then the 6 px border and 8 px ring (10.5 dp), scaled too
+            val overhang = width * .035f + 10.5f * 1.07f
+            val gap = kind.cardGap.value
+            assertTrue("$kind gap $gap dp under the ${overhang}dp overhang and 4 dp to spare", gap >= overhang + 4f)
+            // and never below DESIGN's 22 px (16.5 dp)
+            assertTrue("$kind gap $gap dp", gap >= 16.5f)
+        }
+    }
+
+    @Test
+    fun `a live card shows its channel's picture when Jellyfin has one`() {
+        val channel = UUID.randomUUID()
+        val programme =
+            BaseItemDto(
+                id = UUID.randomUUID(),
+                type = BaseItemKind.PROGRAM,
+                channelId = channel,
+                channelPrimaryImageTag = "tag",
+            )
+        assertEquals(ChannelPicture(channel, "tag"), channelPicture(programme))
+        assertEquals(ChannelPicture(channel, null), channelPicture(programme.copy(channelPrimaryImageTag = null)))
+
+        val tv =
+            BaseItemDto(
+                id = channel,
+                type = BaseItemKind.TV_CHANNEL,
+                imageTags = mapOf(ImageType.PRIMARY to "own"),
+            )
+        assertEquals(ChannelPicture(channel, "own"), channelPicture(tv))
+        assertEquals(ChannelPicture(channel, null), channelPicture(tv.copy(imageTags = null)))
+
+        assertNull(channelPicture(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.PROGRAM)))
     }
 }

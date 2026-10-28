@@ -51,6 +51,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -194,9 +196,32 @@ internal val DrawerIconSize = 36.cpx
 internal val DrawerAnimationStiffness = Spring.StiffnessMedium
 
 /**
+ * Room above and below the sidebar's list for a focused row's border and ring, which the list would otherwise cut
+ */
+internal val DrawerRingRoom = PekeFocus.clearance(DrawerTileSize, grow = false)
+
+/**
+ * Lets the sidebar's list draw [DrawerRingRoom] past its top and bottom, given as its content padding, without moving its
+ * rows: a lazy list clips what its rows draw past its edges, such as the first and last rows' focus rings
+ */
+internal fun Modifier.drawerRingRoom(): Modifier =
+    layout { measurable, constraints ->
+        val room = DrawerRingRoom.roundToPx()
+        val placeable =
+            measurable.measure(
+                constraints.copy(
+                    minHeight = constraints.minHeight + 2 * room,
+                    maxHeight = if (constraints.hasBoundedHeight) constraints.maxHeight + 2 * room else Constraints.Infinity,
+                ),
+            )
+        layout(placeable.width, placeable.height - 2 * room) { placeable.place(0, -room) }
+    }
+
+/**
  * An entry of the sidebar: a 64 px tile with its icon while the rail is closed, a row with the icon and the name while
  * open. The page you're on ([current]) sits on the surface colour; the focused entry is primary, with "on primary" for
- * its icon and text ([LocalContentColor]), and Peke's focus border and ring.
+ * its icon and text ([LocalContentColor]), and Peke's focus border and ring. Every entry keeps one geometry in every state:
+ * focus doesn't grow it, so its icon and name stay put, and its ring fits inside the sidebar's padding.
  */
 @Composable
 internal fun NavigationDrawerScope.NavigationDrawerItem(
@@ -229,7 +254,7 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
             modifier
                 .fillMaxWidth()
                 .height(height)
-                .pekeFocus(shape),
+                .pekeFocus(shape, grow = false),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
