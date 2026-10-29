@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.layout
@@ -156,6 +157,10 @@ private fun DrawerSheet(
                 if (initializationComplete && activeEntry) {
                     drawerState.setValue(if (it.hasFocus) DrawerValue.Open else DrawerValue.Closed)
                 }
+            }.focusProperties {
+                // Focus coming in from the page, as Left from a kid page, lands on the selected item like opening does,
+                // never on whatever is level with it, such as the kid's profile next to the search box
+                onEnter = { initialFocus?.tryRequestFocus() }
             }.focusGroup()
 
     Box(modifier = internalModifier) {
