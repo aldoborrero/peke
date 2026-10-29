@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="369" height="161" viewBox="0 0 369 161">
+  <!-- Editable source of peke-wordmark.svg: live text in Nunito Black (weight 900), tracked -10/1000 and k-e kerned
+       -40/1000, as one x per letter. The outlined files are generated from these values; see design/DESIGN.md, Logo. -->
+  <text y="124" font-family="Nunito" font-size="165.29" font-weight="900" stroke="#1F2747" stroke-width="10" stroke-linejoin="round" paint-order="stroke"><tspan x="-3" fill="#FFDA70">p</tspan><tspan x="97.83" fill="#FF927E">e</tspan><tspan x="187.91" fill="#65D9CE">k</tspan><tspan x="275.51" fill="#B5A0EF">e</tspan></text>
+</svg>

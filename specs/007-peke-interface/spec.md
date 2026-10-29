@@ -109,9 +109,9 @@ new icon and banner.
 
 **Acceptance Scenarios**:
 
-1. **Given** each SVG under `design/assets/` (except the editable `logo-peke-text.svg`), **When** it is converted,
-   **Then** the app has a matching drawable, and any SVG feature the conversion can't keep is listed with what was done
-   instead.
+1. **Given** each SVG under `design/assets/` that the app draws (of the logo set, `logo/peke-horizontal.svg`), **When**
+   it is converted, **Then** the app has a matching drawable, and any SVG feature the conversion can't keep is listed
+   with what was done instead.
 2. **Given** the Android TV launcher, **When** Peke is listed, **Then** it shows the buddy as the app icon (adaptive,
    with a separate background and foreground) and the 320×180 banner, never the Jellyfin logo.
 3. **Given** an outline icon, **When** it is drawn in any theme, **Then** it takes the colour it is tinted with.

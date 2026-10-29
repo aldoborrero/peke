@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="212" height="204" viewBox="0 0 212 204" stroke-linecap="round" stroke-linejoin="round">
+  <!-- The buddy mark: the PekeTV buddy drawn for the logo (outline 12 on a 200-wide body). One colour: currentColor. Generated; see design/DESIGN.md, Logo. -->
+  <g transform="translate(-24 -2)">
+    <path d="M101 40 Q90 14 104 9 Q118 13 117 40 M159 40 Q170 14 156 9 Q142 13 143 40" fill="none" stroke="currentColor" stroke-width="12"/>
+    <rect x="30" y="40" width="200" height="160" rx="52" fill="none" stroke="currentColor" stroke-width="12"/>
+    <rect x="58" y="66" width="144" height="108" rx="30" fill="none" stroke="currentColor" stroke-width="12"/>
+    <circle cx="105" cy="112.44" r="9.2" fill="currentColor"/>
+    <circle cx="155" cy="112.44" r="9.2" fill="currentColor"/>
+    <path d="M113 137.44 Q130 153.44 147 137.44" fill="none" stroke="currentColor" stroke-width="12"/>
+  </g>
+</svg>

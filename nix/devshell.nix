@@ -47,7 +47,12 @@ perSystem.devshell.mkShell {
     detekt # Kotlin static analysis
     perfetto # record traces on a device (android-profiler)
     traceProcessor # query Perfetto traces with PerfettoSQL (android-profiler)
-    (python3.withPackages (p: [ p.protobuf ])) # helper scripts (android-profiler) and R8 report decoding (r8-analyzer)
+    # helper scripts (android-profiler), R8 report decoding (r8-analyzer) and the logo generator (design/tools)
+    (python3.withPackages (p: [
+      p.protobuf
+      p.fonttools
+    ]))
+    librsvg # rsvg-convert: renders the social preview and checks SVGs (design/tools)
     jq # spec-kit scripts parse JSON safely with it
     bundletool # inspect and size app bundles and APK splits
     scrcpy # mirror and control a TV or device over adb
