@@ -63,6 +63,7 @@ import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 
 /**
  * An input field for text customized for TV entry
@@ -232,6 +233,7 @@ fun EditTextBox(
     placeholder: @Composable (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    focusLine: Boolean = true,
     growWithText: Boolean = false,
 ) {
     val colors =
@@ -313,7 +315,7 @@ fun EditTextBox(
                                 modifier = Modifier,
                                 colors = colors,
                                 shape = CircleShape,
-                                focusedIndicatorLineThickness = 4.dp,
+                                focusedIndicatorLineThickness = if (focusLine) 4.dp else 0.dp,
                                 unfocusedIndicatorLineThickness = 0.dp,
                             )
                         },
@@ -341,7 +343,8 @@ fun SearchEditTextBox(
     EditTextBox(
         value,
         onValueChange,
-        modifier,
+        // Kids get Peke's border and ring, as on every other control, instead of the text field's line
+        if (kids) modifier.pekeFocus(CircleShape, grow = false) else modifier,
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,
@@ -369,6 +372,7 @@ fun SearchEditTextBox(
                 MaterialTheme.typography.bodyLarge
             },
         interactionSource = interactionSource,
+        focusLine = !kids,
         // Taller rather than cut when the TV's text is larger
         growWithText = kids,
     )

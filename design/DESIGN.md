@@ -96,6 +96,8 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
   padding. Buttons side by side or stacked keep the same rule: their gap grows beside a wide pill, which grows more
   when focused, so a focused button's ring never touches the next one.
 - **Targets:** buttons are at least 52 px tall, main actions 72 px.
+- **TalkBack:** every button says what it does, icon-only ones included, in English and Spanish; Play and Pause
+  follow the state.
 
 ## Focus
 
@@ -104,8 +106,9 @@ The focused element must be obvious from the sofa:
 - an **8 px ring in the primary colour** (coral in PekeTV), and
 - a **6–8% scale-up** for cards and avatars.
 
-Never colour alone. In the grown-up screens the scale-up is dropped and only the border and ring remain. Motion is
-transform and opacity only, no blur, so cheap TV boxes keep up.
+Never colour alone. In the grown-up screens the scale-up is dropped and only the border and ring remain. Text fields
+take the same border and ring, not an underline. Motion is transform and opacity only, no blur, so cheap TV boxes keep
+up; when the TV removes animations, endless motion (the Skip Intro pulse, the screensaver's float) stays still.
 
 ## The PekeTV buddy
 

@@ -49,6 +49,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -347,6 +349,7 @@ fun LeftPlaybackButtons(
         if (LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)) {
             PlaybackButton(
                 iconRes = R.drawable.vector_settings,
+                label = R.string.settings,
                 onClick = {
                     onControllerInteraction.invoke()
                     onClickPlaybackDialogType.invoke(PlaybackDialogType.SETTINGS)
@@ -373,6 +376,7 @@ fun RightPlaybackButtons(
         PlaybackButton(
             enabled = true,
             iconRes = PekeIcon.SUBTITLES.outline,
+            label = R.string.subtitles,
             onClick = {
                 onControllerInteraction.invoke()
                 onClickPlaybackDialogType.invoke(PlaybackDialogType.CAPTIONS)
@@ -384,6 +388,7 @@ fun RightPlaybackButtons(
         PlaybackButton(
             enabled = true,
             iconRes = PekeIcon.AUDIO.outline,
+            label = R.string.audio,
             onClick = {
                 onControllerInteraction.invoke()
                 onClickPlaybackDialogType.invoke(PlaybackDialogType.AUDIO)
@@ -416,6 +421,7 @@ fun PlaybackButtons(
         ) {
             PlaybackButton(
                 iconRes = R.drawable.baseline_skip_previous_24,
+                label = R.string.playback_previous,
                 onClick = {
                     onControllerInteraction.invoke()
                     onPlaybackActionClick.invoke(PlaybackAction.Previous)
@@ -425,6 +431,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 iconRes = R.drawable.baseline_fast_rewind_24,
+                label = R.string.playback_rewind,
                 onClick = {
                     onControllerInteraction.invoke()
                     player.seekBack(seekBack)
@@ -434,6 +441,7 @@ fun PlaybackButtons(
             PlaybackButton(
                 modifier = Modifier.focusRequester(initialFocusRequester),
                 iconRes = if (showPlay) PekeIcon.PLAY.outline else PekeIcon.PAUSE.outline,
+                label = if (showPlay) R.string.play else R.string.playback_pause,
                 large = true,
                 onClick = {
                     onControllerInteraction.invoke()
@@ -450,6 +458,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 iconRes = R.drawable.baseline_fast_forward_24,
+                label = R.string.playback_fast_forward,
                 onClick = {
                     onControllerInteraction.invoke()
                     player.seekForward(seekForward)
@@ -458,6 +467,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 iconRes = PekeIcon.NEXT_EPISODE.outline,
+                label = R.string.playback_next,
                 onClick = {
                     onControllerInteraction.invoke()
                     onPlaybackActionClick.invoke(PlaybackAction.Next)
@@ -469,9 +479,13 @@ fun PlaybackButtons(
     }
 }
 
+/**
+ * A transport button: its icon, and [label] for TalkBack, as "Pause" or "Rewind"
+ */
 @Composable
 fun PlaybackButton(
     @DrawableRes iconRes: Int,
+    @StringRes label: Int,
     onClick: () -> Unit,
     onControllerInteraction: () -> Unit,
     modifier: Modifier = Modifier,
@@ -480,6 +494,7 @@ fun PlaybackButton(
     large: Boolean = false,
 ) {
     val style = playbackButtonStyle(large)
+    val description = stringResource(label)
     Button(
         enabled = enabled,
         onClick = onClick,
@@ -490,12 +505,13 @@ fun PlaybackButton(
         modifier =
             modifier
                 .size(style.size)
+                .semantics { contentDescription = description }
                 .onFocusChanged { onControllerInteraction.invoke() },
     ) {
         Icon(
             modifier = Modifier.fillMaxSize(),
             painter = painterResource(iconRes),
-            contentDescription = "",
+            contentDescription = null,
             tint = LocalContentColor.current,
         )
     }
@@ -641,6 +657,7 @@ private fun ButtonPreview() {
         Row(Modifier.background(Color.Red)) {
             PlaybackButton(
                 iconRes = R.drawable.baseline_play_arrow_24,
+                label = R.string.play,
                 onClick = {},
                 onControllerInteraction = {},
             )

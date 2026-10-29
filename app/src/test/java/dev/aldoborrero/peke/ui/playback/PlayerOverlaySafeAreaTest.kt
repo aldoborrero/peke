@@ -12,7 +12,9 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.media3.common.Player
 import dev.aldoborrero.peke.kids.KidsModeState
@@ -36,7 +38,8 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The player overlay, kids' and grown-ups', keeps its buttons and the clock inside Google's overscan-safe area (48 dp
- * at the sides, 27 dp top and bottom; TV-OV)
+ * at the sides, 27 dp top and bottom; TV-OV), and every transport button has a TalkBack label in English and Spanish
+ * (the TalkBack checklist's "are media controls appropriately labeled")
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-xhdpi")
@@ -144,5 +147,32 @@ class PlayerOverlaySafeAreaTest {
         rule.setContent { Overlay(kids = true) }
         settle()
         assertControlsInSafeArea()
+    }
+
+    @Test
+    fun `every transport button is labelled, Pause or Play as the state`() {
+        rule.setContent { Overlay(kids = true) }
+        settle()
+        listOf("Previous", "Rewind", "Pause", "Fast forward", "Next", "Subtitles", "Audio").forEach {
+            rule.onNodeWithContentDescription(it).assertExists()
+        }
+        assertTrue("no unlabelled button", buttons().all { hasContentDescription("", substring = true).matches(it) })
+    }
+
+    @Test
+    fun `Play is labelled while paused`() {
+        rule.setContent { Overlay(kids = true, showPlay = true) }
+        settle()
+        rule.onNodeWithContentDescription("Play").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w960dp-h540dp-xhdpi")
+    fun `the labels are in Spanish too`() {
+        rule.setContent { Overlay(kids = true) }
+        settle()
+        listOf("Anterior", "Retroceder", "Pausar", "Avanzar", "Siguiente", "Subtítulos", "Audio").forEach {
+            rule.onNodeWithContentDescription(it).assertExists()
+        }
     }
 }

@@ -27,6 +27,7 @@ import dev.aldoborrero.peke.ui.components.Button
 import dev.aldoborrero.peke.ui.skipStringRes
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.theme.PreviewInteractionSource
+import dev.aldoborrero.peke.ui.util.rememberReducedMotion
 import org.jellyfin.sdk.model.api.MediaSegmentType
 
 @Composable
@@ -37,10 +38,12 @@ fun SkipSegmentButton(
     onLongClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // The outline pulses, or stays lit when the TV removes animations
+    val reducedMotion = rememberReducedMotion()
     val infiniteTransition = rememberInfiniteTransition("SkipSegmentButton")
     val color by infiniteTransition.animateColor(
         initialValue = MaterialTheme.colorScheme.onSurface,
-        targetValue = Color.Transparent,
+        targetValue = if (reducedMotion) MaterialTheme.colorScheme.onSurface else Color.Transparent,
         animationSpec =
             InfiniteRepeatableSpec(
                 animation = tween(durationMillis = 1500, easing = LinearEasing),

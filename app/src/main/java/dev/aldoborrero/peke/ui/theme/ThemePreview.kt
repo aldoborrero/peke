@@ -261,12 +261,14 @@ private fun ThemeExample(theme: AppThemeColors) {
                         PlaybackButton(
                             modifier = Modifier,
                             iconRes = R.drawable.baseline_play_arrow_24,
+                            label = R.string.play,
                             onClick = {},
                             onControllerInteraction = {},
                         )
                         PlaybackButton(
                             modifier = Modifier,
                             iconRes = R.drawable.baseline_play_arrow_24,
+                            label = R.string.play,
                             onClick = {},
                             onControllerInteraction = {},
                             interactionSource = source,
@@ -274,12 +276,14 @@ private fun ThemeExample(theme: AppThemeColors) {
                         PlaybackButton(
                             modifier = Modifier,
                             iconRes = R.drawable.baseline_pause_24,
+                            label = R.string.playback_pause,
                             onClick = {},
                             onControllerInteraction = {},
                         )
                         PlaybackButton(
                             modifier = Modifier,
                             iconRes = R.drawable.baseline_pause_24,
+                            label = R.string.playback_pause,
                             onClick = {},
                             onControllerInteraction = {},
                             interactionSource = source,

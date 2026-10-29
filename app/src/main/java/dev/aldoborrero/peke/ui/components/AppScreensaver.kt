@@ -71,6 +71,7 @@ import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.util.LocalClock
+import dev.aldoborrero.peke.ui.util.rememberReducedMotion
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 import kotlin.time.Duration
@@ -185,9 +186,10 @@ private fun SleepingBuddy(
             alignment = SLEEP_SPOTS.filter { it != alignment }.random()
         }
     }
+    // Still when the TV removes animations
     val float by rememberInfiniteTransition(label = "buddy float").animateFloat(
         initialValue = 0f,
-        targetValue = if (animate) 1f else 0f,
+        targetValue = if (animate && !rememberReducedMotion()) 1f else 0f,
         animationSpec = infiniteRepeatable(tween(BUDDY_FLOAT_MILLIS), repeatMode = RepeatMode.Reverse),
         label = "buddy float",
     )

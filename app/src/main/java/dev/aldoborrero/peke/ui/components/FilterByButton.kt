@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
@@ -385,11 +386,13 @@ fun ExpandableFilterButton(
     Button(
         onClick = onClick,
         modifier =
-            modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxHeight = MinButtonSize,
-            ),
+            modifier
+                .buttonLabel(stringResource(R.string.filter))
+                .requiredSizeIn(
+                    minWidth = MinButtonSize,
+                    minHeight = MinButtonSize,
+                    maxHeight = MinButtonSize,
+                ),
         contentPadding = PaddingValues(0.dp), // DefaultButtonPadding,
         interactionSource = interactionSource,
     ) {
@@ -397,7 +400,8 @@ fun ExpandableFilterButton(
             modifier =
                 Modifier
                     .fillMaxHeight()
-                    .widthIn(min = if (filterCount > 0 || isFocused) (MinButtonSize - 12.dp) else MinButtonSize),
+                    .widthIn(min = if (filterCount > 0 || isFocused) (MinButtonSize - 12.dp) else MinButtonSize)
+                    .clearAndSetSemantics {},
         ) {
             Icon(
                 painter = painterResource(PekeIcon.FILTER.outline),
@@ -417,7 +421,7 @@ fun ExpandableFilterButton(
             Text(
                 text = stringResource(R.string.filter),
                 style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp),
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp).clearAndSetSemantics {},
             )
         }
     }

@@ -78,6 +78,7 @@ import dev.aldoborrero.peke.ui.detail.livetv.ProgramDialog
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.onMain
 import dev.aldoborrero.peke.ui.theme.FocusRoom
+import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.titleStringRes
@@ -95,6 +96,9 @@ internal const val SEARCH_ROW = 0
 internal const val TAB_ROW = SEARCH_ROW + 1
 internal const val COMBINED_ROW = TAB_ROW + 1
 internal const val RESULTS_START = COMBINED_ROW + 1
+
+/** Between the kids' search pill, microphone and filter: room for the round microphone's scale-up, border and ring */
+private val KidsSearchRowGap = PekeFocus.clearance(72.cpx)
 
 @Composable
 fun SearchPage(
@@ -271,7 +275,8 @@ fun SearchPage(
                             },
                             voiceInputManager = viewModel.voiceInputManager,
                             enabled = prefs.kidsVoiceSearch,
-                            modifier = Modifier.padding(horizontal = 12.dp),
+                            // For kids, room for the focused pill's or microphone's ring between them
+                            modifier = Modifier.padding(horizontal = if (kidsMode) KidsSearchRowGap else 12.dp),
                         )
                     }
                 }
@@ -305,7 +310,18 @@ fun SearchPage(
                     resume = Duration.ZERO,
                     icon = painterResource(PekeIcon.FILTER.outline),
                     onClick = { showViewOptions = true },
-                    modifier = Modifier.padding(start = 12.dp),
+                    modifier =
+                        Modifier.padding(
+                            start =
+                                when {
+                                    !kidsMode -> 12.dp
+
+                                    // The microphone's own padding already leaves the room
+                                    voiceSearchButtonVisible -> 0.dp
+
+                                    else -> KidsSearchRowGap
+                                },
+                        ),
                 )
                 // The clock ends the row, clear of the filter button and inside the safe area
                 if (kidsMode && interfacePrefs.showClock) KidsHeaderClock(Modifier.padding(start = 24.cpx))

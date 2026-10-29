@@ -1160,6 +1160,12 @@
     <string name="kids_episode_number">Episode %1$d</string>
     <string name="kids_play_now">Play now</string>
     <string name="kids_stop">Stop</string>
+    <string name="playback_pause">Pause</string>
+    <string name="playback_previous">Previous</string>
+    <string name="playback_next">Next</string>
+    <string name="playback_rewind">Rewind</string>
+    <string name="playback_fast_forward">Fast forward</string>
+    <string name="playback_stop">Stop</string>
     <string name="kids_in_a_row">Episode %1$d of %2$d in a row</string>
     <!-- 008 Phase 4: live TV -->
     <string name="kids_next_programme">Next: %1$s</string>
