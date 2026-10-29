@@ -103,6 +103,7 @@ import dev.aldoborrero.peke.ui.playback.overlay.rememberSeekBarState
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings.applyTo
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
 import dev.aldoborrero.peke.ui.seasonEpisode
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -421,8 +422,8 @@ fun PlaybackPageContent(
                         modifier =
                             Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp)
-                                .fillMaxWidth(.95f),
+                                .padding(SafeArea.padding)
+                                .fillMaxWidth(),
                     )
                 }
                 // Clear the overlay after a delay
@@ -626,7 +627,7 @@ fun PlaybackPageContent(
             showSegment,
             modifier =
                 Modifier
-                    .padding(40.dp)
+                    .padding(SafeArea.padding)
                     .align(Alignment.BottomEnd),
         ) {
             state.currentSegment?.let { segment ->
@@ -698,7 +699,7 @@ fun PlaybackPageContent(
                                     p.autoplayEnabled
                                 }?.validAutoplayCap
                         inARow(viewModel.autoPlayedInARowCount, cap)?.let { chip ->
-                            KidsInARowChip(chip, Modifier.align(Alignment.BottomStart).padding(start = 56.cpx, bottom = 56.cpx))
+                            KidsInARowChip(chip, Modifier.align(Alignment.BottomStart).padding(start = 64.cpx, bottom = 56.cpx))
                         }
                         KidsNextUpPanel(
                             itemId = it.id,
@@ -721,7 +722,7 @@ fun PlaybackPageContent(
                                     viewModel.navigationManager.goBack()
                                 }
                             },
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 56.cpx, bottom = 56.cpx),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 64.cpx, bottom = 56.cpx),
                         )
                     }
                     return@let
@@ -744,7 +745,7 @@ fun PlaybackPageContent(
                     runtime = it.data.runTimeTicks?.ticks,
                     modifier =
                         Modifier
-                            .padding(8.dp)
+                            .padding(top = 8.dp, bottom = SafeArea.Vertical)
 //                                    .height(128.dp)
                             .fillMaxHeight(1 - playerSize)
                             .fillMaxWidth(.66f)
@@ -764,7 +765,7 @@ fun PlaybackPageContent(
                 onClickSuggestion = onClickSuggestion,
                 modifier =
                     Modifier
-                        .padding(8.dp)
+                        .padding(top = 8.dp, bottom = SafeArea.Vertical)
                         .fillMaxWidth(.8f)
                         .align(Alignment.BottomCenter)
                         .background(

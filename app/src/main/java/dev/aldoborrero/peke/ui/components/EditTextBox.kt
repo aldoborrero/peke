@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -231,6 +232,7 @@ fun EditTextBox(
     placeholder: @Composable (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    growWithText: Boolean = false,
 ) {
     val colors =
         TextFieldDefaults.colors(
@@ -251,7 +253,7 @@ fun EditTextBox(
                     .defaultMinSize(
                         minWidth = TextFieldDefaults.MinWidth,
                         minHeight = height,
-                    ).height(height),
+                    ).then(if (growWithText) Modifier.heightIn(min = height) else Modifier.height(height)),
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,
@@ -367,6 +369,8 @@ fun SearchEditTextBox(
                 MaterialTheme.typography.bodyLarge
             },
         interactionSource = interactionSource,
+        // Taller rather than cut when the TV's text is larger
+        growWithText = kids,
     )
 }
 

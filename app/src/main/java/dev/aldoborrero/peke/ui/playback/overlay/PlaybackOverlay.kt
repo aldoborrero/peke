@@ -64,6 +64,7 @@ import dev.aldoborrero.peke.ui.playback.AnalyticsState
 import dev.aldoborrero.peke.ui.playback.ControllerViewState
 import dev.aldoborrero.peke.ui.playback.CurrentPlayback
 import dev.aldoborrero.peke.ui.playback.PlaybackDialogType
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.MediaSegmentDto
 import org.jellyfin.sdk.model.api.TrickplayInfo
@@ -157,9 +158,11 @@ fun PlaybackOverlay(
             )
         }
 
+        // The controls and rows keep to the safe area (48 dp sides, 27 dp bottom); the scrim behind runs to the edges
         AnimatedContent(
             targetState = state,
             label = "controls transition",
+            modifier = Modifier.padding(SafeArea.padding),
             transitionSpec = {
                 if (targetState.ordinal > initialState.ordinal) {
                     // Moving down, so move content up
@@ -217,7 +220,6 @@ fun PlaybackOverlay(
                         onChangeState = onChangeState,
                         modifier =
                             Modifier
-                                .padding(bottom = 8.dp)
                                 .onGloballyPositioned {
                                     controllerHeight = with(density) { it.size.height.toDp() }
                                 },
@@ -240,10 +242,7 @@ fun PlaybackOverlay(
                                     null
                                 },
                             onChangeState = onChangeState,
-                            modifier =
-                                Modifier
-                                    .padding(horizontal = 8.dp)
-                                    .fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
@@ -266,7 +265,7 @@ fun PlaybackOverlay(
                             downState = if (moreItems.isNotEmpty()) OverlayViewState.MORE else null,
                             modifier =
                                 Modifier
-                                    .padding(8.dp)
+                                    .padding(vertical = 8.dp)
                                     .fillMaxWidth(),
                         )
                     }
@@ -291,7 +290,7 @@ fun PlaybackOverlay(
                             onClickItem = onClickMore,
                             modifier =
                                 Modifier
-                                    .padding(8.dp)
+                                    .padding(vertical = 8.dp)
                                     .fillMaxWidth(),
                         )
                     }
@@ -311,12 +310,13 @@ fun PlaybackOverlay(
                         ),
                     ) + fadeIn(),
                 exit = shrinkVertically() + fadeOut(),
+                modifier = Modifier.padding(SafeArea.padding),
             ) {
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.Center)
-                            .fillMaxWidth(.95f),
+                            .fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -354,8 +354,8 @@ fun PlaybackOverlay(
                 alignment = Alignment.TopStart,
                 modifier =
                     Modifier
-                        .size(width = 240.dp, height = 120.dp)
-                        .padding(16.dp),
+                        .padding(start = SafeArea.Horizontal, top = SafeArea.Vertical)
+                        .size(width = 208.dp, height = 88.dp),
             )
         }
         AnimatedVisibility(

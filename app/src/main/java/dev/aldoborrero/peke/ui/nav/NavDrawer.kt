@@ -543,8 +543,9 @@ fun NavDrawer(
                         .graphicsLayer { alpha = contentAlpha }
                         .padding(start = DrawerRailWidth + if (kidsHome) 0.dp else 8.dp, end = if (kidsHome) 0.dp else 16.dp),
             )
-            // The kids home shows the clock in its header
-            if (preferences.appPreferences.interfacePreferences.showClock && !kidsHome) {
+            // The kids home and search show the clock in their own top row
+            val ownClock = LocalKidsMode.current.isActive && (kidsHome || destination is Destination.Search)
+            if (preferences.appPreferences.interfacePreferences.showClock && !ownClock) {
                 TimeDisplay()
             }
             shownProfileGate?.content?.invoke({ shownProfileGate = null }, afterProfileGate)

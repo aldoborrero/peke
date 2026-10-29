@@ -186,15 +186,9 @@ fun PlaybackControls(
             seekForward = seekForward,
             modifier =
                 Modifier
-                    .padding(vertical = 0.dp)
-                    .fillMaxWidth(.95f),
-        )
-        Box(
-            modifier =
-                Modifier
-                    .padding(horizontal = 8.dp)
                     .fillMaxWidth(),
-        ) {
+        )
+        Box(modifier = Modifier.fillMaxWidth()) {
             LeftPlaybackButtons(
                 onControllerInteraction = onControllerInteraction,
                 onClickPlaybackDialogType = onClickPlaybackDialogType,

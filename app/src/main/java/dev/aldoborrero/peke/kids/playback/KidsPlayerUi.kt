@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -203,12 +203,12 @@ private fun KidsPanelButton(
                 focusedContainerColor = colors.primary,
                 focusedContentColor = colors.onPrimary,
             ),
-        modifier = modifier.height(PanelButtonHeight).pekeFocus(CircleShape),
+        modifier = modifier.heightIn(min = PanelButtonHeight).pekeFocus(CircleShape),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.cpx),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(PanelButtonHeight).padding(horizontal = 22.cpx),
+            modifier = Modifier.heightIn(min = PanelButtonHeight).padding(horizontal = 22.cpx),
         ) {
             icon()
             Text(text = text, fontSize = 20.csp, fontWeight = if (primary) FontWeight.W900 else FontWeight.W800)

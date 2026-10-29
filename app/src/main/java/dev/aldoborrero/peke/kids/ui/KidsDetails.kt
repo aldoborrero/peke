@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -22,12 +24,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
@@ -62,6 +66,7 @@ import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.ui.tryRequestFocus
+import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import kotlin.math.roundToLong
@@ -109,6 +114,10 @@ fun runtimeMinutes(runtime: Duration?): Int? =
 /**
  * The top of a kids details page (DetailsPekeTV): the poster on the left (260×380), then the title in Display, the
  * chips, the overview and the buttons
+ *
+ * When a button takes focus, on opening or coming back up from the rows below, the whole header scrolls into view with
+ * the padding [modifier] gives it, so the title and the poster aren't left above the screen when the TV scrolls the
+ * focused button to its pivot
  */
 @Composable
 fun KidsDetailsHeader(
@@ -119,10 +128,16 @@ fun KidsDetailsHeader(
     chips: @Composable RowScope.() -> Unit = {},
     buttons: @Composable () -> Unit,
 ) {
+    val header = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
     Row(
         horizontalArrangement = Arrangement.spacedBy(40.cpx),
         verticalAlignment = Alignment.Top,
-        modifier = modifier,
+        modifier =
+            Modifier
+                .bringIntoViewRequester(header)
+                .onFocusChanged { if (it.hasFocus) scope.launch { header.bringIntoView() } }
+                .then(modifier),
     ) {
         KidsPoster(poster, title)
         Column(
@@ -241,12 +256,13 @@ fun KidsPlayPill(
                 focusedContainerColor = colors.primary,
                 focusedContentColor = colors.onPrimary,
             ),
-        modifier = modifier.height(72.cpx).pekeFocus(shape),
+        // At least the board's 72 px, taller when the TV's text is larger
+        modifier = modifier.heightIn(min = 72.cpx).pekeFocus(shape),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(14.cpx),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 36.cpx).height(72.cpx),
+            modifier = Modifier.padding(horizontal = 36.cpx).heightIn(min = 72.cpx),
         ) {
             Icon(painter = painterResource(PekeIcon.PLAY.outline), contentDescription = null, modifier = Modifier.size(28.cpx))
             Text(text = text, fontSize = 28.csp, fontWeight = FontWeight.W900, maxLines = 1)

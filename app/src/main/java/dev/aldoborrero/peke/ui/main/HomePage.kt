@@ -244,7 +244,7 @@ fun HomePage(
                     onClickViewMore = onClickViewMore,
                     kidsLayout = true,
                     headerComposable = {
-                        KidsHomeHeader(showClock = showClock, modifier = Modifier.padding(end = 48.cpx, bottom = 26.cpx))
+                        KidsHomeHeader(showClock = showClock, modifier = Modifier.padding(end = 64.cpx, bottom = 26.cpx))
                     },
                     // The rows run to the right edge, as on the board
                     modifier = modifier.padding(top = 40.cpx, start = 48.cpx),

@@ -50,6 +50,7 @@ import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.home.KidsHeaderClock
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.kidsPlayKeyDestination
 import dev.aldoborrero.peke.kids.ui.KidsEmptyMessage
@@ -109,10 +110,11 @@ fun SearchPage(
     val programDialogState by viewModel.programDialogState.collectAsState()
 
     // Start with current preferences, but collect updates when view options change
-    val prefs =
+    val interfacePrefs =
         viewModel.userPreferencesService.flow
             .collectAsState(userPreferences)
-            .value.appPreferences.interfacePreferences.searchPreferences
+            .value.appPreferences.interfacePreferences
+    val prefs = interfacePrefs.searchPreferences
     val combinedMode = prefs.combinedSearchResults
     val voiceSearchButtonVisible = prefs.showVoiceSearchButton
 
@@ -305,6 +307,8 @@ fun SearchPage(
                     onClick = { showViewOptions = true },
                     modifier = Modifier.padding(start = 12.dp),
                 )
+                // The clock ends the row, clear of the filter button and inside the safe area
+                if (kidsMode && interfacePrefs.showClock) KidsHeaderClock(Modifier.padding(start = 24.cpx))
             }
         }
         Box(

@@ -170,10 +170,7 @@ fun Controller(
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier =
-                Modifier
-                    .padding(start = 16.dp)
-                    .offset(y = verticalOffset),
+            modifier = Modifier.offset(y = verticalOffset),
         ) {
             title?.let {
                 Text(

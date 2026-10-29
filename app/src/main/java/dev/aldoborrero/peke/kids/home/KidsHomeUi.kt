@@ -112,16 +112,25 @@ fun KidsHomeHeader(
             )
         }
         timeLeft?.let { KidsTimeLeftPill(it) }
-        if (showClock) {
-            val time by LocalClock.current.timeString
-            Text(
-                text = time,
-                style = MaterialTheme.typography.bodyLarge,
-                fontSize = 20.csp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        if (showClock) KidsHeaderClock()
     }
+}
+
+/**
+ * The clock in a kid screen's own header, at the end of its top row (HomeRailPekeTV, KSearchPekeTV), where the page
+ * shows it instead of the clock in the corner
+ */
+@Composable
+fun KidsHeaderClock(modifier: Modifier = Modifier) {
+    val time by LocalClock.current.timeString
+    Text(
+        text = time,
+        style = MaterialTheme.typography.bodyLarge,
+        fontSize = 20.csp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        modifier = modifier,
+    )
 }
 
 /**
