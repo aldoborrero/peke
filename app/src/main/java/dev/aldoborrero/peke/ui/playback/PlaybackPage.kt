@@ -264,7 +264,7 @@ fun PlaybackPageContent(
         seekBarState.onValueChange(skipPosition)
     }
     val keyHandler =
-        remember(preferences) {
+        remember(preferences, kidsMode) {
             PlaybackKeyHandler(
                 player = player,
                 controlsEnabled = state.nextUp == null,
@@ -277,7 +277,8 @@ fun PlaybackPageContent(
                 clearSkipIndicator = { skipIndicatorDuration = 0 },
                 skipBackOnResume = preferences.appPreferences.playbackPreferences.skipBackOnResume,
                 onInteraction = viewModel::reportInteraction,
-                oneClickPause = preferences.appPreferences.playbackPreferences.oneClickPause,
+                // OK pauses on the first press (TV-PC), always for a kid; grown-ups can turn it off
+                oneClickPause = kidsMode || preferences.appPreferences.playbackPreferences.oneClickPause,
                 onStop = {
                     player.stop()
                     viewModel.navigationManager.goBack()

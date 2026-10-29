@@ -67,6 +67,9 @@ class PlaybackKeyHandler(
                         skipBackOnResume?.let {
                             player.seekBack(it)
                         }
+                    } else {
+                        // Paused: the controls show, as on any TV player, and OK on Play resumes
+                        controllerViewState.showControls()
                     }
                 } else {
                     controllerViewState.showControls()

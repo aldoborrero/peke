@@ -74,6 +74,7 @@ class PlayerFactory
                 }
             }
             var assHandler: AssHandler? = null
+            var audioFocus: PlayerAudioFocus? = null
             val newPlayer =
                 when (backend) {
                     PlayerBackend.PREFER_MPV,
@@ -81,7 +82,9 @@ class PlayerFactory
                     -> {
                         val enableHardwareDecoding = prefs.mpvOptions.enableHardwareDecoding
                         val useGpuNext = prefs.mpvOptions.useGpuNext
-                        MpvPlayer(context, enableHardwareDecoding, useGpuNext)
+                        MpvPlayer(context, enableHardwareDecoding, useGpuNext).also {
+                            audioFocus = withContext(PekeDispatchers.Main) { PlayerAudioFocus(context, it) }
+                        }
                     }
 
                     PlayerBackend.EXO_PLAYER,
@@ -156,19 +159,14 @@ class PlayerFactory
                             .apply {
                                 assHandler?.init(this)
                                 withContext(PekeDispatchers.Main) {
-                                    setAudioAttributes(
-                                        AudioAttributes
-                                            .Builder()
-                                            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                                            .build(),
-                                        false,
-                                    )
+                                    // Takes the audio focus while playing, pausing and ducking for other apps
+                                    setAudioAttributes(VideoAudioAttributes, true)
                                 }
                             }
                     }
                 }
             currentPlayer = newPlayer
-            return PlayerCreation(newPlayer, assHandler)
+            return PlayerCreation(newPlayer, assHandler, audioFocus)
         }
 
         fun createAudioPlayer(
@@ -258,6 +256,8 @@ val Player.isReleased: Boolean
 data class PlayerCreation(
     val player: Player,
     val assHandler: AssHandler? = null,
+    /** Audio focus for a player that doesn't handle it itself; closed with the player */
+    val audioFocus: PlayerAudioFocus? = null,
 )
 
 // Code is adapted from https://github.com/androidx/media/blob/release/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/DefaultRenderersFactory.java#L436

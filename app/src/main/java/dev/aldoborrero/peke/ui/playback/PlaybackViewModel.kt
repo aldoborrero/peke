@@ -60,6 +60,7 @@ import dev.aldoborrero.peke.services.DeviceProfileService
 import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.services.MusicService
 import dev.aldoborrero.peke.services.NavigationManager
+import dev.aldoborrero.peke.services.PlayerAudioFocus
 import dev.aldoborrero.peke.services.PlayerFactory
 import dev.aldoborrero.peke.services.PlaylistCreationResult
 import dev.aldoborrero.peke.services.PlaylistCreator
@@ -181,6 +182,7 @@ class PlaybackViewModel
         internal lateinit var player: Player
 
         private var mediaSession: MediaSession? = null
+        private var audioFocus: PlayerAudioFocus? = null
 
         // Mutex & Job for changing playlist index
         private val playlistMutex = Mutex()
@@ -236,6 +238,8 @@ class PlaybackViewModel
                 this@PlaybackViewModel.trackChangeListener?.let {
                     player.removeListener(it)
                 }
+                audioFocus?.close()
+                audioFocus = null
                 player.release()
                 mediaSession?.release()
             }
@@ -275,6 +279,7 @@ class PlaybackViewModel
                         preferences.appPreferences,
                     )
                 this.player = playerCreation.player
+                audioFocus = playerCreation.audioFocus
                 currentPlayer.update {
                     PlayerInstance(playerCreation.player, playerBackend, playerCreation.assHandler)
                 }
