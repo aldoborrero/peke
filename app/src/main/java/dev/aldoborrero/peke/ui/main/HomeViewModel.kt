@@ -74,6 +74,12 @@ class HomeViewModel
 
         private var dataLoadingJob: Job? = null
 
+        /** The libraries the last load used, so a refresh of the watching rows doesn't read them again */
+        @Volatile private var libraries: List<Library>? = null
+
+        /** Whether the home was left since it last started, see [refreshWatching] */
+        private var left = false
+
         init {
             serverRepository.currentUserDtoFlow
                 .combinePair(homeSettingsService.currentSettings)
@@ -138,10 +144,20 @@ class HomeViewModel
         }
 
         /**
+         * The home's page was left (another page opened, or the app went to the background)
+         */
+        fun onLeft() {
+            left = true
+        }
+
+        /**
          * Coming back to the home: only the rows of what is being watched can have changed, so only they are read
-         * again. Without a loaded home this is [init].
+         * again. Without a loaded home this is [init]. The home's first start isn't a return: the load is already
+         * running or has just finished.
          */
         fun refreshWatching() {
+            if (!left) return
+            left = false
             viewModelScope.launchIO {
                 val userDto = serverRepository.currentUserDto ?: return@launchIO
                 val current = state.value
@@ -153,7 +169,8 @@ class HomeViewModel
                 dataLoadingJob =
                     viewModelScope.launchIO {
                         val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
-                        val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                        val libraries =
+                            libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
                         current.settings.rows
                             .withIndex()
                             .filter { isWatchingRow(it.value.config) }
@@ -229,6 +246,7 @@ class HomeViewModel
 
                 val libraries =
                     navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                this.libraries = libraries
 
                 val state = state.value
 

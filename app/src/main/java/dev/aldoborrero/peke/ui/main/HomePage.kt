@@ -118,7 +118,7 @@ fun HomePage(
     val context = LocalContext.current
     LifecycleStartEffect(Unit) {
         viewModel.refreshWatching()
-        onStopOrDispose { }
+        onStopOrDispose { viewModel.onLeft() }
     }
     val state by viewModel.state.collectAsState()
     val loading = state.loadingState
