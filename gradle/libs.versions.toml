@@ -15,6 +15,8 @@ appcompat = "1.8.0"
 composeBom = "2026.09.00"
 mockk = "1.14.11"
 profileinstaller = "1.4.1"
+benchmark = "1.5.0"
+uiautomator = "2.4.0"
 robolectric = "4.17"
 multiplatformMarkdownRenderer = "0.45.0"
 okhttpBom = "5.5.0"
@@ -144,6 +146,8 @@ androidx-runner = { group = "androidx.test", name = "runner", version.ref = "run
 ass-media = { group = "io.github.peerless2012", name = "ass-media", version.ref = "libass-android" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmark" }
+androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
@@ -158,3 +162,5 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 room = { id = "androidx.room", version.ref = "room" }
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutLibraries" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+android-test = { id = "com.android.test", version.ref = "agp" }
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }

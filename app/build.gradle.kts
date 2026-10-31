@@ -16,6 +16,7 @@ plugins {
     alias(libs.plugins.protobuf)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias(libs.plugins.aboutLibraries)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 val isCI = providers.environmentVariable("CI").orElse("false").map { it.toBoolean() }
@@ -35,10 +36,15 @@ val extensionsRepoActive =
     providers.provider { project.hasProperty("WholphinExtensionsUsername") }
 
 // Peke releases always ship MPV and the FFmpeg and AV1 decoders (direct play first), so a release build without them fails.
-// The benchmark build type is not a release: without the extensions it builds with the MPV stub and no FFmpeg/AV1 decoders.
+// The benchmark build type and the baseline profile tasks are not releases: without the extensions they build with the MPV
+// stub and no FFmpeg/AV1 decoders.
 val isBuildingRelease =
     providers.provider {
-        gradle.startParameter.taskNames.any { it.lowercase().contains("release") }
+        gradle.startParameter.taskNames.any {
+            val task = it.lowercase()
+            // Collecting the baseline profile and benchmarking build release variants that are never shipped
+            task.contains("release") && listOf("baselineprofile", "benchmark", "nonminified").none { task.contains(it) }
+        }
     }
 if (isBuildingRelease.get()) {
     val missing =
@@ -231,6 +237,13 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// The profile is collected by hand on a device (see baselineprofile/) and committed under src/main, so every build type
+// ships it
+baselineProfile {
+    mergeIntoMain = true
+    automaticGenerationDuringBuild = false
+}
+
 protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:${libs.protobuf.kotlin.lite.get().version}"
@@ -278,6 +291,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
