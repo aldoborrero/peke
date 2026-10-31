@@ -42,6 +42,7 @@ import dev.aldoborrero.peke.kids.ui.KidsCardTitle
 import dev.aldoborrero.peke.kids.ui.KidsChannelPicture
 import dev.aldoborrero.peke.kids.ui.KidsLiveBadge
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
+import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -216,6 +217,7 @@ fun KidsHomeCard(
                         imageUrlService.getItemImageUrl(
                             itemId = picture.channelId,
                             imageType = ImageType.PRIMARY,
+                            maxHeight = ImageUrlService.CHANNEL_IMAGE_MAX_HEIGHT,
                             tag = it,
                         )
                     }

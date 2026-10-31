@@ -46,6 +46,7 @@ import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.kids.timer.isStopped
 import dev.aldoborrero.peke.kids.ui.KidsParentGate
+import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.ui.components.Button
@@ -198,7 +199,15 @@ class KidsPickerViewModel
             val api = jellyfin.createApi(baseUrl = setUp.server.url)
             return PickerState(
                 server = setUp.server,
-                kids = setUp.kids.map { PickerKid(it, api.imageApi.getUserImageUrl(it.id), needsGrownUp(it), avatars[it.rowId]) },
+                kids =
+                    setUp.kids.map {
+                        PickerKid(
+                            it,
+                            api.imageApi.getUserImageUrl(it.id, maxHeight = ImageUrlService.USER_IMAGE_MAX_HEIGHT),
+                            needsGrownUp(it),
+                            avatars[it.rowId],
+                        )
+                    },
                 gate = gate,
             )
         }

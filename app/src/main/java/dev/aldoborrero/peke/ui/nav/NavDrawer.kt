@@ -82,6 +82,7 @@ import dev.aldoborrero.peke.kids.setup.KidAvatar
 import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
+import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.services.MusicService
 import dev.aldoborrero.peke.services.NavDrawerService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -159,7 +160,8 @@ class NavDrawerViewModel
             _state.update { it.copy(selectedIndex = index) }
         }
 
-        fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
+        fun getUserImage(user: JellyfinUser): String =
+            api.imageApi.getUserImageUrl(user.id, maxHeight = ImageUrlService.USER_IMAGE_MAX_HEIGHT)
 
         /**
          * The avatar a grown-up picked for [user] in the Kids plugin, if any

@@ -263,7 +263,7 @@ class ImageUrlService
             )
         }
 
-        fun getUserImageUrl(userId: UUID) = api.imageApi.getUserImageUrl(userId)
+        fun getUserImageUrl(userId: UUID) = api.imageApi.getUserImageUrl(userId, maxHeight = USER_IMAGE_MAX_HEIGHT)
 
         /**
          * Just a convenient way to get the image URL and remember it
@@ -282,5 +282,11 @@ class ImageUrlService
 
         companion object {
             private const val QUALITY = 96
+
+            /** Avatars show at most this tall (the kids picker), so they're asked no larger */
+            const val USER_IMAGE_MAX_HEIGHT = 320
+
+            /** Channel logos show at most this tall (the kids guide) */
+            const val CHANNEL_IMAGE_MAX_HEIGHT = 200
         }
     }
