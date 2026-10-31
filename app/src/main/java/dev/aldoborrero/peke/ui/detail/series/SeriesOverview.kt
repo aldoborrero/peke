@@ -31,6 +31,8 @@ import dev.aldoborrero.peke.ui.data.ItemDetailsDialogInfo
 import dev.aldoborrero.peke.ui.detail.PlaylistDialog
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
+import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.DataLoadingState
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
@@ -147,6 +149,8 @@ fun SeriesOverview(
             )
         }
 
+    // The cast rows are hidden where people are (kids), so the episode isn't read again for them
+    val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
     LaunchedEffect(position, state.episodes) {
         val focusedEpisode =
             (state.episodes as? EpisodeList.Success)
@@ -155,7 +159,7 @@ fun SeriesOverview(
 
         focusedEpisode?.let {
             viewModel.lookUpChosenTracks(it.id, it)
-            viewModel.lookupPeopleInEpisode(it)
+            if (showPeople) viewModel.lookupPeopleInEpisode(it)
         }
     }
     val chosenStreams = state.chosenStreams
