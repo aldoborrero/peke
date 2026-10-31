@@ -13,9 +13,13 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.nav.NavDrawerItem
 import dev.aldoborrero.peke.ui.nav.ServerNavDrawerItem
 import dev.aldoborrero.peke.ui.showToast
+import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.supportedCollectionTypes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -114,10 +118,33 @@ class NavDrawerService
             }
         }
 
+        private val librariesInFlight = mutableMapOf<Pair<UUID, Boolean>, Deferred<List<Library>>>()
+
         /**
          * Get all the libraries the user has access to
+         *
+         * Callers asking at the same time share one read, which is forgotten once it's done: a kid's start asks from
+         * the home settings, the home and the nav drawer at once.
          */
         suspend fun getAllUserLibraries(
+            userId: UUID,
+            tvAccess: Boolean,
+        ): List<Library> {
+            val key = userId to tvAccess
+            val read =
+                synchronized(librariesInFlight) {
+                    librariesInFlight[key] ?: coroutineScope
+                        .async(PekeDispatchers.IO, start = CoroutineStart.LAZY) { readAllUserLibraries(userId, tvAccess) }
+                        .also { read ->
+                            librariesInFlight[key] = read
+                            read.invokeOnCompletion { synchronized(librariesInFlight) { librariesInFlight.remove(key, read) } }
+                            read.start()
+                        }
+                }
+            return read.await()
+        }
+
+        private suspend fun readAllUserLibraries(
             userId: UUID,
             tvAccess: Boolean,
         ): List<Library> {
