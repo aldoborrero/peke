@@ -163,7 +163,7 @@ fun SeriesDetails(
     LifecycleResumeEffect(destination.itemId) {
         viewModel.refresh()
 
-        onPauseOrDispose {}
+        onPauseOrDispose { viewModel.onLeft() }
     }
 
     when (val st = state.series) {

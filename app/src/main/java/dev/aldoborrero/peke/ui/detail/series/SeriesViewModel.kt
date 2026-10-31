@@ -257,7 +257,23 @@ class SeriesViewModel
             }
         }
 
+        /** Whether the page was left since it last showed, see [refresh] */
+        private var left = false
+
+        /**
+         * The page was left (another page opened, or the app went to the background)
+         */
+        fun onLeft() {
+            left = true
+        }
+
+        /**
+         * Coming back to the page: read the seasons again, for what was watched meanwhile. The page's first showing
+         * isn't a return, the seasons were just read.
+         */
         fun refresh() {
+            if (!left) return
+            left = false
             state.value.series.successValue?.let { item ->
                 viewModelScope.launchIO {
                     (state.value.seasons as? ApiRequestPager<*>)?.refresh()
