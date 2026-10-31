@@ -53,6 +53,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -108,6 +110,13 @@ class SeriesViewModel
         val state: StateFlow<SeriesState> = _state
 
         val position = MutableStateFlow(SeriesOverviewPosition(0, 0))
+
+        /** Whether the page shows people, so they're read only then; null until the page says */
+        private val peopleShown = MutableStateFlow<Boolean?>(null)
+
+        fun setPeopleShown(shown: Boolean) {
+            peopleShown.value = shown
+        }
 
         init {
             viewModelScope.launchIO {
@@ -210,6 +219,7 @@ class SeriesViewModel
 
                 if (seriesPageType == SeriesPageType.DETAILS) {
                     viewModelScope.launchIO {
+                        if (!peopleShown.filterNotNull().first()) return@launchIO
                         val people = peopleFavorites.getPeopleFor(series)
                         _state.update { it.copy(people = people) }
                     }
@@ -417,9 +427,11 @@ class SeriesViewModel
                             .content
                             .let(::BaseItem)
                     _state.update { it.copy(series = DataLoadingState.Success(series)) }
-                    viewModelScope.launchIO {
-                        val people = peopleFavorites.getPeopleFor(series)
-                        _state.update { it.copy(people = people) }
+                    if (peopleShown.value == true) {
+                        viewModelScope.launchIO {
+                            val people = peopleFavorites.getPeopleFor(series)
+                            _state.update { it.copy(people = people) }
+                        }
                     }
                     viewModelScope.launchIO {
                         val seasons = getSeasons(series, null).await()
