@@ -448,7 +448,17 @@ fun HomePageContent(
                         Modifier
                             .focusRestorer(),
                 ) {
-                    itemsIndexed(homeRows) { rowIndex, row ->
+                    itemsIndexed(
+                        homeRows,
+                        // Rows of one kind reuse each other's composition
+                        contentType = { _, row ->
+                            when (row) {
+                                is HomeRowLoadingState.Success -> if (kidsLayout) kidsCardKind(row.rowType) else "row"
+                                is HomeRowLoadingState.Error -> "error"
+                                else -> "loading"
+                            }
+                        },
+                    ) { rowIndex, row ->
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)

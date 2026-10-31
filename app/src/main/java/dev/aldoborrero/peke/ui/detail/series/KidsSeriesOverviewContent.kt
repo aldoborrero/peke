@@ -175,7 +175,11 @@ fun KidsSeriesOverviewContent(
                     state = state,
                     rowModifier = Modifier.focusRestorer(episodeRowFocusRequester),
                 ) {
-                    itemsIndexed(eps.episodes) { episodeIndex, episode ->
+                    itemsIndexed(
+                        eps.episodes,
+                        key = { episodeIndex, episode -> episode?.id?.toString() ?: "episode-$episodeIndex" },
+                        contentType = { _, _ -> "episode" },
+                    ) { episodeIndex, episode ->
                         val interactionSource = remember { MutableInteractionSource() }
                         val cardModifier =
                             Modifier

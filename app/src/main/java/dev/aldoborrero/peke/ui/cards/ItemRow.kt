@@ -87,7 +87,7 @@ fun <T> ItemRow(
                     .focusRestorer(firstFocus)
                     .focusRequester(focusRequester),
         ) {
-            itemsIndexed(items) { index, item ->
+            itemsIndexed(items, contentType = { _, _ -> "card" }) { index, item ->
                 val cardModifier =
                     remember(index, position) {
                         if (index == position) {
@@ -122,7 +122,7 @@ fun <T> ItemRow(
                 )
             }
             if (showViewMore) {
-                item {
+                item(contentType = "viewMore") {
                     val cardModifier =
                         remember(items.size, position) {
                             if (position == items.size) {
