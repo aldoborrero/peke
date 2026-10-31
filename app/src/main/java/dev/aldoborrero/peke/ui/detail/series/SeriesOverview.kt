@@ -161,6 +161,8 @@ fun SeriesOverview(
 
     // The cast rows are hidden where people are (kids), so the episode isn't read again for them
     val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
+    // Where there are no item menus (kids), only the version choice needs the media sources, for more than one version
+    val showTracks = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
     LaunchedEffect(position, state.episodes) {
         val focusedEpisode =
             (state.episodes as? EpisodeList.Success)
@@ -168,7 +170,8 @@ fun SeriesOverview(
                 ?.getOrNull(position.episodeRowIndex)
 
         focusedEpisode?.let {
-            viewModel.lookUpChosenTracks(it.id, it)
+            val needsSources = showTracks || (it.data.mediaSourceCount ?: 0) > 1
+            viewModel.lookUpChosenTracks(it.id, it, position.episodeRowIndex.takeIf { needsSources })
             if (showPeople) viewModel.lookupPeopleInEpisode(it)
         }
     }

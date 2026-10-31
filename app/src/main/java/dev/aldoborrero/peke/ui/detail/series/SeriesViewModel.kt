@@ -339,9 +339,9 @@ class SeriesViewModel
                     seriesId = seriesId,
                     seasonId = seasonId,
                     sortBy = ItemSortBy.INDEX_NUMBER,
+                    // No media sources for the whole season: lookUpChosenTracks reads them for the focused episode
                     fields =
                         listOf(
-                            ItemFields.MEDIA_SOURCES,
                             ItemFields.MEDIA_SOURCE_COUNT,
                             ItemFields.OVERVIEW,
                             ItemFields.CUSTOM_RATING,
@@ -518,17 +518,35 @@ class SeriesViewModel
 
         private var chosenStreamsJob: Job? = null
 
+        /**
+         * The season's episodes come without media sources. With [readSourcesAt], an episode without them is read again
+         * at that list index once the focus has settled on it, for the track and version choices shown.
+         */
         fun lookUpChosenTracks(
             itemId: UUID,
             item: BaseItem,
+            readSourcesAt: Int? = null,
         ) {
             chosenStreamsJob?.cancel()
             chosenStreamsJob =
                 viewModelScope.launchIO {
+                    val withSources =
+                        if (readSourcesAt != null && item.data.mediaSources == null) {
+                            delay(250)
+                            val eps = state.value.episodes as? EpisodeList.Success
+                            val listed = eps?.episodes?.getOrNull(readSourcesAt)?.takeIf { it.id == itemId }
+                            if (eps != null && listed != null && listed.data.mediaSources == null) {
+                                eps.episodes.refreshItem(readSourcesAt, itemId)
+                                _state.update { it.copy(episodes = eps) }
+                            }
+                            eps?.episodes?.getOrNull(readSourcesAt)?.takeIf { it.id == itemId } ?: item
+                        } else {
+                            item
+                        }
                     val result =
                         itemPlaybackRepository.getSelectedTracks(
                             itemId,
-                            item,
+                            withSources,
                             userPreferencesService.getCurrent(),
                         )
                     _state.update { it.copy(chosenStreams = result) }
