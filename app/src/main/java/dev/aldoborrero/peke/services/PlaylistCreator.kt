@@ -10,6 +10,7 @@ import dev.aldoborrero.peke.data.model.Playlist
 import dev.aldoborrero.peke.data.model.PlaylistInfo
 import dev.aldoborrero.peke.data.model.PlaylistItem
 import dev.aldoborrero.peke.ui.DetailItemFields
+import dev.aldoborrero.peke.ui.PlaylistItemFields
 import dev.aldoborrero.peke.ui.components.baseItemKinds
 import dev.aldoborrero.peke.ui.data.SortAndDirection
 import dev.aldoborrero.peke.ui.gt
@@ -65,7 +66,8 @@ class PlaylistCreator
                 GetEpisodesRequest(
                     seriesId = seriesId,
                     seasonId = seasonId,
-                    fields = DetailItemFields,
+                    // The player reads an episode's details (media sources, chapters, trickplay) when it plays it
+                    fields = PlaylistItemFields,
                     startItemId = episodeId,
                     sortBy = if (shuffled) ItemSortBy.RANDOM else null,
                     limit = Playlist.MAX_SIZE,

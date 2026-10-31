@@ -417,6 +417,23 @@ class PlaybackViewModel
         }
 
         /**
+         * A queued item comes without its details ([PlaylistItemFields]), so they are read when it's about to play
+         */
+        private suspend fun withDetails(playlistItem: PlaylistItem): PlaylistItem {
+            val item = playlistItem.item
+            if (playlistItem !is PlaylistItem.Media || item.data.mediaSources != null) return playlistItem
+            if (item.type == BaseItemKind.TV_CHANNEL || item.type !in supportItemKinds) return playlistItem
+            return try {
+                PlaylistItem.Media(item.copy(data = api.userLibraryApi.getItem(item.id).content))
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Could not read the details of %s", item.id)
+                playlistItem
+            }
+        }
+
+        /**
          * Play an item
          *
          * @param currentItem the item to play
@@ -430,6 +447,7 @@ class PlaybackViewModel
             forceTranscoding: Boolean = this.forceTranscoding,
         ): Boolean =
             withContext(PekeDispatchers.IO) {
+                val playlistItem = withDetails(playlistItem)
                 val item =
                     when (playlistItem) {
                         is PlaylistItem.Intro -> playlistItem.item
