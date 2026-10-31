@@ -59,7 +59,7 @@ class PekeApplication :
             )
         }
 
-        Composer.setDiagnosticStackTraceEnabled(BuildConfig.DEBUG)
+        Composer.setDiagnosticStackTraceEnabled(BuildConfig.COMPOSE_DIAGNOSTICS)
     }
 
     override fun onCreate() {

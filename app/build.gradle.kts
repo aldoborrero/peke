@@ -34,7 +34,8 @@ val mpvModuleExists =
 val extensionsRepoActive =
     providers.provider { project.hasProperty("WholphinExtensionsUsername") }
 
-// Peke releases always ship MPV and the FFmpeg and AV1 decoders (direct play first), so a release build without them fails
+// Peke releases always ship MPV and the FFmpeg and AV1 decoders (direct play first), so a release build without them fails.
+// The benchmark build type is not a release: without the extensions it builds with the MPV stub and no FFmpeg/AV1 decoders.
 val isBuildingRelease =
     providers.provider {
         gradle.startParameter.taskNames.any { it.lowercase().contains("release") }
@@ -101,6 +102,12 @@ configure<ApplicationExtension> {
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
         buildConfigField("boolean", "UPDATING_ENABLED", "true")
+        // Compose diagnostic stack traces slow down every composition; enable with -Ppeke.composeDiagnostics=true
+        buildConfigField(
+            "boolean",
+            "COMPOSE_DIAGNOSTICS",
+            providers.gradleProperty("peke.composeDiagnostics").orElse("false").get(),
+        )
         manifestPlaceholders["leanback"] = false
     }
 
@@ -151,6 +158,14 @@ configure<ApplicationExtension> {
             isShrinkResources = false
             isDebuggable = true
             applicationIdSuffix = ".debug"
+        }
+
+        // Release-like build for profiling and baseline profiles: minified, not debuggable, debug-signed
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            isDebuggable = false
         }
     }
     compileOptions {
