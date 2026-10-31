@@ -5,7 +5,7 @@ Peke's look and feel, before it's built into the app.
 - [DESIGN.md](DESIGN.md): the design system: themes, type, shapes, focus, the mascot, avatars, icons, the screens and
   how they behave.
 - [brief.md](brief.md): the brief the design started from.
-- `tools/`: the generator for the logo set, the banners and the app icon, run from the devshell.
+- `tools/`: the generator for the logo set, the banners and the app icon, run with `peke-logo` (`bin/`).
 - `assets/`: SVG sources to turn into Android vector drawables. Text is converted to paths in all of them but
   `logo/peke-wordmark-text.svg`.
   - `logo/`: the logo set: the buddy mark, the wordmark, the horizontal and stacked lockups, each in colour and in

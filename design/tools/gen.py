@@ -1,4 +1,4 @@
-"""Generate Peke's logo set into design/assets/logo. Run from anywhere: nix develop -c python3 design/tools/gen.py"""
+"""Generate Peke's logo set into design/assets/logo. Run with: peke-logo gen"""
 
 import math
 from pathlib import Path

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Regenerates Peke's logo set, banners and app icon (design/tools/README.md).
+set -euo pipefail
+
+root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+tools="$root/design/tools"
+export PYTHONDONTWRITEBYTECODE=1 # no __pycache__ next to the scripts
+
+usage() {
+  cat <<EOF
+Usage: peke-logo <command>
+
+Regenerates Peke's logo set from design/tools (see design/tools/README.md).
+
+Commands:
+  gen      the logo set: design/assets/logo/
+  compose  the README banner and social preview (docs/assets/), the TV banner and app icon
+           (design/assets/), and the adaptive icon layers to convert (build/peke-logo/)
+  all      gen, then compose
+  help     this message (also -h, --help)
+
+Needs the devshell's python3 with fontTools and rsvg-convert; outside it, re-runs itself
+through 'nix develop'.
+EOF
+}
+
+case "${1:-}" in
+  gen | compose | all) ;;
+  help | -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+# Outside the devshell (no direnv), run again inside it, once.
+if ! { command -v rsvg-convert && python3 -c 'import fontTools'; } >/dev/null 2>&1; then
+  if [[ -n ${PEKE_LOGO_IN_DEVSHELL:-} ]]; then
+    echo "peke-logo: python3 with fontTools or rsvg-convert is missing from the devshell" >&2
+    exit 1
+  fi
+  PEKE_LOGO_IN_DEVSHELL=1 exec nix develop "$root" -c "$root/bin/peke-logo" "$@"
+fi
+
+case "$1" in
+  gen) python3 "$tools/gen.py" ;;
+  compose) python3 "$tools/compose.py" ;;
+  all)
+    python3 "$tools/gen.py"
+    python3 "$tools/compose.py"
+    ;;
+esac

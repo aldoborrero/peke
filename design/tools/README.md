@@ -11,15 +11,17 @@ tagline). The rules the scripts follow are in [DESIGN.md](../DESIGN.md), Logo.
   with `rsvg-convert`), `design/assets/tv-banner.svg`, `design/assets/app-icon.svg`, and the two 108 dp adaptive icon
   layers in `build/peke-logo/`, which only exist to be converted.
 
-Python with fontTools and `rsvg-convert` come from the devshell. From the repository root:
+Run them with `bin/peke-logo`, which direnv puts on `PATH`, from any directory in the repository:
 
 ```sh
-nix develop -c python3 design/tools/gen.py
-nix develop -c python3 design/tools/compose.py
+peke-logo all       # gen, then compose: run this after changing either script, compose.py imports gen.py
+peke-logo gen       # only design/assets/logo/
+peke-logo compose   # only the banners, the social preview, the app icon and the adaptive layers
+peke-logo --help
 ```
 
-Run both after changing either script: `compose.py` imports `gen.py`. The output is deterministic, so a run with
-nothing changed leaves `git status` clean.
+Python with fontTools and `rsvg-convert` come from the devshell; without direnv, `peke-logo` re-runs itself through
+`nix develop`. The output is deterministic, so a run with nothing changed leaves `git status` clean.
 
 ## Drawables
 

@@ -1,4 +1,4 @@
-"""Banners and icons from the logo set. Run from anywhere: nix develop -c python3 design/tools/compose.py
+"""Banners and icons from the logo set. Run with: peke-logo compose
 
 Writes docs/assets/banner.svg and social-preview.png, design/assets/tv-banner.svg and app-icon.svg, and the 108 dp
 adaptive icon layers to convert with Svg2Vector in build/peke-logo/ (see design/tools/README.md)."""
