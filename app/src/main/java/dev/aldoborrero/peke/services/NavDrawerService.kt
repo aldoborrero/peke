@@ -52,6 +52,10 @@ class NavDrawerService
         private val musicService: MusicService,
     ) {
         private val _state = MutableStateFlow(NavDrawerItemState())
+
+        /** The library reads in flight, see [getAllUserLibraries]; before [init], whose collector reads them */
+        private val librariesInFlight = mutableMapOf<Pair<UUID, Boolean>, Deferred<List<Library>>>()
+
         val state: StateFlow<NavDrawerItemState> = _state
 
         init {
@@ -117,8 +121,6 @@ class NavDrawerService
                 }
             }
         }
-
-        private val librariesInFlight = mutableMapOf<Pair<UUID, Boolean>, Deferred<List<Library>>>()
 
         /**
          * Get all the libraries the user has access to
