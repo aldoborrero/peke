@@ -666,6 +666,7 @@ class FavoritesViewModel
                                     collectionState.sortAndDirection,
                                 ).copy(
                                     enableUserData = false,
+                                    nameLessThan = letter.toString(),
                                     limit = 0,
                                     enableTotalRecordCount = true,
                                 )
@@ -684,6 +685,7 @@ class FavoritesViewModel
                                     collectionState.sortAndDirection,
                                 ).copy(
                                     enableUserData = false,
+                                    nameLessThan = letter.toString(),
                                     limit = 0,
                                     enableTotalRecordCount = true,
                                 )
