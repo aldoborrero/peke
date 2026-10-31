@@ -130,17 +130,23 @@ class KidsTimerEffectsViewModel
 
 /**
  * App-wide kids timer UI: the remaining-time bar, warnings and switching to the time's up screen
+ *
+ * @param band where to say how much room the bar takes at the top or bottom, for the pages to keep clear of it
  */
 @Composable
-fun KidsTimerEffects(modifier: Modifier = Modifier) {
+fun KidsTimerEffects(
+    modifier: Modifier = Modifier,
+    band: TimeLeftBand? = null,
+) {
     // Outside kids mode there is nothing to show, so no view model is created
     if (!LocalKidsMode.current.isActive) return
-    KidsTimerEffectsContent(modifier = modifier, viewModel = hiltViewModel())
+    KidsTimerEffectsContent(modifier = modifier, band = band, viewModel = hiltViewModel())
 }
 
 @Composable
 private fun KidsTimerEffectsContent(
     viewModel: KidsTimerEffectsViewModel,
+    band: TimeLeftBand?,
     modifier: Modifier = Modifier,
 ) {
     val limits by viewModel.timeLimits.state.collectAsState()
@@ -195,6 +201,8 @@ private fun KidsTimerEffectsContent(
                 total = total,
                 nearEnd = limits.nearEnd,
                 position = barPosition,
+                // The pages in the sidebar keep out of the bar and its label
+                band = band,
                 modifier = Modifier.align(if (barPosition == KidsTimerBarPosition.BOTTOM) Alignment.BottomCenter else Alignment.TopCenter),
             )
         }

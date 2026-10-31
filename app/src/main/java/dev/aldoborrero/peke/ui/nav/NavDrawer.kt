@@ -79,6 +79,7 @@ import dev.aldoborrero.peke.kids.home.rememberHomeTimeLeft
 import dev.aldoborrero.peke.kids.home.timeLeftText
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.KidAvatar
+import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.MusicService
@@ -282,6 +283,8 @@ private const val NOW_PLAYING_INDEX = -3
 
 /**
  * Display the left side navigation drawer with [DestinationContent] on the right
+ *
+ * @param timeLeftBand the room the kid's time-left bar takes at the top or bottom, which the page keeps out of
  */
 @Composable
 fun NavDrawer(
@@ -293,6 +296,7 @@ fun NavDrawer(
     navDrawerListState: LazyListState,
     onClearBackdrop: () -> Unit,
     modifier: Modifier = Modifier,
+    timeLeftBand: TimeLeftBand? = null,
     viewModel: NavDrawerViewModel =
         hiltViewModel(
             LocalView.current.findViewTreeViewModelStoreOwner()!!,
@@ -541,6 +545,8 @@ fun NavDrawer(
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer { alpha = contentAlpha }
+                        // Nothing scrolls under the time-left label: the page starts below it at the top, or ends above it at the bottom
+                        .padding(top = timeLeftBand?.top ?: 0.dp, bottom = timeLeftBand?.bottom ?: 0.dp)
                         .padding(start = DrawerRailWidth + if (kidsHome) 0.dp else 8.dp, end = if (kidsHome) 0.dp else 16.dp),
             )
             // The kids home and search show the clock in their own top row

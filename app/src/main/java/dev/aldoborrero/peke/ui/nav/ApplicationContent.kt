@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -26,6 +27,7 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
+import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -111,6 +113,7 @@ fun ApplicationContent(
     viewModel: ApplicationContentViewModel = hiltViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val timeLeftBand = remember { TimeLeftBand() }
     Box(
         modifier = modifier,
     ) {
@@ -163,6 +166,7 @@ fun ApplicationContent(
                             navDrawerListState = navDrawerListState,
                             onClearBackdrop = viewModel::clearBackdrop,
                             modifier = Modifier.fillMaxSize(),
+                            timeLeftBand = timeLeftBand,
                         )
                     } else {
                         ErrorMessage("Trying to go to $key without a user logged in", null)
@@ -170,6 +174,6 @@ fun ApplicationContent(
                 }
             },
         )
-        KidsTimerEffects()
+        KidsTimerEffects(band = timeLeftBand)
     }
 }

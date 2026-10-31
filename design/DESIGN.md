@@ -86,7 +86,10 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 - **Screen padding:** Google's overscan-safe area, at least 64 px (48 dp) from the left and right edges and 36 px
   (27 dp) from the top and bottom, for whatever must stay on screen: titles, buttons, the clock and the player's
   controls; the boards' 40–56 px top and bottom already meet it. Rows that scroll sideways may run to the edge. Text
-  pills are at least their height, taller rather than cut when the TV's text is larger.
+  pills are at least their height, taller rather than cut when the TV's text is larger. The time-left bar and its
+  label keep a band of their own at the top or bottom edge: the kids home holds the time left in its header, and every
+  other page in the sidebar starts below the band (or ends above it), so the label never covers a title or the search
+  box, scrolled or not.
 - **Gaps:** 20–24 px between cards in a row, widened where a focused card's scale-up, border and ring need it to clear
   the next card with room to spare (about 25 px between posters and 32 px between wide cards); 26–28 px between rows,
   12–16 px inside lists. Every row and grid of cards leaves the same room at its ends and above its cards, so a
