@@ -137,6 +137,7 @@ import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -577,17 +578,14 @@ class PlaybackViewModel
                             ?.firstOrNull()
                     }
 
-                trickPlayInfo?.let { trickplayInfo ->
-                    mediaSource.runTimeTicks?.ticks?.let { duration ->
-                        viewModelScope.launchIO {
-                            prefetchTrickplay(
-                                duration,
-                                trickplayInfo,
-                                mediaSource.id?.toUUIDOrNull(),
-                            )
+                // The sheets are fetched when a preview first shows, not for kids who never seek
+                trickplayToPrefetch.set(
+                    trickPlayInfo?.let { trickplayInfo ->
+                        mediaSource.runTimeTicks?.ticks?.let { duration ->
+                            TrickplayPrefetch(duration, trickplayInfo, mediaSource.id?.toUUIDOrNull())
                         }
-                    }
-                }
+                    },
+                )
 
                 val chapters = Chapter.fromDto(base)
                 _state.update {
@@ -1060,16 +1058,25 @@ class PlaybackViewModel
             }
         }
 
-        private suspend fun prefetchTrickplay(
-            duration: Duration,
-            trickplayInfo: TrickplayInfo,
-            mediaSourceId: UUID?,
+        private data class TrickplayPrefetch(
+            val duration: Duration,
+            val trickplayInfo: TrickplayInfo,
+            val mediaSourceId: UUID?,
+        )
+
+        private val trickplayToPrefetch = AtomicReference<TrickplayPrefetch?>(null)
+
+        private fun prefetchTrickplay(
+            prefetch: TrickplayPrefetch,
+            shownIndex: Int,
         ) {
+            val trickplayInfo = prefetch.trickplayInfo
             val tilesPerImage = trickplayInfo.tileWidth * trickplayInfo.tileHeight
             val totalCount =
-                (duration.inWholeMilliseconds / trickplayInfo.interval).toInt() / tilesPerImage + 1
-            (0..<totalCount).forEach {
-                val url = getTrickplayUrl(it, trickplayInfo, mediaSourceId)
+                (prefetch.duration.inWholeMilliseconds / trickplayInfo.interval).toInt() / tilesPerImage + 1
+            // The sheet being shown is loaded by the preview itself
+            (0..<totalCount).filter { it != shownIndex }.forEach {
+                val url = trickplayUrl(it, trickplayInfo, prefetch.mediaSourceId)
                 context.imageLoader.enqueue(
                     ImageRequest
                         .Builder(context)
@@ -1082,14 +1089,23 @@ class PlaybackViewModel
             }
         }
 
-        fun getTrickplayUrl(
-            index: Int,
-            trickPlayInfo: TrickplayInfo? = state.value.currentMediaInfo.trickPlayInfo,
-            mediaSourceId: UUID? =
+        /** The URL of a sheet a preview shows; the first preview of an item starts the prefetch of its sheets. */
+        fun getTrickplayUrl(index: Int): String? {
+            trickplayToPrefetch.getAndSet(null)?.let { viewModelScope.launchIO { prefetchTrickplay(it, index) } }
+            return trickplayUrl(
+                index,
+                state.value.currentMediaInfo.trickPlayInfo,
                 state.value.currentPlayback
                     ?.mediaSourceInfo
                     ?.id
                     ?.toUUIDOrNull(),
+            )
+        }
+
+        private fun trickplayUrl(
+            index: Int,
+            trickPlayInfo: TrickplayInfo?,
+            mediaSourceId: UUID?,
         ): String? =
             trickPlayInfo?.let {
                 val itemId = currentItem.id
