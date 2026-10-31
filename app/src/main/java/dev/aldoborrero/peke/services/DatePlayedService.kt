@@ -13,6 +13,7 @@ import dev.aldoborrero.peke.services.hilt.IoCoroutineScope
 import dev.aldoborrero.peke.ui.collectLatestIn
 import dev.aldoborrero.peke.util.GetEpisodesRequestHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -97,10 +98,17 @@ class DatePlayedService
             withContext(PekeDispatchers.IO) {
                 val seriesId = item.data.seriesId
                 return@withContext if (seriesId != null) {
-                    datePlayedCache
-                        .get(SeriesItemId(seriesId, item.id)) {
-                            getLastPlayed(seriesId, item)
-                        }.await()
+                    val key = SeriesItemId(seriesId, item.id)
+                    val lastPlayed = datePlayedCache.get(key) { getLastPlayed(seriesId, item) }
+                    try {
+                        lastPlayed.await()
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        // A failure (offline, a timeout) isn't kept: the next call asks the server again
+                        datePlayedCache.asMap().remove(key, lastPlayed)
+                        throw ex
+                    }
                 } else {
                     null
                 }
