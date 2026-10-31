@@ -182,8 +182,14 @@ private fun KidsTimerEffectsContent(
     // time's up, for example after a grown-up changed the daily time on the kid's rules
     val playing = top is Destination.Playback || top is Destination.PlaybackList
     val timesUp = top is Destination.KidsTimesUp
+    // Not on the first run: polling starts with a fetch of its own
+    var effectsStarted by remember { mutableStateOf(false) }
     LaunchedEffect(playing, timesUp) {
-        if (!playing) viewModel.timeLimits.allowanceService.refresh()
+        if (!effectsStarted) {
+            effectsStarted = true
+        } else if (!playing) {
+            viewModel.timeLimits.allowanceService.refresh()
+        }
     }
     // Between polls the bar counts down while something plays here; the server still decides when time is up
     DisposableEffect(playing) {
