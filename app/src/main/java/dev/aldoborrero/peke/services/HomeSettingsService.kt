@@ -1112,8 +1112,9 @@ class HomeSettingsService
                                         useSeriesForPrimary = row.viewOptions.useSeries,
                                     ).init()
                                 } else {
+                                    // The row shows no total, so the server isn't asked to count
                                     GetItemsRequestHandler
-                                        .execute(api, request)
+                                        .execute(api, request.copy(enableTotalRecordCount = false, imageTypeLimit = 1))
                                         .toBaseItems(row.viewOptions.useSeries)
                                 }
                             }

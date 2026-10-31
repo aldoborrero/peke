@@ -63,6 +63,7 @@ class LatestNextUpService
                     mediaTypes = listOf(MediaType.VIDEO),
                     excludeItemTypes = if (!includeEpisodes) listOf(BaseItemKind.EPISODE) else null,
                     enableTotalRecordCount = false,
+                    imageTypeLimit = 1,
                 )
             val items =
                 api.itemsApi
