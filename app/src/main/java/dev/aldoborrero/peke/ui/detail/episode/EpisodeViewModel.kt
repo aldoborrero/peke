@@ -112,7 +112,7 @@ class EpisodeViewModel
                             chosenStreams = chosenStreams,
                         )
                     }
-                    backdropService.submit(item)
+                    viewModelScope.launchDefault { backdropService.submit(item) }
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {

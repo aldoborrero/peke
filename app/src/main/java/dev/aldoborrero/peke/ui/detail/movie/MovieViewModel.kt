@@ -115,7 +115,7 @@ class MovieViewModel
                         chapters = chapters,
                     )
                 }
-                backdropService.submit(movie)
+                viewModelScope.launchDefault { backdropService.submit(movie) }
                 viewModelScope.launchIO {
                     val people = peopleFavorites.getPeopleFor(movie)
                     _state.update {

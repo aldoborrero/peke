@@ -10,10 +10,11 @@ import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.preferences.AppPreferences
+import dev.aldoborrero.peke.preferences.HomePagePreferences
 import dev.aldoborrero.peke.services.BackdropService
-import dev.aldoborrero.peke.services.DatePlayedService
 import dev.aldoborrero.peke.services.FavoriteWatchManager
 import dev.aldoborrero.peke.services.HomePageResolvedSettings
+import dev.aldoborrero.peke.services.HomeRowConfigDisplay
 import dev.aldoborrero.peke.services.HomeSettingsService
 import dev.aldoborrero.peke.services.LatestNextUpService
 import dev.aldoborrero.peke.services.MediaManagementService
@@ -27,8 +28,8 @@ import dev.aldoborrero.peke.ui.combinePair
 import dev.aldoborrero.peke.ui.data.RowColumn
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.launchIO
+import dev.aldoborrero.peke.ui.main.settings.Library
 import dev.aldoborrero.peke.ui.showToast
-import dev.aldoborrero.peke.ui.util.EmptyStringProvider
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.HomeRowLoadingState
 import dev.aldoborrero.peke.util.LoadingState
@@ -63,7 +64,6 @@ class HomeViewModel
         private val navDrawerService: NavDrawerService,
         private val homeSettingsService: HomeSettingsService,
         private val favoriteWatchManager: FavoriteWatchManager,
-        private val datePlayedService: DatePlayedService,
         private val backdropService: BackdropService,
         private val userPreferencesService: UserPreferencesService,
         private val mediaManagementService: MediaManagementService,
@@ -75,7 +75,6 @@ class HomeViewModel
         private var dataLoadingJob: Job? = null
 
         init {
-            datePlayedService.invalidateAll()
             serverRepository.currentUserDtoFlow
                 .combinePair(homeSettingsService.currentSettings)
                 .collectLatestIn(viewModelScope) { (userDto, settings) ->
@@ -138,6 +137,87 @@ class HomeViewModel
             }
         }
 
+        /**
+         * Coming back to the home: only the rows of what is being watched can have changed, so only they are read
+         * again. Without a loaded home this is [init].
+         */
+        fun refreshWatching() {
+            viewModelScope.launchIO {
+                val userDto = serverRepository.currentUserDto ?: return@launchIO
+                val current = state.value
+                if (current.loadingState != LoadingState.Success || current.settings.userId != userDto.id) {
+                    init()
+                    return@launchIO
+                }
+                if (dataLoadingJob?.isActive == true) return@launchIO
+                dataLoadingJob =
+                    viewModelScope.launchIO {
+                        val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
+                        val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                        current.settings.rows
+                            .withIndex()
+                            .filter { isWatchingRow(it.value.config) }
+                            .map { (index, row) ->
+                                async(PekeDispatchers.IO) {
+                                    val rowData = fetchRow(row, prefs, userDto, libraries, refresh = true)
+                                    _state.update { state ->
+                                        if (state.settings != current.settings) return@update state
+                                        state.copy(homeRows = state.homeRows.toMutableList().apply { set(index, rowData) })
+                                    }
+                                }
+                            }.awaitAll()
+                    }
+            }
+        }
+
+        private suspend fun fetchRow(
+            row: HomeRowConfigDisplay,
+            prefs: HomePagePreferences,
+            userDto: ServerUserConfig,
+            libraries: List<Library>,
+            refresh: Boolean,
+        ): HomeRowLoadingState {
+            Timber.v("Fetching row: %s", row)
+            return try {
+                homeSettingsService.fetchDataForRow(
+                    row = row.config,
+                    scope = viewModelScope,
+                    prefs = prefs,
+                    userDto = userDto,
+                    libraries = libraries,
+                    limit = prefs.maxItemsPerRow,
+                    isRefresh = refresh,
+                )
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: InvalidStatusException) {
+                if (ex.status == 404) {
+                    Timber.w(ex, "404 on row %s", row)
+                    HomeRowLoadingState.Success(
+                        row.title,
+                        emptyList(),
+                    )
+                } else {
+                    Timber.e(
+                        ex,
+                        "Error %s on row %s",
+                        ex.status,
+                        row,
+                    )
+                    HomeRowLoadingState.Error(
+                        row.title,
+                        exception = ex,
+                    )
+                }
+            } catch (ex: Exception) {
+                Timber.e(ex, "Error on row %s", row)
+                HomeRowLoadingState.Error(
+                    row.title,
+                    exception = ex,
+                )
+            }
+        }
+
         suspend fun loadHomeRows(
             userDto: ServerUserConfig,
             settings: HomePageResolvedSettings,
@@ -170,9 +250,7 @@ class HomeViewModel
                             if (refresh) {
                                 it.homeRows
                             } else {
-                                List(settings.rows.size) {
-                                    HomeRowLoadingState.Pending(EmptyStringProvider)
-                                }
+                                settings.rows.map { row -> HomeRowLoadingState.Pending(row.title) }
                             },
                     )
                 }
@@ -184,87 +262,40 @@ class HomeViewModel
                         .map { row ->
                             viewModelScope.async(PekeDispatchers.IO) {
                                 semaphore.withPermit {
-                                    Timber.v("Fetching row: %s", row)
-                                    try {
-                                        homeSettingsService.fetchDataForRow(
-                                            row = row.config,
-                                            scope = viewModelScope,
-                                            prefs = prefs,
-                                            userDto = userDto,
-                                            libraries = libraries,
-                                            limit = prefs.maxItemsPerRow,
-                                            isRefresh = refresh,
-                                        )
-                                    } catch (ex: InvalidStatusException) {
-                                        if (ex.status == 404) {
-                                            Timber.w(ex, "404 on row %s", row)
-                                            HomeRowLoadingState.Success(
-                                                row.title,
-                                                emptyList(),
-                                            )
-                                        } else {
-                                            Timber.e(
-                                                ex,
-                                                "Error %s on row %s",
-                                                ex.status,
-                                                row,
-                                            )
-                                            HomeRowLoadingState.Error(
-                                                row.title,
-                                                exception = ex,
-                                            )
-                                        }
-                                    } catch (ex: Exception) {
-                                        Timber.e(ex, "Error on row %s", row)
-                                        HomeRowLoadingState.Error(
-                                            row.title,
-                                            exception = ex,
-                                        )
-                                    }
+                                    fetchRow(row, prefs, userDto, libraries, refresh)
                                 }
                             }
                         }
 
-                if (refresh) {
-                    // Replace rows as they complete
-                    val remaining = deferred.withIndex().toMutableList()
-                    while (remaining.isNotEmpty()) {
-                        val (rowIndex, rowData) =
-                            select {
-                                // "Return" the first remaining that is completed
-                                remaining
-                                    .forEach { (rowIndex, deferred) ->
-                                        deferred.onAwait { rowIndex to it }
-                                    }
-                            }
-                        Timber.v("Got row data index=%s", rowIndex)
-                        remaining.removeIf { it.index == rowIndex }
-                        _state.update { state ->
-                            val newRows =
-                                state.homeRows.toMutableList().apply {
-                                    set(rowIndex, rowData)
+                // Replace rows as they complete; a first load shows the home with its first row
+                val remaining = deferred.withIndex().toMutableList()
+                while (remaining.isNotEmpty()) {
+                    val (rowIndex, rowData) =
+                        select {
+                            // "Return" the first remaining that is completed
+                            remaining
+                                .forEach { (rowIndex, deferred) ->
+                                    deferred.onAwait { rowIndex to it }
                                 }
-                            state.copy(
-                                homeRows = newRows,
-                            )
                         }
-                    }
-                    _state.update {
-                        it.copy(
+                    Timber.v("Got row data index=%s", rowIndex)
+                    remaining.removeIf { it.index == rowIndex }
+                    _state.update { state ->
+                        val newRows =
+                            state.homeRows.toMutableList().apply {
+                                set(rowIndex, rowData)
+                            }
+                        state.copy(
                             loadingState = LoadingState.Success,
-                            refreshState = LoadingState.Success,
+                            homeRows = newRows,
                         )
                     }
-                } else {
-                    val rows = deferred.awaitAll()
-                    Timber.v("Got all rows")
-                    _state.update {
-                        it.copy(
-                            loadingState = LoadingState.Success,
-                            refreshState = LoadingState.Success,
-                            homeRows = rows,
-                        )
-                    }
+                }
+                _state.update {
+                    it.copy(
+                        loadingState = LoadingState.Success,
+                        refreshState = LoadingState.Success,
+                    )
                 }
                 Timber.d("Home page load complete")
             } catch (ex: CancellationException) {

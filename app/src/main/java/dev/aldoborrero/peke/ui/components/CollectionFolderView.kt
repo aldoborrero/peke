@@ -924,7 +924,8 @@ fun CollectionFolderViewContent(
                     val pager = remember(state.items) { state.items.successValue }
 
                     val focusedItem = pager?.getOrNull(position)
-                    if (state.viewOptions.showBackdrop) {
+                    // Kid pages draw no backdrop
+                    if (state.viewOptions.showBackdrop && !LocalKidsMode.current.isActive) {
                         LaunchedEffect(focusedItem) {
                             focusedItem?.let(viewActions::updateBackdrop)
                         }

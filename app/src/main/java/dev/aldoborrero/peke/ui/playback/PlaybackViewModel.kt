@@ -26,6 +26,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.MediaSession
 import coil3.imageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.size.Size
 import com.github.damontecres.wholphin.mpv.MpvPlayer
@@ -1056,6 +1057,8 @@ class PlaybackViewModel
                         .Builder(context)
                         .data(url)
                         .size(Size.ORIGINAL)
+                        // Only warm the disk cache: the sheets are full size and most are never shown
+                        .memoryCachePolicy(CachePolicy.DISABLED)
                         .build(),
                 )
             }

@@ -55,6 +55,8 @@ class DatePlayedService
                     seriesId = seriesId,
                     adjacentTo = item.id,
                     limit = 1,
+                    // Only its user data is read
+                    enableImages = false,
                 )
             return scope.async(PekeDispatchers.IO) {
                 val premiereDate = item.data.premiereDate

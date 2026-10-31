@@ -130,7 +130,7 @@ class SeriesViewModel
                         _state.update { it.copy(canDeleteSeries = canDelete) }
                     }
                 }
-                backdropService.submit(series)
+                viewModelScope.launchDefault { backdropService.submit(series) }
 
                 val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
 

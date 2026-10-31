@@ -115,7 +115,7 @@ fun HomePage(
 ) {
     val context = LocalContext.current
     LifecycleStartEffect(Unit) {
-        viewModel.init()
+        viewModel.refreshWatching()
         onStopOrDispose { }
     }
     val state by viewModel.state.collectAsState()
@@ -387,9 +387,11 @@ fun HomePageContent(
                     rowFocusRequesters.getOrNull(index)?.tryRequestFocus()
                     firstFocused = true
                 } else {
-                    // Waiting for the first home row to load, then focus on it
+                    // Waiting for the first home row to load, then focus on it. Rows arrive in any order, so a row
+                    // only gets the focus once every row above it has loaded
                     homeRows
-                        .indexOfFirstOrNull { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }
+                        .indexOfFirstOrNull { !it.completed || (it is HomeRowLoadingState.Success && it.items.isNotEmpty()) }
+                        ?.takeIf { homeRows[it].completed }
                         ?.let {
                             rowFocusRequesters[it].tryRequestFocus()
                             firstFocused = true
