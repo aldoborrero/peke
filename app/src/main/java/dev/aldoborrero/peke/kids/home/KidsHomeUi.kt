@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -47,6 +48,11 @@ import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.util.LocalClock
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.stateIn
 import org.jellyfin.sdk.model.api.ImageType
 import java.util.UUID
 import javax.inject.Inject
@@ -57,16 +63,21 @@ class KidsTimeLeftViewModel
     constructor(
         val timeLimits: KidsTimeLimits,
         val timerBarSetting: KidsTimerBarSetting,
-    ) : ViewModel()
+    ) : ViewModel() {
+        // The limits tick every second, the header only changes once a minute
+        val timeLeft: StateFlow<HomeTimeLeft?> =
+            combine(timeLimits.state, timerBarSetting.position, ::homeTimeLeft)
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), homeTimeLeft(timeLimits.state.value, KidsTimerBarPosition.TOP))
+    }
 
 /**
  * What the kid's header shows of their time: [homeTimeLeft] of the current limits and bar setting
  */
 @Composable
 fun rememberHomeTimeLeft(viewModel: KidsTimeLeftViewModel = hiltViewModel()): HomeTimeLeft? {
-    val limits by viewModel.timeLimits.state.collectAsState()
-    val position by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
-    return homeTimeLeft(limits, position)
+    val timeLeft by viewModel.timeLeft.collectAsState()
+    return timeLeft
 }
 
 /**

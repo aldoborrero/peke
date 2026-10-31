@@ -22,11 +22,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -231,7 +233,7 @@ fun HomePage(
                 // of the focused item; the rows, clicks and the Play key are the same as everyone's
                 HomePageContent(
                     homeRows = homeRows,
-                    position = position,
+                    position = { position },
                     onFocusPosition = onFocusPosition,
                     onClickItem = onClickItem,
                     onLongClickItem = onLongClickItem,
@@ -252,7 +254,7 @@ fun HomePage(
             } else {
                 HomePageContent(
                     homeRows = homeRows,
-                    position = position,
+                    position = { position },
                     onFocusPosition = onFocusPosition,
                     onClickItem = onClickItem,
                     onLongClickItem = onLongClickItem,
@@ -341,7 +343,7 @@ fun HomeRowLoadingState?.playKeyDestination(
 @Composable
 fun HomePageContent(
     homeRows: List<HomeRowLoadingState>,
-    position: RowColumn,
+    position: () -> RowColumn,
     onFocusPosition: (RowColumn) -> Unit,
     onClickItem: (RowColumn, BaseItem) -> Unit,
     onLongClickItem: (RowColumn, BaseItem) -> Unit,
@@ -355,9 +357,9 @@ fun HomePageContent(
     listState: LazyListState = rememberLazyListState(),
     takeFocus: Boolean = true,
     showEmptyRows: Boolean = false,
-    headerComposable: @Composable (focusedItem: BaseItem?) -> Unit = { focusedItem ->
+    headerComposable: @Composable (focusedItem: () -> BaseItem?) -> Unit = { focusedItem ->
         HomePageHeader(
-            item = focusedItem,
+            item = focusedItem(),
             showLogo = showLogo,
             modifier = HeaderUtils.modifier,
         )
@@ -365,25 +367,28 @@ fun HomePageContent(
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
     kidsLayout: Boolean = false,
 ) {
-    val focusedItem =
-        remember(homeRows, position) {
-            (homeRows.getOrNull(position.row) as? HomeRowLoadingState.Success)?.items?.getOrNull(
-                position.column,
-            )
+    // The position changes on every D-pad step: it is read in the header and the backdrop, never here, so moving along
+    // the rows doesn't recompose the page
+    val currentPosition by rememberUpdatedState(position)
+    val focusedItem by remember(homeRows) {
+        derivedStateOf {
+            val focused = currentPosition()
+            (homeRows.getOrNull(focused.row) as? HomeRowLoadingState.Success)?.items?.getOrNull(focused.column)
         }
+    }
 
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
     var firstFocused by remember { mutableStateOf(false) }
 
-    val currentPosition by rememberUpdatedState(position)
     val currentOnFocusPosition by rememberUpdatedState(onFocusPosition)
     val currentOnClickPlay by rememberUpdatedState(onClickPlay)
 
     if (takeFocus) {
         LaunchedEffect(homeRows) {
             if (!firstFocused && homeRows.isNotEmpty()) {
-                if (position.row >= 0) {
-                    val index = position.row.coerceIn(0, rowFocusRequesters.lastIndex)
+                val row = currentPosition().row
+                if (row >= 0) {
+                    val index = row.coerceIn(0, rowFocusRequesters.lastIndex)
                     rowFocusRequesters.getOrNull(index)?.tryRequestFocus()
                     firstFocused = true
                 } else {
@@ -402,8 +407,11 @@ fun HomePageContent(
             }
         }
     }
-    LaunchedEffect(onUpdateBackdrop, focusedItem) {
-        focusedItem?.let { onUpdateBackdrop.invoke(it) }
+    // Kid pages draw no backdrop
+    if (!kidsLayout) {
+        LaunchedEffect(onUpdateBackdrop) {
+            snapshotFlow { focusedItem }.collect { it?.let(onUpdateBackdrop) }
+        }
     }
     Box(modifier = modifier) {
         Column(
@@ -411,11 +419,11 @@ fun HomePageContent(
                 Modifier
                     .focusProperties {
                         onEnter = {
-                            rowFocusRequesters.getOrNull(currentPosition.row)?.tryRequestFocus()
+                            rowFocusRequesters.getOrNull(currentPosition().row)?.tryRequestFocus()
                         }
                     }.fillMaxSize(),
         ) {
-            headerComposable.invoke(focusedItem)
+            headerComposable.invoke { focusedItem }
 
             val density = LocalDensity.current
             val spaceAbovePx =
@@ -524,7 +532,7 @@ fun HomePageContent(
                                                             if (isPlayKeyUp(event) && item?.type?.playable == true) {
                                                                 Timber.v("Clicked play on ${item.id}")
                                                                 currentOnClickPlay(
-                                                                    currentPosition,
+                                                                    currentPosition(),
                                                                     item,
                                                                 )
                                                                 true

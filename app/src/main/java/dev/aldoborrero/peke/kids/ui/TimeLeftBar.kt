@@ -21,12 +21,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
@@ -58,13 +62,15 @@ class TimeLeftBand {
  * and, next to it, the time-left icon with the minutes. From the plugin's first warning point ([nearEnd]) the bar grows
  * and the label gets bigger, together with the warning, and stays so until the end. Nothing flashes.
  *
+ * @param fraction the part of the time left, read when the bar is drawn: it changes every second, the rest of the bar
+ * only every minute ([barMinutes])
  * @param position top or bottom; the caller shows nothing for [KidsTimerBarPosition.HIDDEN]
  * @param band told the room the bar and label take, at the top or the bottom as [position], and 0 once they're gone
  */
 @Composable
 fun TimeLeftBar(
-    remaining: Duration,
-    total: Duration,
+    fraction: () -> Float,
+    minutes: Int,
     nearEnd: Boolean,
     position: KidsTimerBarPosition,
     modifier: Modifier = Modifier,
@@ -85,9 +91,7 @@ fun TimeLeftBar(
         }
     }
     val colors = LocalPekeColors.current
-    val fraction = (remaining / total).toFloat().coerceIn(0f, 1f)
     val height by animateDpAsState(if (nearEnd) 12.dp else 6.dp, label = "time left bar")
-    val minutes = barMinutes(remaining)
     val description = pluralStringResource(R.plurals.kids_minutes_left, minutes, minutes)
     val bar: @Composable () -> Unit = {
         Box(
@@ -95,16 +99,14 @@ fun TimeLeftBar(
                 Modifier
                     .fillMaxWidth()
                     .height(height)
-                    .background(colors.textSecondary.copy(alpha = .25f)),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(fraction)
-                        .height(height)
-                        .background(colors.time),
-            )
-        }
+                    .background(colors.textSecondary.copy(alpha = .25f))
+                    .drawBehind {
+                        // The filled part from the start edge
+                        val filled = size.width * fraction().coerceIn(0f, 1f)
+                        val left = if (layoutDirection == LayoutDirection.Rtl) size.width - filled else 0f
+                        drawRect(colors.time, topLeft = Offset(left, 0f), size = Size(filled, size.height))
+                    },
+        )
     }
     val label: @Composable () -> Unit = {
         Row(

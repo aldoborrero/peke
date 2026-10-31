@@ -316,7 +316,7 @@ fun HomeSettingsPage(
         HomePageContent(
             loadingState = state.loading,
             homeRows = state.rowData,
-            position = position,
+            position = { position },
             onFocusPosition = { position = it },
             onClickItem = { _, _ -> },
             onLongClickItem = { _, _ -> },

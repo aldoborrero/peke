@@ -94,14 +94,9 @@ fun KidsPictureCard(
                     ?: imageUrlService.getItemImageUrl(it, imageType, fillHeight = fillHeight, useSeriesForPrimary = useSeriesForPrimary)
             }
         }
-    // The focus itself, which Peke's focus treatment follows too
+    // The focus itself, which Peke's focus treatment follows too. Only the title reads it, so a focus change doesn't
+    // recompose the card
     var hasFocus by remember { mutableStateOf(false) }
-    // The focused card grows from its centre, and the title moves with its left edge
-    val growth by animateFloatAsState(
-        targetValue = if (hasFocus) PekeFocus.scale(LocalPekeFocusScale.current) - 1 else 0f,
-        animationSpec = tween(PekeFocus.ANIMATION_MILLIS),
-        label = "card growth",
-    )
     val shape = RoundedCornerShape(corner)
     Column(
         // The board's 10 px, widened so the focused card's scale-up, border and ring clear the title
@@ -129,13 +124,32 @@ fun KidsPictureCard(
                 )
             }
         }
-        KidsCardTitle(
-            title = title,
-            focused = hasFocus,
-            size = titleSize,
-            modifier = Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 },
-        )
+        KidsPictureCardTitle(title = title, size = titleSize, width = width, focused = { hasFocus })
     }
+}
+
+/**
+ * [KidsCardTitle] under a [KidsPictureCard]: the focused card grows from its centre, and the title moves with its left edge
+ */
+@Composable
+private fun KidsPictureCardTitle(
+    title: String?,
+    size: Int,
+    width: Dp,
+    focused: () -> Boolean,
+) {
+    val hasFocus = focused()
+    val growth by animateFloatAsState(
+        targetValue = if (hasFocus) PekeFocus.scale(LocalPekeFocusScale.current) - 1 else 0f,
+        animationSpec = tween(PekeFocus.ANIMATION_MILLIS),
+        label = "card growth",
+    )
+    KidsCardTitle(
+        title = title,
+        focused = hasFocus,
+        size = size,
+        modifier = Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 },
+    )
 }
 
 /**

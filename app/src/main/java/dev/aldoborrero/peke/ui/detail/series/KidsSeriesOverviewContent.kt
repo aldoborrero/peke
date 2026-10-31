@@ -1,7 +1,6 @@
 package dev.aldoborrero.peke.ui.detail.series
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -166,6 +166,9 @@ fun KidsSeriesOverviewContent(
                 }
                 val state = rememberLazyListState(position.episodeRowIndex)
                 var epPosition by rememberInt(position.episodeRowIndex)
+                // Where focus comes back to after a season change: read once per list, so moving the focus along the row
+                // doesn't recompose every card
+                val restoreIndex = remember(eps) { position.episodeRowIndex }
                 KidsCardRow(
                     title = stringResource(R.string.episodes),
                     room = FocusRoom.of(KidsEpisodeCardSize, KidsMinCardGap),
@@ -174,13 +177,11 @@ fun KidsSeriesOverviewContent(
                 ) {
                     itemsIndexed(eps.episodes) { episodeIndex, episode ->
                         val interactionSource = remember { MutableInteractionSource() }
-                        if (interactionSource.collectIsFocusedAsState().value) {
-                            onFocusEpisode.invoke(episodeIndex)
-                        }
                         val cardModifier =
                             Modifier
+                                .onFocusChanged { if (it.isFocused) onFocusEpisode.invoke(episodeIndex) }
                                 .then(
-                                    if (episodeIndex == position.episodeRowIndex) {
+                                    if (episodeIndex == restoreIndex) {
                                         Modifier.focusRequester(firstItemFocusRequester)
                                     } else {
                                         Modifier

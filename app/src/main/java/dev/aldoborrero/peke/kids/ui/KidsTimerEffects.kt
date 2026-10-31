@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -149,7 +150,19 @@ private fun KidsTimerEffectsContent(
     band: TimeLeftBand?,
     modifier: Modifier = Modifier,
 ) {
-    val limits by viewModel.timeLimits.state.collectAsState()
+    // The limits tick every second: only the bar's fill reads them as they are, when it is drawn; the rest of the
+    // screen reads what changes about once a minute
+    val limitsState = viewModel.timeLimits.state.collectAsState()
+    val expired by remember { derivedStateOf { limitsState.value.expired } }
+    val shownMinutes by remember {
+        derivedStateOf {
+            val limits = limitsState.value
+            val remaining = limits.remaining
+            val total = limits.total
+            if (remaining != null && total != null && total.isPositive()) barMinutes(remaining) else null
+        }
+    }
+    val nearEnd by remember { derivedStateOf { limitsState.value.nearEnd } }
     val barPosition by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
     var warning by remember { mutableStateOf<Duration?>(null) }
 
@@ -157,8 +170,8 @@ private fun KidsTimerEffectsContent(
     // leaves it once the grown-up goes back to it
     val top = viewModel.navigationManager.backStack.lastOrNull()
     val holdStop by viewModel.timeLimits.holdStop.collectAsState()
-    LaunchedEffect(limits.expired, top, holdStop) {
-        if (limits.expired) {
+    LaunchedEffect(expired, top, holdStop) {
+        if (expired) {
             // A grown-up on the kid's rules isn't interrupted mid-change: time's up shows when they leave
             if (top !is Destination.KidRules) viewModel.showTimesUp()
         } else if (top is Destination.KidsTimesUp && !holdStop) {
@@ -191,15 +204,19 @@ private fun KidsTimerEffectsContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        val remaining = limits.remaining
-        val total = limits.total
         // The kids home shows the time left in its header instead (KidsHomeHeader)
         val onHome = top is Destination.Home
-        if (remaining != null && total != null && total.isPositive() && barPosition != KidsTimerBarPosition.HIDDEN && !onHome) {
+        val minutes = shownMinutes
+        if (minutes != null && barPosition != KidsTimerBarPosition.HIDDEN && !onHome) {
             TimeLeftBar(
-                remaining = remaining,
-                total = total,
-                nearEnd = limits.nearEnd,
+                fraction = {
+                    val limits = limitsState.value
+                    val remaining = limits.remaining
+                    val total = limits.total
+                    if (remaining != null && total != null && total.isPositive()) (remaining / total).toFloat() else 0f
+                },
+                minutes = minutes,
+                nearEnd = nearEnd,
                 position = barPosition,
                 // The pages in the sidebar keep out of the bar and its label
                 band = band,

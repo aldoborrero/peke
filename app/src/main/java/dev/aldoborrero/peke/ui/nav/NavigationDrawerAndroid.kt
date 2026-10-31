@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,7 +54,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.zIndex
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.DrawerState
@@ -131,25 +132,38 @@ private fun DrawerSheet(
     }
 
     val open = drawerState.currentValue == DrawerValue.Open
-    val width by animateDpAsState(
-        targetValue = if (open) DrawerOpenWidth else DrawerRailWidth,
-        animationSpec = spring(stiffness = DrawerAnimationStiffness),
-        label = "drawer width",
-    )
-    val sidePadding by animateDpAsState(
-        targetValue = if (open) DrawerOpenPadding else (DrawerRailWidth - DrawerTileSize) / 2,
-        animationSpec = spring(stiffness = DrawerAnimationStiffness),
-        label = "drawer padding",
-    )
+    // Both are read in the layout phase, so the animation doesn't recompose the sheet every frame
+    val width =
+        animateDpAsState(
+            targetValue = if (open) DrawerOpenWidth else DrawerRailWidth,
+            animationSpec = spring(stiffness = DrawerAnimationStiffness),
+            label = "drawer width",
+        )
+    val sidePadding =
+        animateDpAsState(
+            targetValue = if (open) DrawerOpenPadding else (DrawerRailWidth - DrawerTileSize) / 2,
+            animationSpec = spring(stiffness = DrawerAnimationStiffness),
+            label = "drawer padding",
+        )
     val internalModifier =
         Modifier
             .focusRequester(focusRequester)
             .fillMaxHeight()
-            .width(width)
+            .layout { measurable, constraints ->
+                val sheetWidth = width.value.roundToPx().coerceIn(constraints.minWidth, constraints.maxWidth)
+                val placeable = measurable.measure(constraints.copy(minWidth = sheetWidth, maxWidth = sheetWidth))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
             // adding passed-in modifier here to ensure the size is set before other size based modifiers.
             .then(modifier)
             .background(LocalPekeColors.current.rail)
-            .padding(horizontal = sidePadding, vertical = 32.cpx)
+            .layout { measurable, constraints ->
+                val side = sidePadding.value.roundToPx()
+                val placeable = measurable.measure(constraints.offset(horizontal = -2 * side))
+                layout(constraints.constrainWidth(placeable.width + 2 * side), placeable.height) {
+                    placeable.placeRelative(side, 0)
+                }
+            }.padding(vertical = 32.cpx)
             .onFocusChanged {
                 focusState = it
 
@@ -164,7 +178,7 @@ private fun DrawerSheet(
             }.focusGroup()
 
     Box(modifier = internalModifier) {
-        NavigationDrawerScopeImpl(open).apply {
+        remember(open) { NavigationDrawerScopeImpl(open) }.apply {
             content(drawerState.currentValue)
         }
     }

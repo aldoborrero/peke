@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.kids.ui.TimeLeftBar
+import dev.aldoborrero.peke.kids.ui.barMinutes
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -64,8 +65,8 @@ class TimeLeftBandTest {
                 }
                 if (shown) {
                     TimeLeftBar(
-                        remaining = 89.minutes,
-                        total = 120.minutes,
+                        fraction = { (89.minutes / 120.minutes).toFloat() },
+                        minutes = barMinutes(89.minutes),
                         nearEnd = nearEnd,
                         position = position,
                         band = band,
