@@ -143,6 +143,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+/** Items left after the playing one at which an in-order queue of episodes reads its next window */
+private const val QUEUE_CONTINUE_AT = 3
+
 /**
  * This [ViewModel] is responsible for playing media including moving through playlists (including next up episodes)
  */
@@ -404,7 +407,7 @@ class PlaybackViewModel
                 if (result is PlaylistCreationResult.Success && result.playlist.items.isNotEmpty()) {
                     _state.update {
                         it.copy(
-                            playlist = Playlist(it.playlist.items + result.playlist.items),
+                            playlist = result.playlist.copy(items = it.playlist.items + result.playlist.items),
                         )
                     }
                 }
@@ -465,6 +468,7 @@ class PlaybackViewModel
                     // Starting playback, so want to invalidate the last played timestamp for this item
                     datePlayedService.invalidate(item)
                 }
+                continueQueueIfNearEnd()
 
                 if (item.type !in supportItemKinds) {
                     showToast(
@@ -1417,6 +1421,38 @@ class PlaybackViewModel
                     }
                 }
             }
+        }
+
+        private var continueQueueJob: Job? = null
+
+        /**
+         * An in-order queue of episodes holds a window of them: the next window is read while an item at most
+         * [QUEUE_CONTINUE_AT] from its end plays, well before autoplay or the next up card look for the next one
+         */
+        private fun continueQueueIfNearEnd() {
+            val state = state.value
+            val continuation = state.playlist.continuation ?: return
+            if (state.playlist.items.size - 1 - state.playlistIndex > QUEUE_CONTINUE_AT) return
+            if (continueQueueJob?.isActive == true) return
+            continueQueueJob =
+                viewModelScope.launchIO {
+                    val more =
+                        try {
+                            playlistCreator.continueEpisodes(continuation)
+                        } catch (ex: Exception) {
+                            if (ex is CancellationException) throw ex
+                            // Tried again when the next item plays
+                            Timber.w(ex, "Could not continue the queue")
+                            return@launchIO
+                        }
+                    _state.update {
+                        if (it.playlist.continuation != continuation) {
+                            it
+                        } else {
+                            it.copy(playlist = more.copy(items = it.playlist.items + more.items))
+                        }
+                    }
+                }
         }
 
         suspend fun cancelUpNextEpisode() {

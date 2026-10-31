@@ -10,13 +10,27 @@ import java.util.UUID
  */
 data class Playlist(
     val items: List<PlaylistItem>,
+    /** Where an in-order queue of episodes goes on, when there are more than it holds */
+    val continuation: EpisodesContinuation? = null,
 ) {
     companion object {
         const val MAX_SIZE = 100
 
+        /** Episodes read at a time for an in-order queue of episodes */
+        const val EPISODES_WINDOW = 10
+
         fun fromMedia(list: List<BaseItem>) = Playlist(list.map { PlaylistItem.Media(it) })
     }
 }
+
+/**
+ * The episodes of [seriesId] (of [seasonId] only, if set) after [afterEpisodeId], in order
+ */
+data class EpisodesContinuation(
+    val seriesId: UUID,
+    val seasonId: UUID?,
+    val afterEpisodeId: UUID,
+)
 
 data class PlaylistInfo(
     val id: UUID,

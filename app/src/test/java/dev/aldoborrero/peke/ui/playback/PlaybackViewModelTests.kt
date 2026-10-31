@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.data.ItemPlaybackDao
 import dev.aldoborrero.peke.data.ItemPlaybackRepository
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.data.model.EpisodesContinuation
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.Playlist
@@ -477,6 +478,42 @@ class PlaybackViewModelTests {
                 Assert.assertFalse(state.hasNext)
             }
             verify(exactly = 1) { mockNavigationManager.goBack() }
+        }
+
+    @Test
+    fun `An episode queue goes on near its end`() =
+        runTest(testDispatcher) {
+            val movie4 = movie(name = "Test Movie 4")
+            val continuation = EpisodesContinuation(UUID.randomUUID(), null, movie3.id)
+            coEvery { mockUserLibraryApi.getItem(playlist.id, any()) } returns successResponse(playlist)
+            coEvery {
+                mockPlaylistCreator.createFrom(
+                    item = playlist,
+                    startIndex = any(),
+                    sortAndDirection = any(),
+                    shuffled = any(),
+                    recursive = any(),
+                    filter = any(),
+                )
+            } returns PlaylistCreationResult.Success(playlistItems.copy(continuation = continuation))
+            coEvery { mockPlaylistCreator.continueEpisodes(continuation) } returns
+                Playlist.fromMedia(listOf(BaseItem(movie4)))
+
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            testScheduler.advanceUntilIdle()
+
+            viewModel.state.value.also { state ->
+                Assert.assertEquals(
+                    listOf(movie.id, movie2.id, movie3.id, movie4.id),
+                    state.playlist.items.map { it.id },
+                )
+                Assert.assertNull(state.playlist.continuation)
+            }
+
+            viewModel.playNextUp()
+            testScheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { mockPlaylistCreator.continueEpisodes(any()) }
+            Assert.assertTrue(viewModel.state.value.hasNext)
         }
 
     @Test
