@@ -39,6 +39,8 @@ import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
 import dev.aldoborrero.peke.util.SearchRelevance
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
@@ -80,6 +82,9 @@ class SearchViewModel
 
         private var currentQuery: String? = null
         private var combinedMode = false
+
+        /** The searches for [currentQuery]; a new query cancels them so an older answer can't show for it */
+        private var searchJobs: List<Job> = emptyList()
 
         private val _programDialogState = MutableStateFlow(ProgramDialogState())
         val programDialogState: StateFlow<ProgramDialogState> = _programDialogState
@@ -161,25 +166,29 @@ class SearchViewModel
             }
             currentQuery = query
             combinedMode = combined
+            searchJobs.forEach { it.cancel() }
+            searchJobs = emptyList()
             if (query.isNotNullOrBlank()) {
+                val results =
+                    SnapshotStateMap<BaseItemKind, SearchResult>().apply {
+                        state.value.includedSearchableTypes.forEach {
+                            put(it, SearchResult.Searching)
+                        }
+                    }
                 _state.update {
                     it.copy(
-                        results =
-                            SnapshotStateMap<BaseItemKind, SearchResult>().apply {
-                                it.includedSearchableTypes.forEach {
-                                    put(it, SearchResult.Searching)
-                                }
-                            },
+                        results = results,
                         combinedResults = SearchResult.Searching,
                     )
                 }
-                if (combined) {
-                    searchCombined(query)
-                } else {
-                    state.value.includedSearchableTypes.forEach { type ->
-                        searchType(query, type)
+                searchJobs =
+                    if (combined) {
+                        listOf(searchCombined(query))
+                    } else {
+                        state.value.includedSearchableTypes.map { type ->
+                            searchType(query, type, results)
+                        }
                     }
-                }
             } else {
                 _state.update {
                     it.copy(
@@ -198,7 +207,8 @@ class SearchViewModel
         private fun searchType(
             query: String,
             type: BaseItemKind,
-        ) {
+            results: SnapshotStateMap<BaseItemKind, SearchResult>,
+        ): Job =
             viewModelScope.launchIO {
                 try {
                     val items: List<BaseItem> =
@@ -253,17 +263,16 @@ class SearchViewModel
                             compareBy<BaseItem> { SearchRelevance.score(it, query) },
                         )
                     Timber.v("Search finished for %s, %s results", type, sorted.size)
-                    _state.value.results[type] = SearchResult.Success(sorted)
+                    results[type] = SearchResult.Success(sorted)
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception searching for $type")
-                    _state.value.results[type] = SearchResult.Error(ex)
+                    results[type] = SearchResult.Error(ex)
                 }
             }
-        }
 
-        private fun searchCombined(query: String) {
+        private fun searchCombined(query: String): Job =
             viewModelScope.launch(ExceptionHandler() + PekeDispatchers.IO) {
                 try {
                     Timber.v("Starting searchCombined")
@@ -274,6 +283,7 @@ class SearchViewModel
                             includeItemTypes = state.value.includedSearchableTypes,
                             fields = SlimItemFields,
                             limit = SEARCH_LIMIT,
+                            enableTotalRecordCount = false,
                         )
 
                     val result = api.itemsApi.getItems(request).content
@@ -286,13 +296,15 @@ class SearchViewModel
                             compareBy<BaseItem> { SearchRelevance.score(it, query) },
                         )
                     Timber.v("searchCombined complete %s results", sorted.size)
+                    ensureActive()
                     _state.update { it.copy(combinedResults = SearchResult.Success(sorted)) }
+                } catch (ex: CancellationException) {
+                    throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception in combined search")
                     _state.update { it.copy(combinedResults = SearchResult.Error(ex)) }
                 }
             }
-        }
 
         fun setCombinedResults(enabled: Boolean) {
             viewModelScope.launchIO {
