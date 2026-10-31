@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
@@ -343,13 +345,26 @@ class ServerRepository
             kidsDataCleaner.onServerRemoved(server.id)
         }
 
+        private val userDtoUpdate = Mutex()
+
         /**
          * Update [currentUserDto] by querying the server
+         *
+         * A caller arriving while an update runs waits for that one instead of asking again: at start the launch rule
+         * and the app's resume both ask at once
          */
         suspend fun updateUserDto() {
-            val userDto by apiClient.userApi.getCurrentUser()
-            updateUserDto(userDto)
-            if (currentUser?.id == userDto.id) userConfigCache.save(userDto)
+            if (!userDtoUpdate.tryLock()) {
+                userDtoUpdate.withLock { }
+                return
+            }
+            try {
+                val userDto by apiClient.userApi.getCurrentUser()
+                updateUserDto(userDto)
+                if (currentUser?.id == userDto.id) userConfigCache.save(userDto)
+            } finally {
+                userDtoUpdate.unlock()
+            }
         }
 
         /**
