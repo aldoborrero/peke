@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.util
 
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -38,7 +39,7 @@ class TrackActivityPlaybackListener(
         object : TimerTask() {
             override fun run() {
                 try {
-                    saveActivity(-1L)
+                    saveActivity(-1L, fromTimer = true)
                 } catch (ex: Exception) {
                     Timber.w(ex, "Exception during track activity timer")
                 }
@@ -47,6 +48,10 @@ class TrackActivityPlaybackListener(
 
     @Volatile
     private var initialized = false
+
+    /** When progress was last reported, in [SystemClock.elapsedRealtime] */
+    @Volatile
+    private var lastReported = 0L
 
     fun init() {
         launch("reportPlaybackStart") {
@@ -115,7 +120,14 @@ class TrackActivityPlaybackListener(
         }
     }
 
-    private fun saveActivity(position: Long) {
+    /**
+     * Report the progress. The timer's reports while paused are sent only every [PAUSED_REPORT_INTERVAL], enough to
+     * keep the session alive on the server: pausing and resuming report straight away.
+     */
+    private fun saveActivity(
+        position: Long,
+        fromTimer: Boolean = false,
+    ) {
         launch("saveActivity") {
             getState.invoke()?.let { state ->
                 val calcPosition =
@@ -124,6 +136,11 @@ class TrackActivityPlaybackListener(
                     }
                 if (calcPosition > 0) {
                     val isPaused = withContext(PekeDispatchers.Main) { !player.isPlaying }
+                    val now = SystemClock.elapsedRealtime()
+                    if (fromTimer && isPaused && now - lastReported < PAUSED_REPORT_INTERVAL.inWholeMilliseconds) {
+                        return@let
+                    }
+                    lastReported = now
                     Timber.v("saveActivity: itemId=${state.itemId}, pos=$calcPosition")
                     api.playStateApi.reportPlaybackProgress(
                         PlaybackProgressInfo(
@@ -163,6 +180,9 @@ class TrackActivityPlaybackListener(
         private const val TAG = "TrackActivityPlaybackListener"
 
         private val TIMER by lazy { Timer("$TAG-timer", true) }
+
+        /** Well under the time after which Jellyfin stops a playing session that doesn't check in */
+        private val PAUSED_REPORT_INTERVAL = 60.seconds
     }
 }
 
