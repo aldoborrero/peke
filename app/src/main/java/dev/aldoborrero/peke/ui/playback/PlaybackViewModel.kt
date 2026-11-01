@@ -422,8 +422,11 @@ class PlaybackViewModel
 
         /**
          * A queued item comes without its details ([PlaylistItemFields]), so they are read when it's about to play
+         *
+         * @return null when they couldn't be read: the item can't play without its media sources, and skipping it would
+         * skip the whole queue while the server can't be reached
          */
-        private suspend fun withDetails(playlistItem: PlaylistItem): PlaylistItem {
+        private suspend fun withDetails(playlistItem: PlaylistItem): PlaylistItem? {
             val item = playlistItem.item
             if (playlistItem !is PlaylistItem.Media || item.data.mediaSources != null) return playlistItem
             if (item.type == BaseItemKind.TV_CHANNEL || item.type !in supportItemKinds) return playlistItem
@@ -433,7 +436,8 @@ class PlaybackViewModel
                 throw ex
             } catch (ex: Exception) {
                 Timber.w(ex, "Could not read the details of %s", item.id)
-                playlistItem
+                _state.update { it.copy(loading = LoadingState.Error("Could not read the item from the server", ex)) }
+                null
             }
         }
 
@@ -451,7 +455,8 @@ class PlaybackViewModel
             forceTranscoding: Boolean = this.forceTranscoding,
         ): Boolean =
             withContext(PekeDispatchers.IO) {
-                val playlistItem = withDetails(playlistItem)
+                // Not played, but not to be skipped either: the error shows instead
+                val playlistItem = withDetails(playlistItem) ?: return@withContext true
                 val item =
                     when (playlistItem) {
                         is PlaylistItem.Intro -> playlistItem.item

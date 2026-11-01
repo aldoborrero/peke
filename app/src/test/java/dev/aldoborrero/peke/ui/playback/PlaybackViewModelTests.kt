@@ -84,6 +84,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -189,6 +190,8 @@ class PlaybackViewModelTests {
         every { mockApi.mediaInfoApi } returns mockMediaInfoApi
         every { mockApi.videosApi } returns mockVideosApi
         every { mockApi.mediaSegmentsApi } returns mockMediaSegmentsApi
+        // A queued item's details, read when it's about to play
+        coEvery { mockUserLibraryApi.getItem(any(), any()) } answers { successResponse(movie(id = firstArg())) }
 
         coEvery { mockMediaInfoApi.getPostedPlaybackInfo(any(), any()) } returns
             successResponse(
@@ -514,6 +517,23 @@ class PlaybackViewModelTests {
             testScheduler.advanceUntilIdle()
             coVerify(exactly = 1) { mockPlaylistCreator.continueEpisodes(any()) }
             Assert.assertTrue(viewModel.state.value.hasNext)
+        }
+
+    @Test
+    fun `A queued item that can't be read shows an error instead of skipping the queue`() =
+        runTest(testDispatcher) {
+            setupForPlaylist()
+            coEvery { mockUserLibraryApi.getItem(movie2.id, any()) } throws IOException("no network")
+
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            viewModel.playNextUp()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.state.value.also { state ->
+                Assert.assertEquals(1, state.playlistIndex)
+                Assert.assertTrue(state.loading is LoadingState.Error)
+            }
+            verify(exactly = 1) { mockPlayer.setMediaItem(any(), any<Long>()) }
         }
 
     @Test
