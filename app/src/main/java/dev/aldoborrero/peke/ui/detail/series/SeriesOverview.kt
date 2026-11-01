@@ -243,18 +243,21 @@ fun SeriesOverview(
                     )
                 },
                 onLongClick = { ep ->
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = true,
-                            item = ep,
-                            chosenStreams = chosenStreams,
-                            showGoTo = false,
-                            showStreamChoices = true,
-                            canDelete = viewModel.canDelete(ep, preferences.appPreferences),
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
-                        )
+                    // The menu's version, track and media information choices need the episode's media sources
+                    viewModel.withEpisodeSources(position.episodeRowIndex, ep) { full ->
+                        showContextMenu =
+                            ContextMenu.ForBaseItem(
+                                fromLongClick = true,
+                                item = full,
+                                chosenStreams = viewModel.state.value.chosenStreams,
+                                showGoTo = false,
+                                showStreamChoices = true,
+                                canDelete = viewModel.canDelete(full, preferences.appPreferences),
+                                canRemoveContinueWatching = false,
+                                canRemoveNextUp = false,
+                                actions = contextActions,
+                            )
+                    }
                 },
                 playOnClick = { resume ->
                     rowFocused = EPISODE_ROW
@@ -281,23 +284,26 @@ fun SeriesOverview(
                 },
                 moreOnClick = {
                     episodeList?.getOrNull(position.episodeRowIndex)?.let { ep ->
-                        showContextMenu =
-                            ContextMenu.ForBaseItem(
-                                fromLongClick = false,
-                                item = ep,
-                                chosenStreams = chosenStreams,
-                                showGoTo = false,
-                                showStreamChoices = true,
-                                canDelete = viewModel.canDelete(ep, preferences.appPreferences),
-                                canRemoveContinueWatching = false,
-                                canRemoveNextUp = false,
-                                actions = contextActions,
-                            )
+                        viewModel.withEpisodeSources(position.episodeRowIndex, ep) { full ->
+                            showContextMenu =
+                                ContextMenu.ForBaseItem(
+                                    fromLongClick = false,
+                                    item = full,
+                                    chosenStreams = viewModel.state.value.chosenStreams,
+                                    showGoTo = false,
+                                    showStreamChoices = true,
+                                    canDelete = viewModel.canDelete(full, preferences.appPreferences),
+                                    canRemoveContinueWatching = false,
+                                    canRemoveNextUp = false,
+                                    actions = contextActions,
+                                )
+                        }
                     }
                 },
                 overviewOnClick = {
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let {
-                        overviewDialog = ItemDetailsDialogInfo(it)
+                    episodeList?.getOrNull(position.episodeRowIndex)?.let { ep ->
+                        // The dialog shows the media information from the episode's media sources
+                        viewModel.withEpisodeSources(position.episodeRowIndex, ep) { overviewDialog = ItemDetailsDialogInfo(it) }
                     }
                 },
                 personOnClick = {

@@ -66,6 +66,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -531,6 +532,74 @@ class SeriesViewModel
         private var chosenStreamsJob: Job? = null
 
         /**
+         * The full read of the focused episode (media sources, people), shared by everything that needs it: the people
+         * row, the track and version choices, and the menus that need its sources. Only the focused one is kept, and a
+         * failed read is tried again.
+         */
+        private var focusedDetails: Pair<UUID, Deferred<BaseItemDto>>? = null
+
+        @Synchronized
+        private fun detailsOf(itemId: UUID): Deferred<BaseItemDto> =
+            focusedDetails
+                ?.takeIf { (id, read) ->
+                    id == itemId && !read.isCancelled &&
+                        (!read.isCompleted || read.getCompletionExceptionOrNull() == null)
+                }?.second
+                ?: viewModelScope
+                    .async(PekeDispatchers.IO) { api.userLibraryApi.getItem(itemId).content }
+                    .also { focusedDetails = itemId to it }
+
+        /**
+         * The episode at [index] with its media sources: as listed when it has them, else read (or the read running
+         * for it awaited) and put in the list
+         */
+        private suspend fun withSources(
+            index: Int,
+            item: BaseItem,
+        ): BaseItem {
+            if (item.data.mediaSources != null) return item
+            val eps = state.value.episodes as? EpisodeList.Success
+            val listed = eps?.episodes?.getOrNull(index)?.takeIf { it.id == item.id }
+            if (eps != null && listed != null) {
+                if (listed.data.mediaSources != null) return listed
+                eps.episodes.refreshItem(index, item.id) { detailsOf(item.id).await() }
+                _state.update { it.copy(episodes = eps) }
+                eps.episodes
+                    .getOrNull(index)
+                    ?.takeIf { it.id == item.id }
+                    ?.let { return it }
+            }
+            return BaseItem(detailsOf(item.id).await())
+        }
+
+        /**
+         * Run [block] with the episode at [index] with its media sources, for a menu or dialog that shows them: the
+         * list comes without them, and the read for the focused episode may still be running
+         */
+        fun withEpisodeSources(
+            index: Int,
+            item: BaseItem,
+            block: (BaseItem) -> Unit,
+        ) {
+            if (item.data.mediaSources != null) {
+                block(item)
+                return
+            }
+            viewModelScope.launch(ExceptionHandler()) {
+                val full =
+                    try {
+                        withContext(PekeDispatchers.IO) { withSources(index, item) }
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Could not read the media sources of %s", item.id)
+                        item
+                    }
+                withContext(PekeDispatchers.Main) { block(full) }
+            }
+        }
+
+        /**
          * The season's episodes come without media sources. With [readSourcesAt], an episode without them is read again
          * at that list index once the focus has settled on it, for the track and version choices shown.
          */
@@ -545,13 +614,7 @@ class SeriesViewModel
                     val withSources =
                         if (readSourcesAt != null && item.data.mediaSources == null) {
                             delay(250)
-                            val eps = state.value.episodes as? EpisodeList.Success
-                            val listed = eps?.episodes?.getOrNull(readSourcesAt)?.takeIf { it.id == itemId }
-                            if (eps != null && listed != null && listed.data.mediaSources == null) {
-                                eps.episodes.refreshItem(readSourcesAt, itemId)
-                                _state.update { it.copy(episodes = eps) }
-                            }
-                            eps?.episodes?.getOrNull(readSourcesAt)?.takeIf { it.id == itemId } ?: item
+                            withSources(readSourcesAt, item)
                         } else {
                             item
                         }
@@ -615,10 +678,11 @@ class SeriesViewModel
                     peopleInEpisodeCache
                         .get(item.id) {
                             viewModelScope.async(PekeDispatchers.IO) {
+                                // The same read as the focused episode's media sources
                                 val list =
-                                    api.userLibraryApi
-                                        .getItem(item.id)
-                                        .content.people
+                                    detailsOf(item.id)
+                                        .await()
+                                        .people
                                         ?.map { Person.fromDto(context, it, api) }
                                         .orEmpty()
 
