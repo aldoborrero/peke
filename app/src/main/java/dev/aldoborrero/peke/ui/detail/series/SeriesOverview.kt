@@ -94,17 +94,9 @@ fun SeriesOverview(
     LaunchedEffect(Unit) {
         if (state.seasons.isNotEmpty()) {
             state.seasons.getOrNull(position.seasonTabIndex)?.let {
-                val episode =
-                    (state.episodes as? EpisodeList.Success)
-                        ?.takeIf { episodes -> episodes.seasonId == it.id }
-                        ?.episodes
-                        ?.getOrNull(position.episodeRowIndex)
-                if (episode != null) {
-                    // Coming back, for example from the player: only the episode that played has changed
-                    viewModel.refreshEpisode(episode.id, position.episodeRowIndex)
-                } else {
-                    viewModel.loadEpisodes(it.id, it.indexNumber)
-                }
+                // Also coming back, for example from the player: autoplay can have played the episodes after the one
+                // chosen, so the whole season is read again for what was watched and where each was left
+                viewModel.loadEpisodes(it.id, it.indexNumber)
             }
         }
     }

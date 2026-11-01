@@ -386,7 +386,9 @@ class SeriesViewModel
             seasonNum: Int?,
         ) {
             val currentEpisodes = (state.value.episodes as? EpisodeList.Success)
-            if (currentEpisodes == null || currentEpisodes.seasonId != seasonId) {
+            // The same season read again keeps its list until the new one comes, and its extras
+            val otherSeason = currentEpisodes == null || currentEpisodes.seasonId != seasonId
+            if (otherSeason) {
                 _state.update {
                     it.copy(
                         peopleInEpisode = PeopleInItem(),
@@ -405,9 +407,11 @@ class SeriesViewModel
                     }
                 _state.update { it.copy(episodes = episodes) }
             }
-            viewModelScope.launchIO {
-                val extras = extrasService.getExtras(seasonId)
-                _state.update { it.copy(extras = extras) }
+            if (otherSeason) {
+                viewModelScope.launchIO {
+                    val extras = extrasService.getExtras(seasonId)
+                    _state.update { it.copy(extras = extras) }
+                }
             }
         }
 
