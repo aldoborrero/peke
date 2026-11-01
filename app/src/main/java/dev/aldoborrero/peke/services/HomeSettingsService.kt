@@ -224,9 +224,10 @@ class HomeSettingsService
          */
         suspend fun loadCurrentSettings(userId: UUID) {
             Timber.v("Getting setting for %s", userId)
-            profileHomeSettings(userId)?.let {
+            var libraries: List<Library>? = null
+            profileHomeSettings(userId) { libraries = it }?.let {
                 Timber.v("Using the profile's fixed home settings")
-                updateCurrent(userId, it)
+                updateCurrent(userId, it, libraries)
                 return
             }
             // User local then server/remote otherwise create a default
@@ -263,11 +264,14 @@ class HomeSettingsService
         /**
          * The [ProfilePolicy]'s fixed home, if [userId] is the current user and the policy has one for them
          */
-        private suspend fun profileHomeSettings(userId: UUID): HomePageSettings? {
+        private suspend fun profileHomeSettings(
+            userId: UUID,
+            onLibraries: (List<Library>) -> Unit,
+        ): HomePageSettings? {
             val user = serverRepository.currentUser?.takeIf { it.id == userId } ?: return null
             return profilePolicy.homeSettings(user) {
                 val tvAccess = serverRepository.currentUserDto?.takeIf { it.id == userId }?.tvAccess ?: false
-                navDrawerService.getAllUserLibraries(user.id, tvAccess)
+                navDrawerService.getAllUserLibraries(user.id, tvAccess).also(onLibraries)
             }
         }
 
@@ -277,9 +281,10 @@ class HomeSettingsService
         suspend fun updateCurrent(
             userId: UUID,
             settings: HomePageSettings,
+            libraries: List<Library>? = null,
         ) {
             val resolvedRows = resolveAll(settings.rows)
-            val resolvedSettings = HomePageResolvedSettings(userId, resolvedRows)
+            val resolvedSettings = HomePageResolvedSettings(userId, resolvedRows, libraries)
             currentSettings.update { resolvedSettings }
         }
 
@@ -324,7 +329,7 @@ class HomeSettingsService
                     ),
                 )
             val rowConfig = continueWatchingRow + includedIds
-            return HomePageResolvedSettings(userId, rowConfig)
+            return HomePageResolvedSettings(userId, rowConfig, libraries)
         }
 
         /**
@@ -1302,6 +1307,8 @@ data class HomeRowConfigDisplay(
 data class HomePageResolvedSettings(
     val userId: UUID,
     val rows: List<HomeRowConfigDisplay>,
+    /** The libraries read to build these settings, if any, so the home doesn't read them again */
+    val libraries: List<Library>? = null,
 ) {
     companion object {
         val EMPTY = HomePageResolvedSettings(UUID.randomUUID(), emptyList())

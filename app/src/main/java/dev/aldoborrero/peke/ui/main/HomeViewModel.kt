@@ -245,7 +245,7 @@ class HomeViewModel
                 val prefs = preferences.appPreferences.homePagePreferences
 
                 val libraries =
-                    navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                    settings.libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
                 this.libraries = libraries
 
                 val state = state.value
