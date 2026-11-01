@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
@@ -348,20 +347,35 @@ class ServerRepository
         private val userDtoUpdate = Mutex()
 
         /**
+         * The user whose configuration the last finished update got, null after one that failed or answered for someone
+         * no longer current. Only read and written under [userDtoUpdate].
+         */
+        private var userDtoAnswered: UUID? = null
+
+        /**
          * Update [currentUserDto] by querying the server
          *
          * A caller arriving while an update runs waits for that one instead of asking again: at start the launch rule
-         * and the app's resume both ask at once
+         * and the app's resume both ask at once. It asks itself when that update failed or wasn't for its user, as
+         * after a user switch: [currentUserDto] can't tell, since it may still hold the cached configuration.
          */
         suspend fun updateUserDto() {
+            val user = currentUser?.id
             if (!userDtoUpdate.tryLock()) {
-                userDtoUpdate.withLock { }
-                return
+                userDtoUpdate.lock()
+                if (user != null && userDtoAnswered == user && currentUser?.id == user) {
+                    userDtoUpdate.unlock()
+                    return
+                }
             }
             try {
+                userDtoAnswered = null
                 val userDto by apiClient.userApi.getCurrentUser()
                 updateUserDto(userDto)
-                if (currentUser?.id == userDto.id) userConfigCache.save(userDto)
+                if (currentUser?.id == userDto.id) {
+                    userConfigCache.save(userDto)
+                    userDtoAnswered = userDto.id
+                }
             } finally {
                 userDtoUpdate.unlock()
             }
