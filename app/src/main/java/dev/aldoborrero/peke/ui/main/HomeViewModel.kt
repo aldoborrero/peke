@@ -268,11 +268,14 @@ class HomeViewModel
                 val preferences = userPreferencesService.getCurrent()
                 val prefs = preferences.appPreferences.homePagePreferences
 
-                val libraries =
-                    settings.libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
-                this.libraries = libraries
-
                 val state = state.value
+
+                // The libraries the settings were built with serve only their first load: a later load of the same
+                // settings comes from a change of the user (their policy, live TV access), so they're read again
+                val libraries =
+                    settings.libraries?.takeIf { state.settings !== settings }
+                        ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                this.libraries = libraries
 
                 // Refreshing if a load has already occurred and the rows haven't significantly changed
                 val refresh =

@@ -1307,9 +1307,16 @@ data class HomeRowConfigDisplay(
 data class HomePageResolvedSettings(
     val userId: UUID,
     val rows: List<HomeRowConfigDisplay>,
-    /** The libraries read to build these settings, if any, so the home doesn't read them again */
+    /**
+     * The libraries read to build these settings, if any, so the home's first load of them doesn't read them again.
+     * Not part of equality: a rebuild with the same rows is the same home.
+     */
     val libraries: List<Library>? = null,
 ) {
+    override fun equals(other: Any?): Boolean = other is HomePageResolvedSettings && userId == other.userId && rows == other.rows
+
+    override fun hashCode(): Int = 31 * userId.hashCode() + rows.hashCode()
+
     companion object {
         val EMPTY = HomePageResolvedSettings(UUID.randomUUID(), emptyList())
     }
