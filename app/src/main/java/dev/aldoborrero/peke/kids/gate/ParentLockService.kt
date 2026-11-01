@@ -19,6 +19,7 @@ import dev.aldoborrero.peke.kids.setup.AdminSignIn
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.use
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
+import dev.aldoborrero.peke.services.ItemHandOver
 import dev.aldoborrero.peke.services.hilt.DefaultDispatcher
 import dev.aldoborrero.peke.util.PekeDispatchers
 import kotlinx.coroutines.CoroutineDispatcher
@@ -155,6 +156,7 @@ class ParentLockService
         private val adminSessions: AdminSessions,
         private val clock: MonotonicClock,
         @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher,
+        private val itemHandOver: ItemHandOver,
     ) {
         private data class Grant(
             val value: String,
@@ -499,13 +501,14 @@ class ParentLockService
         fun hasLiveGrant(): Boolean = passedUntil?.let { clock.elapsedMillis() < it } == true
 
         /**
-         * Forget every grant and pass, for a reset of this TV
+         * Forget every grant and pass, for a reset of this TV, and the item a page handed over while they held
          */
         fun forgetGrants() {
             grants.clear()
             passedUntil = null
             pickGrant = false
             refusedTokens.clear()
+            itemHandOver.clear()
         }
 
         fun hasGrant(): Boolean {

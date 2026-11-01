@@ -34,6 +34,7 @@ class UserSwitchListener
         private val serverRepository: ServerRepository,
         private val homeSettingsService: HomeSettingsService,
         private val profilePolicy: ProfilePolicy,
+        private val itemHandOver: ItemHandOver,
     ) {
         /**
          * The user whose home settings to build. Conflated, and built by one collector that drops a build a newer
@@ -50,6 +51,7 @@ class UserSwitchListener
                     }.collectLatest { user ->
                         Timber.d("UserSwitch: %s", user?.id)
                         homeSettingsService.currentSettings.update { HomePageResolvedSettings.EMPTY }
+                        itemHandOver.clear()
                         if (user != null) {
                             switchUser(user)
                         }

@@ -3,6 +3,7 @@ package dev.aldoborrero.peke.kids
 import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.JellyfinServerDao
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinServerUsers
 import dev.aldoborrero.peke.data.model.JellyfinUser
@@ -22,7 +23,9 @@ import dev.aldoborrero.peke.kids.setup.AdminSession
 import dev.aldoborrero.peke.kids.setup.AdminSessions
 import dev.aldoborrero.peke.kids.setup.AdminSignIn
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.services.ItemHandOver
 import dev.aldoborrero.peke.services.hilt.pekeKidDeviceId
+import dev.aldoborrero.peke.test.item
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.UserPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -53,6 +57,7 @@ class ParentLockServiceTest {
     private val current = MutableStateFlow<CurrentUser?>(CurrentUser(server, kid))
     private var admin = false
     private val verifier = PasscodeHasher.hash("1234")
+    private val itemHandOver = ItemHandOver()
 
     /**
      * This TV's users, as stored
@@ -91,6 +96,7 @@ class ParentLockServiceTest {
             AdminSessions(http.jellyfin, http.deviceInfo, api, dispatcher),
             clock,
             dispatcher,
+            itemHandOver,
         )
     }
 
@@ -626,5 +632,17 @@ class ParentLockServiceTest {
             assertEquals(LockState.Code(ParentLockType.NUMERIC), service.lockState())
             assertEquals(VerifyOutcome.Wrong, service.verify("1234"))
             assertEquals(VerifyOutcome.ValidOffline, service.verify("4321"))
+        }
+
+    @Test
+    fun `ending the grants empties the item a page handed over`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val service = service()
+            val series = BaseItem(item(BaseItemKind.SERIES), false)
+            itemHandOver.put(series)
+
+            service.forgetGrants()
+
+            assertNull(itemHandOver.take(series.id))
         }
 }
