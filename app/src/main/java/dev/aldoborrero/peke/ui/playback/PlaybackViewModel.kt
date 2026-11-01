@@ -1436,27 +1436,46 @@ class PlaybackViewModel
          */
         private fun continueQueueIfNearEnd() {
             val state = state.value
-            val continuation = state.playlist.continuation ?: return
+            if (state.playlist.continuation == null) return
             if (state.playlist.items.size - 1 - state.playlistIndex > QUEUE_CONTINUE_AT) return
-            if (continueQueueJob?.isActive == true) return
+            continueQueue(untilFull = false)
+        }
+
+        /**
+         * The queue row shows: read the windows left, up to [Playlist.MAX_SIZE] items, so it lists the episodes to come
+         * as it did before the queue held windows
+         */
+        fun onQueueShown() {
+            if (state.value.playlist.continuation == null) return
+            continueQueue(untilFull = true)
+        }
+
+        private fun continueQueue(untilFull: Boolean) {
+            if (continueQueueJob?.isActive == true && !untilFull) return
+            val previous = continueQueueJob
             continueQueueJob =
                 viewModelScope.launchIO {
-                    val more =
-                        try {
-                            playlistCreator.continueEpisodes(continuation)
-                        } catch (ex: Exception) {
-                            if (ex is CancellationException) throw ex
-                            // Tried again when the next item plays
-                            Timber.w(ex, "Could not continue the queue")
-                            return@launchIO
+                    previous?.join()
+                    do {
+                        if (untilFull && state.value.playlist.items.size >= Playlist.MAX_SIZE) return@launchIO
+                        val continuation = state.value.playlist.continuation ?: return@launchIO
+                        val more =
+                            try {
+                                playlistCreator.continueEpisodes(continuation)
+                            } catch (ex: Exception) {
+                                if (ex is CancellationException) throw ex
+                                // Tried again when the next item plays
+                                Timber.w(ex, "Could not continue the queue")
+                                return@launchIO
+                            }
+                        _state.update {
+                            if (it.playlist.continuation != continuation) {
+                                it
+                            } else {
+                                it.copy(playlist = more.copy(items = it.playlist.items + more.items))
+                            }
                         }
-                    _state.update {
-                        if (it.playlist.continuation != continuation) {
-                            it
-                        } else {
-                            it.copy(playlist = more.copy(items = it.playlist.items + more.items))
-                        }
-                    }
+                    } while (untilFull && state.value.playlist.items.size < Playlist.MAX_SIZE)
                 }
         }
 

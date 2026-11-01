@@ -99,6 +99,7 @@ fun PlaybackOverlay(
     trickplayInfo: TrickplayInfo? = null,
     trickplayUrlFor: (Int) -> String? = { null },
     onClickPlaylist: (BaseItem) -> Unit = {},
+    onQueueShown: () -> Unit = {},
     moreItems: List<BaseItem> = emptyList(),
     onClickMore: (BaseItem) -> Unit = {},
     seekBarInteractionSource: MutableInteractionSource = remember { MutableInteractionSource() },
@@ -249,6 +250,7 @@ fun PlaybackOverlay(
 
                 OverlayViewState.QUEUE -> {
                     if (nextEnabled) {
+                        LaunchedEffect(Unit) { onQueueShown() }
                         QueueRowOverlay(
                             queue = queue,
                             controllerViewState = controllerViewState,

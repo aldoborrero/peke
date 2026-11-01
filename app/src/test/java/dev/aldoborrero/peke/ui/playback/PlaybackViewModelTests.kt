@@ -537,6 +537,40 @@ class PlaybackViewModelTests {
         }
 
     @Test
+    fun `The queue row lists the episodes to come`() =
+        runTest(testDispatcher) {
+            val first = Playlist.fromMedia(List(Playlist.EPISODES_WINDOW) { BaseItem(movie(name = "Episode $it")) })
+            val second = Playlist.fromMedia(List(Playlist.EPISODES_WINDOW) { BaseItem(movie(name = "Episode 1$it")) })
+            val third = Playlist.fromMedia(List(3) { BaseItem(movie(name = "Episode 2$it")) })
+            val afterFirst = EpisodesContinuation(UUID.randomUUID(), null, first.items.last().id)
+            val afterSecond = afterFirst.copy(afterEpisodeId = second.items.last().id)
+            coEvery { mockUserLibraryApi.getItem(playlist.id, any()) } returns successResponse(playlist)
+            coEvery {
+                mockPlaylistCreator.createFrom(
+                    item = playlist,
+                    startIndex = any(),
+                    sortAndDirection = any(),
+                    shuffled = any(),
+                    recursive = any(),
+                    filter = any(),
+                )
+            } returns PlaylistCreationResult.Success(first.copy(continuation = afterFirst))
+            coEvery { mockPlaylistCreator.continueEpisodes(afterFirst) } returns second.copy(continuation = afterSecond)
+            coEvery { mockPlaylistCreator.continueEpisodes(afterSecond) } returns third
+
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            Assert.assertEquals(Playlist.EPISODES_WINDOW - 1, viewModel.state.value.upcomingItems.size)
+
+            viewModel.onQueueShown()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.state.value.also { state ->
+                Assert.assertEquals((first.items + second.items + third.items).map { it.id }, state.playlist.items.map { it.id })
+                Assert.assertNull(state.playlist.continuation)
+            }
+        }
+
+    @Test
     fun playItemInPlaylist() =
         runTest(testDispatcher) {
             setupForPlaylist()

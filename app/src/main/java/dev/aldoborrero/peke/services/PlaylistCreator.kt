@@ -86,9 +86,20 @@ class PlaylistCreator
         }
 
         /**
-         * The next window of an in-order queue of episodes
+         * The next window of an in-order queue of episodes. A window of only missing (virtual) episodes adds nothing,
+         * so the one after it is read then, until one adds episodes or the series ends.
          */
         suspend fun continueEpisodes(continuation: EpisodesContinuation): Playlist {
+            var next: EpisodesContinuation? = continuation
+            while (next != null) {
+                val window = episodesAfter(next)
+                if (window.items.isNotEmpty() || window.continuation == null) return window
+                next = window.continuation
+            }
+            return Playlist(emptyList())
+        }
+
+        private suspend fun episodesAfter(continuation: EpisodesContinuation): Playlist {
             val limit = Playlist.EPISODES_WINDOW + 1
             val request =
                 GetEpisodesRequest(

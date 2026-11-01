@@ -514,6 +514,7 @@ fun PlaybackPageContent(
                 trickplayUrlFor = viewModel::getTrickplayUrl,
                 queue = remember(state.playlistIndex, state.playlist) { state.upcomingItems },
                 onClickPlaylist = viewModel::playItemInPlaylist,
+                onQueueShown = viewModel::onQueueShown,
                 moreItems = kidsSuggestions,
                 onClickMore = onClickSuggestion,
                 currentSegment = state.currentSegment?.segment,
