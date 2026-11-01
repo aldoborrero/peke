@@ -21,6 +21,7 @@ import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.ExtrasService
 import dev.aldoborrero.peke.services.FavoriteWatchManager
+import dev.aldoborrero.peke.services.ItemHandOver
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
@@ -93,6 +94,7 @@ class SeriesViewModel
         private val userPreferencesService: UserPreferencesService,
         private val backdropService: BackdropService,
         private val mediaManagementService: MediaManagementService,
+        private val itemHandOver: ItemHandOver,
         @Assisted val seriesId: UUID,
         @Assisted val seasonEpisodeIds: SeasonEpisodeIds?,
         @Assisted val seriesPageType: SeriesPageType,
@@ -123,10 +125,12 @@ class SeriesViewModel
                 Timber.v("Start")
                 val series =
                     try {
-                        api.userLibraryApi
-                            .getItem(seriesId)
-                            .content
-                            .let { BaseItem(it) }
+                        // A season opened from the series page gets the series it just read
+                        itemHandOver.takeIf { seriesPageType == SeriesPageType.OVERVIEW }?.take(seriesId)
+                            ?: api.userLibraryApi
+                                .getItem(seriesId)
+                                .content
+                                .let { BaseItem(it) }
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -513,6 +517,10 @@ class SeriesViewModel
         }
 
         fun navigateTo(destination: Destination) {
+            if (seriesPageType == SeriesPageType.DETAILS && destination is Destination.SeriesOverview && destination.itemId == seriesId) {
+                state.value.series.successValue
+                    ?.let { itemHandOver.put(it) }
+            }
             navigationManager.navigateTo(destination)
         }
 
