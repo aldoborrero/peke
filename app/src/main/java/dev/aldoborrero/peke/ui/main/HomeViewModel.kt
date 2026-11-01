@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.ui.main
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +13,7 @@ import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.HomePagePreferences
 import dev.aldoborrero.peke.services.BackdropService
+import dev.aldoborrero.peke.services.DatePlayedService
 import dev.aldoborrero.peke.services.FavoriteWatchManager
 import dev.aldoborrero.peke.services.HomePageResolvedSettings
 import dev.aldoborrero.peke.services.HomeRowConfigDisplay
@@ -50,8 +52,13 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
+import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/** Away from the home this long, it's read again whole on return, see [HomeViewModel.refreshWatching] */
+private val RELOAD_AFTER = 30.minutes
 
 @HiltViewModel
 class HomeViewModel
@@ -68,6 +75,7 @@ class HomeViewModel
         private val userPreferencesService: UserPreferencesService,
         private val mediaManagementService: MediaManagementService,
         private val latestNextUpService: LatestNextUpService,
+        private val datePlayedService: DatePlayedService,
     ) : ViewModel() {
         private val _state = MutableStateFlow(HomeState.EMPTY)
         val state: StateFlow<HomeState> = _state
@@ -79,6 +87,10 @@ class HomeViewModel
 
         /** Whether the home was left since it last started, see [refreshWatching] */
         private var left = false
+
+        /** When the home was last left, on the elapsed realtime clock, and on which day, see [refreshWatching] */
+        private var leftAt = 0L
+        private var leftOn: LocalDate? = null
 
         init {
             serverRepository.currentUserDtoFlow
@@ -148,21 +160,33 @@ class HomeViewModel
          */
         fun onLeft() {
             left = true
+            leftAt = SystemClock.elapsedRealtime()
+            leftOn = LocalDate.now()
         }
 
         /**
-         * Coming back to the home: only the rows of what is being watched can have changed, so only they are read
-         * again. Without a loaded home this is [init]. The home's first start isn't a return: the load is already
-         * running or has just finished.
+         * Coming back to the home: after a short while only the rows of what is being watched can have changed, so
+         * only they are read again. After [RELOAD_AFTER] away, or on another day, every row is read again, and the
+         * dates played too: new items, other suggestions. Without a loaded home this is [init]. The home's first start
+         * isn't a return: the load is already running or has just finished.
          */
         fun refreshWatching() {
             if (!left) return
             left = false
+            val longAway =
+                SystemClock.elapsedRealtime() - leftAt > RELOAD_AFTER.inWholeMilliseconds || leftOn != LocalDate.now()
             viewModelScope.launchIO {
                 val userDto = serverRepository.currentUserDto ?: return@launchIO
                 val current = state.value
                 if (current.loadingState != LoadingState.Success || current.settings.userId != userDto.id) {
                     init()
+                    return@launchIO
+                }
+                if (longAway) {
+                    Timber.d("Back after a long time: reloading the whole home")
+                    datePlayedService.invalidateAll()
+                    dataLoadingJob?.cancel()
+                    dataLoadingJob = viewModelScope.launchIO { loadHomeRows(userDto, current.settings) }
                     return@launchIO
                 }
                 if (dataLoadingJob?.isActive == true) return@launchIO
