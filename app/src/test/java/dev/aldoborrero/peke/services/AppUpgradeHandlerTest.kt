@@ -13,6 +13,7 @@ import dev.aldoborrero.peke.kids.setup.KidSignOut
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -76,6 +77,9 @@ class AppUpgradeHandlerTest {
     fun `users who are no kids are signed out and deleted, and the old lock key and PINs go`() =
         runTest(UnconfinedTestDispatcher()) {
             http.on("POST", "/Sessions/Logout", 204)
+            // The SDK sends the logout on an OkHttp thread, which advanceUntilIdle doesn't wait for
+            val loggedOut = CompletableDeferred<Unit>()
+            http.onRequest = { if (it.path == "/Sessions/Logout") loggedOut.complete(Unit) }
             appDb.serverDao().addOrUpdateServer(server)
             val admin = user("admin")
             val kid = user("kid", pin = "1234")
@@ -94,6 +98,7 @@ class AppUpgradeHandlerTest {
 
             handler.keepOnlyKids()
             advanceUntilIdle()
+            loggedOut.await()
 
             val users = appDb.serverDao().getServer(server.id)!!.users
             assertEquals(listOf(kid.rowId), users.map { it.rowId })
