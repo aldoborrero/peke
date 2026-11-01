@@ -53,7 +53,6 @@ import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
-import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
@@ -81,12 +80,13 @@ class SearchViewModel
     ) : ViewModel(),
         ContextMenuProvider {
         /**
-         * The kids result cards show the picture, title and progress, which come without extra fields; the overview,
-         * sort name, versions, delete right and other image types are for the grown-up grid details and item menus
+         * The kids result rows show the picture, title and progress, which come without extra fields, and one image of
+         * each type: the picture can be the series' or the parent's when the item has none. The overview, sort name,
+         * versions and delete right are for the grown-up grid, which combined results show to kids too.
          */
-        private val resultFields: List<ItemFields>? get() = if (kidsModeService.isActive) null else SlimItemFields
-        private val resultImageTypeLimit: Int? get() = if (kidsModeService.isActive) 1 else null
-        private val resultImageTypes: List<ImageType>? get() = if (kidsModeService.isActive) listOf(ImageType.PRIMARY) else null
+        private val kidsRows: Boolean get() = kidsModeService.isActive && !combinedMode
+        private val resultFields: List<ItemFields>? get() = if (kidsRows) null else SlimItemFields
+        private val resultImageTypeLimit: Int? get() = if (kidsRows) 1 else null
 
         private val _state = MutableStateFlow(SearchState())
         val state: StateFlow<SearchState> = _state
@@ -265,7 +265,6 @@ class SearchViewModel
                                         includeItemTypes = listOf(type),
                                         fields = resultFields,
                                         imageTypeLimit = resultImageTypeLimit,
-                                        enableImageTypes = resultImageTypes,
                                         limit = SEARCH_LIMIT,
                                         enableTotalRecordCount = false,
                                     )
@@ -297,7 +296,6 @@ class SearchViewModel
                             includeItemTypes = state.value.includedSearchableTypes,
                             fields = resultFields,
                             imageTypeLimit = resultImageTypeLimit,
-                            enableImageTypes = resultImageTypes,
                             limit = SEARCH_LIMIT,
                             enableTotalRecordCount = false,
                         )
