@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.updateSearchPreferences
 import dev.aldoborrero.peke.services.FavoriteWatchManager
@@ -52,6 +53,8 @@ import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
 import java.util.UUID
@@ -74,8 +77,17 @@ class SearchViewModel
         private val liveTvService: LiveTvService,
         private val keyValueService: KeyValueService,
         private val navDrawerService: NavDrawerService,
+        private val kidsModeService: KidsModeService,
     ) : ViewModel(),
         ContextMenuProvider {
+        /**
+         * The kids result cards show the picture, title and progress, which come without extra fields; the overview,
+         * sort name, versions, delete right and other image types are for the grown-up grid details and item menus
+         */
+        private val resultFields: List<ItemFields>? get() = if (kidsModeService.isActive) null else SlimItemFields
+        private val resultImageTypeLimit: Int? get() = if (kidsModeService.isActive) 1 else null
+        private val resultImageTypes: List<ImageType>? get() = if (kidsModeService.isActive) listOf(ImageType.PRIMARY) else null
+
         private val _state = MutableStateFlow(SearchState())
         val state: StateFlow<SearchState> = _state
         val position = MutableStateFlow(RowColumn(0, 0))
@@ -230,7 +242,7 @@ class SearchViewModel
                                 api.artistsApi
                                     .getArtists(
                                         searchTerm = query,
-                                        fields = SlimItemFields,
+                                        fields = resultFields,
                                         limit = SEARCH_LIMIT,
                                         enableTotalRecordCount = false,
                                     ).toBaseItems(api, false)
@@ -240,7 +252,7 @@ class SearchViewModel
                                 api.personsApi
                                     .getPersons(
                                         searchTerm = query,
-                                        fields = SlimItemFields,
+                                        fields = resultFields,
                                         limit = SEARCH_LIMIT,
                                     ).toBaseItems(api, false)
                             }
@@ -251,7 +263,9 @@ class SearchViewModel
                                         searchTerm = query,
                                         recursive = true,
                                         includeItemTypes = listOf(type),
-                                        fields = SlimItemFields,
+                                        fields = resultFields,
+                                        imageTypeLimit = resultImageTypeLimit,
+                                        enableImageTypes = resultImageTypes,
                                         limit = SEARCH_LIMIT,
                                         enableTotalRecordCount = false,
                                     )
@@ -281,7 +295,9 @@ class SearchViewModel
                             searchTerm = query,
                             recursive = true,
                             includeItemTypes = state.value.includedSearchableTypes,
-                            fields = SlimItemFields,
+                            fields = resultFields,
+                            imageTypeLimit = resultImageTypeLimit,
+                            enableImageTypes = resultImageTypes,
                             limit = SEARCH_LIMIT,
                             enableTotalRecordCount = false,
                         )
