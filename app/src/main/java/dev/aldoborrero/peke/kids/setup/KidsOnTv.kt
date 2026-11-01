@@ -141,7 +141,7 @@ class KidsOnTvViewModel
                     setUp.kids.map {
                         PickerKid(
                             it,
-                            api.imageApi.getUserImageUrl(it.id, maxHeight = ImageUrlService.USER_IMAGE_MAX_HEIGHT),
+                            api.imageApi.getUserImageUrl(it.id, maxHeight = ImageUrlService.userImageMaxHeight),
                             needsGrownUp(it),
                         )
                     },

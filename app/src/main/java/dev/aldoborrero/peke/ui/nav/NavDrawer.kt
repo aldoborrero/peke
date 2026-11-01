@@ -160,8 +160,7 @@ class NavDrawerViewModel
             _state.update { it.copy(selectedIndex = index) }
         }
 
-        fun getUserImage(user: JellyfinUser): String =
-            api.imageApi.getUserImageUrl(user.id, maxHeight = ImageUrlService.USER_IMAGE_MAX_HEIGHT)
+        fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id, maxHeight = ImageUrlService.userImageMaxHeight)
 
         /**
          * The avatar a grown-up picked for [user] in the Kids plugin, if any

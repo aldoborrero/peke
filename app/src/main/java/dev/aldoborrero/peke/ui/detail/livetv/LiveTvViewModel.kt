@@ -157,7 +157,7 @@ class LiveTvViewModel
                                         imageUrlService.getItemImageUrl(
                                             itemId = it.id,
                                             imageType = ImageType.PRIMARY,
-                                            maxHeight = ImageUrlService.CHANNEL_IMAGE_MAX_HEIGHT,
+                                            maxHeight = ImageUrlService.channelImageMaxHeight,
                                             tag = it.imageTags?.get(ImageType.PRIMARY),
                                         ),
                                     favorite = it.userData?.isFavorite == true,

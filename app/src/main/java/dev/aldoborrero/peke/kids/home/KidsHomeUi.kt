@@ -217,7 +217,7 @@ fun KidsHomeCard(
                         imageUrlService.getItemImageUrl(
                             itemId = picture.channelId,
                             imageType = ImageType.PRIMARY,
-                            maxHeight = ImageUrlService.CHANNEL_IMAGE_MAX_HEIGHT,
+                            maxHeight = ImageUrlService.channelImageMaxHeight,
                             tag = it,
                         )
                     }
