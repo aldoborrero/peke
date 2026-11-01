@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.util
 
 import android.os.SystemClock
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.aldoborrero.peke.ui.launchIO
@@ -39,7 +40,7 @@ class TrackActivityPlaybackListener(
         object : TimerTask() {
             override fun run() {
                 try {
-                    saveActivity(-1L, fromTimer = true)
+                    reportFromTimer()
                 } catch (ex: Exception) {
                     Timber.w(ex, "Exception during track activity timer")
                 }
@@ -113,6 +114,23 @@ class TrackActivityPlaybackListener(
         }
     }
 
+    /**
+     * A seek while paused is reported at once: the timer reports only once a minute while paused
+     */
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        if (initialized && reason == Player.DISCONTINUITY_REASON_SEEK && !player.playWhenReady) {
+            saveActivity(-1)
+        }
+    }
+
+    /** The timer's report, every 5 s */
+    @VisibleForTesting
+    internal fun reportFromTimer() = saveActivity(-1L, fromTimer = true)
+
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) {
             Timber.v("onPlaybackStateChanged STATE_ENDED")
@@ -122,7 +140,8 @@ class TrackActivityPlaybackListener(
 
     /**
      * Report the progress. The timer's reports while paused are sent only every [PAUSED_REPORT_INTERVAL], enough to
-     * keep the session alive on the server: pausing and resuming report straight away.
+     * keep the session alive on the server: pausing, resuming and seeking report straight away. Buffering isn't a
+     * pause: the player isn't playing then, but is to play, and its reports go on.
      */
     private fun saveActivity(
         position: Long,
@@ -135,9 +154,10 @@ class TrackActivityPlaybackListener(
                         (if (position >= 0) position else player.currentPosition)
                     }
                 if (calcPosition > 0) {
-                    val isPaused = withContext(PekeDispatchers.Main) { !player.isPlaying }
+                    val (isPaused, pausedByUser) =
+                        withContext(PekeDispatchers.Main) { !player.isPlaying to !player.playWhenReady }
                     val now = SystemClock.elapsedRealtime()
-                    if (fromTimer && isPaused && now - lastReported < PAUSED_REPORT_INTERVAL.inWholeMilliseconds) {
+                    if (fromTimer && pausedByUser && now - lastReported < PAUSED_REPORT_INTERVAL.inWholeMilliseconds) {
                         return@let
                     }
                     lastReported = now
