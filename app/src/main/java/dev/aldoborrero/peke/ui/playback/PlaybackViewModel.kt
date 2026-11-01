@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.annotation.VisibleForTesting
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.Density
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
@@ -99,6 +100,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -391,6 +393,12 @@ class PlaybackViewModel
                 }
 
             viewModelScope.launch(ExceptionHandler()) { controllerViewState.observe() }
+            // The trickplay sheets are fetched once the controls open, so a seek right after shows its previews
+            viewModelScope.launch(ExceptionHandler()) {
+                snapshotFlow { controllerViewState.controlsVisible }
+                    .filter { it }
+                    .collect { prefetchTrickplayFromPosition() }
+            }
 
             val played =
                 play(
@@ -587,7 +595,7 @@ class PlaybackViewModel
                             ?.firstOrNull()
                     }
 
-                // The sheets are fetched when a preview first shows, not for kids who never seek
+                // The sheets are fetched when the controls first open, not for kids who never open them
                 trickplayToPrefetch.set(
                     trickPlayInfo?.let { trickplayInfo ->
                         mediaSource.runTimeTicks?.ticks?.let { duration ->
@@ -1075,16 +1083,33 @@ class PlaybackViewModel
 
         private val trickplayToPrefetch = AtomicReference<TrickplayPrefetch?>(null)
 
+        /**
+         * The controls opened: fetch the item's sheets, the one at the playing position first, which a seek shows
+         * first
+         */
+        private suspend fun prefetchTrickplayFromPosition() {
+            val prefetch = trickplayToPrefetch.getAndSet(null) ?: return
+            val info = prefetch.trickplayInfo
+            val positionMs = onMain { player.currentPosition }
+            val index = (positionMs / info.interval).toInt() / (info.tileWidth * info.tileHeight)
+            viewModelScope.launchIO { prefetchTrickplay(prefetch, first = index) }
+        }
+
+        /**
+         * @param shownIndex a sheet being shown, which the preview loads itself
+         * @param first the sheet to fetch first
+         */
         private fun prefetchTrickplay(
             prefetch: TrickplayPrefetch,
-            shownIndex: Int,
+            shownIndex: Int? = null,
+            first: Int? = null,
         ) {
             val trickplayInfo = prefetch.trickplayInfo
             val tilesPerImage = trickplayInfo.tileWidth * trickplayInfo.tileHeight
             val totalCount =
                 (prefetch.duration.inWholeMilliseconds / trickplayInfo.interval).toInt() / tilesPerImage + 1
-            // The sheet being shown is loaded by the preview itself
-            (0..<totalCount).filter { it != shownIndex }.forEach {
+            val order = (0..<totalCount).sortedBy { if (it == first) -1 else it }
+            order.filter { it != shownIndex }.forEach {
                 val url = trickplayUrl(it, trickplayInfo, prefetch.mediaSourceId)
                 context.imageLoader.enqueue(
                     ImageRequest
@@ -1098,9 +1123,12 @@ class PlaybackViewModel
             }
         }
 
-        /** The URL of a sheet a preview shows; the first preview of an item starts the prefetch of its sheets. */
+        /**
+         * The URL of a sheet a preview shows. The sheets are fetched when the controls open; a preview shown before
+         * that starts the fetch of the others.
+         */
         fun getTrickplayUrl(index: Int): String? {
-            trickplayToPrefetch.getAndSet(null)?.let { viewModelScope.launchIO { prefetchTrickplay(it, index) } }
+            trickplayToPrefetch.getAndSet(null)?.let { viewModelScope.launchIO { prefetchTrickplay(it, shownIndex = index) } }
             return trickplayUrl(
                 index,
                 state.value.currentMediaInfo.trickPlayInfo,
