@@ -11,7 +11,7 @@
 [![Jellyfin 12.x](https://img.shields.io/badge/Jellyfin-12.x-aa5cc3?style=flat-square)](https://jellyfin.org/)
 [![GPLv2 license](https://img.shields.io/badge/license-GPLv2-f4c430?style=flat-square)](LICENSE)
 
-[Install](#install) · [What it does](#what-it-does) · [How it works](#how-it-works) · [Building](#building) · [Contributing](#contributing) · [Credits](#credits)
+[Install](#install) · [What it does](#what-it-does) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Building](#building) · [Contributing](#contributing) · [Credits](#credits)
 
 </div>
 
@@ -60,6 +60,21 @@ Peke checks its own GitHub releases for updates, and a grown-up installs them fr
 | **Grown-up setup screen** | A grown-up profile opens a short screen: kids settings, Peke's settings, Quick Connect, the user list and licenses. It never opens browsing or playback. |
 | **Direct play first** | ExoPlayer with the FFmpeg and AV1 decoders, and MPV, so most files play without server transcoding. |
 | **English and Spanish** | The whole app, kids' screens included. |
+
+## Screenshots
+
+Peke on a 1080p Android TV emulator, in the default PekeTV theme, against a demo server with two made-up kids, Leo
+and Mia. Select a picture to see it full size.
+
+| | |
+|---|---|
+| [<img src="docs/assets/screenshots/thumbs/kids-picker.webp" alt="Who's watching? screen with Leo's and Mia's avatars" width="100%">](docs/assets/screenshots/kids-picker.webp)<br>Each kid finds their own face on the picker. | [<img src="docs/assets/screenshots/thumbs/home.webp" alt="Leo's home with his picks and a focused film" width="100%">](docs/assets/screenshots/home.webp)<br>Leo's home: his picks, his library and the time he has left today. |
+| [<img src="docs/assets/screenshots/thumbs/home-sidebar.webp" alt="Leo's home with the sidebar open" width="100%">](docs/assets/screenshots/home-sidebar.webp)<br>The sidebar holds search, favourites, live TV and the way in for grown-ups. | [<img src="docs/assets/screenshots/thumbs/film-details.webp" alt="Details page for Big Buck Bunny" width="100%">](docs/assets/screenshots/film-details.webp)<br>A film's page, with Play, watched and favourite. |
+| [<img src="docs/assets/screenshots/thumbs/season.webp" alt="Season page for Caminandes with three episodes" width="100%">](docs/assets/screenshots/season.webp)<br>A season and its episodes. | [<img src="docs/assets/screenshots/thumbs/search.webp" alt="Search results for a kid" width="100%">](docs/assets/screenshots/search.webp)<br>Search, for kids a grown-up lets search. |
+| [<img src="docs/assets/screenshots/thumbs/live-tv.webp" alt="Live TV with the PekeTV channel" width="100%">](docs/assets/screenshots/live-tv.webp)<br>Live TV shows the channels a grown-up picked, with what's on now and next. | [<img src="docs/assets/screenshots/thumbs/player-paused.webp" alt="Player paused on Big Buck Bunny" width="100%">](docs/assets/screenshots/player-paused.webp)<br>The player, paused. |
+| [<img src="docs/assets/screenshots/thumbs/times-up.webp" alt="Time's up screen for Mia" width="100%">](docs/assets/screenshots/times-up.webp)<br>When Mia's time runs out, the buddy says goodbye. The lock in the corner is for grown-ups. | [<img src="docs/assets/screenshots/thumbs/parent-gate.webp" alt="Parent code prompt" width="100%">](docs/assets/screenshots/parent-gate.webp)<br>The parent code, typed with the remote. |
+| [<img src="docs/assets/screenshots/thumbs/screensaver.webp" alt="Screensaver with the sleeping buddy" width="100%">](docs/assets/screenshots/screensaver.webp)<br>The screensaver. | [<img src="docs/assets/screenshots/thumbs/setup-server.webp" alt="Setup screen asking for the Jellyfin server" width="100%">](docs/assets/screenshots/setup-server.webp)<br>Setup starts with the server address. |
+| [<img src="docs/assets/screenshots/thumbs/home-papel-theme.webp" alt="Leo's home in the light Papel theme" width="100%">](docs/assets/screenshots/home-papel-theme.webp)<br>Papel, the light theme for daytime. Mandarina and Caramelo are the other two. | |
 
 ## How it works
 
@@ -111,6 +126,9 @@ change, and [DEVELOPMENT.md](DEVELOPMENT.md) for how the code is laid out.
   direct play profile code Wholphin adapted.
 - The Jellyfin Kotlin SDK developers and the authors of every library Peke uses. The license screen in the app lists
   them all.
+- The Blender Foundation for the open films in the screenshots: Big Buck Bunny, Elephants Dream, Sintel, Spring,
+  Cosmos Laundromat, Agent 327 and Caminandes, all licensed CC BY ([Blender Studio](https://studio.blender.org/films/)).
+  Leo and Mia are made-up kids on a demo server.
 
 ## License
 
