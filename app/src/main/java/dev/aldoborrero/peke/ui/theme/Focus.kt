@@ -32,6 +32,7 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.invalidatePlacement
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.CardBorder
@@ -74,6 +75,31 @@ object PekeFocus {
      */
     fun scale(kidScreen: Boolean): Float = if (kidScreen) KID_SCALE else 1f
 
+    /**
+     * How far the focus draws past each edge of an item [size] long: half its growth when it [grow]s, then the border
+     * and the ring, which grow with it
+     */
+    fun outset(
+        size: Dp,
+        grow: Boolean,
+    ): Dp {
+        val scale = if (grow) KID_SCALE else 1f
+        return size * (scale - 1) / 2 + (BorderWidth + RingWidth) * scale
+    }
+
+    /**
+     * Room left between a focused item's ring and whatever is next to it
+     */
+    val Spare = 4.dp
+
+    /**
+     * The gap that keeps a focused item [size] long, its border and its ring clear of its neighbour
+     */
+    fun clearance(
+        size: Dp,
+        grow: Boolean = true,
+    ): Dp = outset(size, grow) + Spare
+
     val surfaceScale: ClickableSurfaceScale = ClickableSurfaceScale.None
 
     val cardScale: CardScale = CardScale.None
@@ -106,28 +132,38 @@ val LocalPekeFocusScale = compositionLocalOf { true }
 
 /**
  * Draws Peke's focus around this item, in [shape], while the focusable after it in the chain has focus: the item
- * grows (on kid screens), rises above its neighbours, and gets the border and the ring outside its edge
+ * grows (on kid screens, unless not [grow]), rises above its neighbours, and gets the border and the ring outside its edge
+ *
+ *  grow false for rows that must keep their place, such as the sidebar's, which change only colour, border and
+ * ring
  */
-fun Modifier.pekeFocus(shape: Shape): Modifier = this then PekeFocusElement(shape)
+fun Modifier.pekeFocus(
+    shape: Shape,
+    grow: Boolean = true,
+): Modifier = this then PekeFocusElement(shape, grow)
 
 private data class PekeFocusElement(
     val shape: Shape,
+    val grow: Boolean,
 ) : ModifierNodeElement<PekeFocusNode>() {
-    override fun create() = PekeFocusNode(shape)
+    override fun create() = PekeFocusNode(shape, grow)
 
     override fun update(node: PekeFocusNode) {
         node.shape = shape
+        node.grow = grow
         node.invalidateDraw()
     }
 
     override fun InspectorInfo.inspectableProperties() {
         name = "pekeFocus"
         properties["shape"] = shape
+        properties["grow"] = grow
     }
 }
 
 private class PekeFocusNode(
     var shape: Shape,
+    var grow: Boolean,
 ) : Modifier.Node(),
     FocusEventModifierNode,
     LayoutModifierNode,
@@ -144,7 +180,7 @@ private class PekeFocusNode(
     override fun onFocusEvent(focusState: FocusState) {
         if (focusState.isFocused == focused) return
         focused = focusState.isFocused
-        val target = if (focused) PekeFocus.scale(currentValueOf(LocalPekeFocusScale)) else 1f
+        val target = if (focused && grow) PekeFocus.scale(currentValueOf(LocalPekeFocusScale)) else 1f
         coroutineScope.launch { scale.animateTo(target, tween(PekeFocus.ANIMATION_MILLIS)) }
         invalidatePlacement()
         invalidateDraw()

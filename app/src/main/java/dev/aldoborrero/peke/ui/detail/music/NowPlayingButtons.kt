@@ -75,6 +75,7 @@ fun NowPlayingButtons(
         ) {
             PlaybackButton(
                 iconRes = R.drawable.vector_settings,
+                label = R.string.more,
                 onClick = {
                     onControllerInteraction.invoke()
                     onClickMore.invoke()
@@ -85,6 +86,7 @@ fun NowPlayingButtons(
             )
             PlaybackButton(
                 iconRes = R.drawable.baseline_stop_24,
+                label = R.string.playback_stop,
                 onClick = {
                     onClickStop.invoke()
                 },

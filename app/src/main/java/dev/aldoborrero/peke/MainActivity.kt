@@ -30,6 +30,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import androidx.tv.material3.SurfaceDefaults
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -250,7 +251,11 @@ class MainActivity : AppCompatActivity() {
         viewModel.appStart(intent)
         setContent {
             MaterialTheme(colorScheme = tvColorScheme(PekeTvPalette)) {
-                Surface(Modifier.fillMaxSize()) {
+                // The page colour is DESIGN's background; tv-material's Surface would paint the surface colour
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                ) {
                     val userPreferences by userPreferencesService.flow.collectAsState(null)
                     if (userPreferences == null) {
                         // Show loading page if it is taking a while to get app preferences

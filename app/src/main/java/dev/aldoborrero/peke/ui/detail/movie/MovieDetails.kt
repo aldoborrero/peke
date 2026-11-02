@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.ui.detail.movie
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,12 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ExtrasItem
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.Person
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.ui.KidsChip
+import dev.aldoborrero.peke.kids.ui.KidsDetailsHeader
+import dev.aldoborrero.peke.kids.ui.KidsPlayButtons
+import dev.aldoborrero.peke.kids.ui.runtimeMinutes
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.RequestOrRestoreFocus
@@ -56,6 +64,7 @@ import dev.aldoborrero.peke.ui.detail.PlaylistDialog
 import dev.aldoborrero.peke.ui.letNotEmpty
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.DataLoadingState
@@ -305,60 +314,102 @@ fun MovieDetailsContent(
             modifier = Modifier.fillMaxSize(),
         ) {
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .bringIntoViewRequester(bringIntoViewRequester),
-                ) {
-                    MovieDetailsHeader(
-                        preferences = preferences,
-                        movie = movie,
-                        chosenStreams = state.chosenStreams,
-                        bringIntoViewRequester = bringIntoViewRequester,
-                        overviewOnClick = overviewOnClick,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                    )
-                    ExpandablePlayButtons(
-                        title = movie.title ?: "",
-                        resumePosition = resumePosition,
-                        watched = dto.userData?.played ?: false,
-                        favorite = dto.userData?.isFavorite ?: false,
-                        playOnClick = {
-                            position = HEADER_ROW
-                            playOnClick.invoke(it)
-                        },
-                        moreOnClick = moreOnClick,
-                        watchOnClick = watchOnClick,
-                        favoriteOnClick = favoriteOnClick,
-                        buttonOnFocusChanged = {
-                            if (it.isFocused) {
-                                position = HEADER_ROW
-                                scope.launch(ExceptionHandler()) {
-                                    bringIntoViewRequester.bringIntoView()
-                                }
+                if (LocalKidsMode.current.isActive) {
+                    // DetailsPekeTV for a film: poster, title, year and length, overview, Play and the round buttons
+                    KidsDetailsHeader(
+                        poster = movie,
+                        title = movie.name,
+                        overview = dto.overview,
+                        chips = {
+                            dto.productionYear?.let { KidsChip(text = it.toString()) }
+                            runtimeMinutes(dto.runTimeTicks?.ticks)?.let {
+                                KidsChip(text = pluralStringResource(R.plurals.kids_runtime, it, it))
                             }
                         },
-                        canDelete = canDelete,
-                        onConfirmDelete = onConfirmDelete,
-                        chooseVersionParams =
-                            remember(state.chosenStreams, movie, onChooseVersion) {
-                                ChooseVersionParams(
-                                    chosenStreams = state.chosenStreams,
-                                    mediaSources = movie.data.mediaSources.orEmpty(),
-                                    onChooseVersion = onChooseVersion,
-                                )
-                            },
+                        buttons = {
+                            KidsPlayButtons(
+                                playText = stringResource(if (resumePosition > Duration.ZERO) R.string.resume else R.string.play),
+                                resumePosition = resumePosition,
+                                watched = dto.userData?.played ?: false,
+                                favorite = dto.userData?.isFavorite ?: false,
+                                playOnClick = {
+                                    position = HEADER_ROW
+                                    playOnClick.invoke(it)
+                                },
+                                watchOnClick = watchOnClick,
+                                favoriteOnClick = favoriteOnClick,
+                                chooseVersionParams =
+                                    remember(state.chosenStreams, movie, onChooseVersion) {
+                                        ChooseVersionParams(
+                                            chosenStreams = state.chosenStreams,
+                                            mediaSources = movie.data.mediaSources.orEmpty(),
+                                            onChooseVersion = onChooseVersion,
+                                        )
+                                    },
+                            )
+                        },
+                        modifier =
+                            Modifier
+                                .padding(top = 48.cpx, start = 48.cpx, end = 48.cpx, bottom = 16.dp)
+                                .focusRequester(focusRequesters[HEADER_ROW])
+                                .focusGroup(),
+                    )
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                                .focusRequester(focusRequesters[HEADER_ROW]),
-                    )
+                                .bringIntoViewRequester(bringIntoViewRequester),
+                    ) {
+                        MovieDetailsHeader(
+                            preferences = preferences,
+                            movie = movie,
+                            chosenStreams = state.chosenStreams,
+                            bringIntoViewRequester = bringIntoViewRequester,
+                            overviewOnClick = overviewOnClick,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
+                        )
+                        ExpandablePlayButtons(
+                            title = movie.title ?: "",
+                            resumePosition = resumePosition,
+                            watched = dto.userData?.played ?: false,
+                            favorite = dto.userData?.isFavorite ?: false,
+                            playOnClick = {
+                                position = HEADER_ROW
+                                playOnClick.invoke(it)
+                            },
+                            moreOnClick = moreOnClick,
+                            watchOnClick = watchOnClick,
+                            favoriteOnClick = favoriteOnClick,
+                            buttonOnFocusChanged = {
+                                if (it.isFocused) {
+                                    position = HEADER_ROW
+                                    scope.launch(ExceptionHandler()) {
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
+                            canDelete = canDelete,
+                            onConfirmDelete = onConfirmDelete,
+                            chooseVersionParams =
+                                remember(state.chosenStreams, movie, onChooseVersion) {
+                                    ChooseVersionParams(
+                                        chosenStreams = state.chosenStreams,
+                                        mediaSources = movie.data.mediaSources.orEmpty(),
+                                        onChooseVersion = onChooseVersion,
+                                    )
+                                },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                                    .focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    }
                 }
             }
             state.people.takeIf { showPeople }.orEmpty().letNotEmpty { people ->

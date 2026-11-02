@@ -83,9 +83,24 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 
 - **Corners:** posters and episode cards 20–24 px, home cards 24, list rows 22, dialogs 36, buttons and chips fully
   rounded (pills), avatars round.
-- **Screen padding:** 48–64 px on the sides, 40–56 px top and bottom, so nothing sits in the TV's overscan edge.
-- **Gaps:** 20–24 px between cards in a row, 26–28 px between rows, 12–16 px inside lists.
+- **Screen padding:** Google's overscan-safe area, at least 64 px (48 dp) from the left and right edges and 36 px
+  (27 dp) from the top and bottom, for whatever must stay on screen: titles, buttons, the clock and the player's
+  controls; the boards' 40–56 px top and bottom already meet it. Rows that scroll sideways may run to the edge. Text
+  pills are at least their height, taller rather than cut when the TV's text is larger. The time-left bar and its
+  label keep a band of their own at the top or bottom edge: the kids home holds the time left in its header, and every
+  other page in the sidebar starts below the band (or ends above it), so the label never covers a title or the search
+  box, scrolled or not.
+- **Gaps:** 20–24 px between cards in a row, widened where a focused card's scale-up, border and ring need it to clear
+  the next card with room to spare (about 25 px between posters and 32 px between wide cards); 26–28 px between rows,
+  12–16 px inside lists. Every row and grid of cards leaves the same room at its ends and above its cards, so a
+  focused card is never cut and never touches a title, while unfocused cards still line up with the title above them;
+  a card's title starts at its left edge, and moves with it as the card grows. Rows as wide as the page or the
+  sidebar, such as the sidebar's, a seasons list's and the live guide's, don't scale up, so their ring fits the
+  padding. Buttons side by side or stacked keep the same rule: their gap grows beside a wide pill, which grows more
+  when focused, so a focused button's ring never touches the next one.
 - **Targets:** buttons are at least 52 px tall, main actions 72 px.
+- **TalkBack:** every button says what it does, icon-only ones included, in English and Spanish; Play and Pause
+  follow the state.
 
 ## Focus
 
@@ -94,8 +109,9 @@ The focused element must be obvious from the sofa:
 - an **8 px ring in the primary colour** (coral in PekeTV), and
 - a **6–8% scale-up** for cards and avatars.
 
-Never colour alone. In the grown-up screens the scale-up is dropped and only the border and ring remain. Motion is
-transform and opacity only, no blur, so cheap TV boxes keep up.
+Never colour alone. In the grown-up screens the scale-up is dropped and only the border and ring remain. Text fields
+take the same border and ring, not an underline. Motion is transform and opacity only, no blur, so cheap TV boxes keep
+up; when the TV removes animations, endless motion (the Skip Intro pulse, the screensaver's float) stays still.
 
 ## The PekeTV buddy
 
@@ -139,12 +155,13 @@ Each avatar sits on a round background in its own PekeTV colour:
 
 ## Icons
 
-Twenty icons on a 48 grid, used at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
+Twenty-two icons on a 48 grid (filter, the sliders on search and grids, and download, on the update page, joined the
+first twenty in spec 008), used at 48, 32 and 24 dp and converted to Android vector drawables, in two sets:
 - **Two-tone** (`assets/icons/`): filled shapes in the PekeTV colours with a navy `#1F2747` outline. The colours are
   baked in, so this set is **PekeTV only**, and it is **only ever drawn on a light surface**, a chip or a pill: its
   outline is the PekeTV background and disappears on it. No screen has such a surface yet, so the app doesn't use the
   set (`IconSpecTest` fails if code outside `PekeArt.kt` does).
-- **Outline** (`assets/icons/outline/`): the same twenty as single-colour strokes in `currentColor`, tinted at runtime.
+- **Outline** (`assets/icons/outline/`): the same icons as single-colour strokes in `currentColor`, tinted at runtime.
   Every dark screen uses this set. The collapsed sidebar draws icons that aren't selected in "text, secondary", so the
   rail stays quiet.
 

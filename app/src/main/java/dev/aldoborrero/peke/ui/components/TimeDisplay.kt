@@ -6,14 +6,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.util.LocalClock
 
 /**
- * Displays the [LocalClock] in the upper right corner of the parent [androidx.compose.foundation.layout.Box]
+ * Displays the [LocalClock] in the upper right corner of the parent [androidx.compose.foundation.layout.Box], inside
+ * the [SafeArea]
  */
 @Composable
 fun BoxScope.TimeDisplay(modifier: Modifier = Modifier) {
@@ -26,6 +27,6 @@ fun BoxScope.TimeDisplay(modifier: Modifier = Modifier) {
         modifier =
             modifier
                 .align(Alignment.TopEnd)
-                .padding(vertical = 16.dp, horizontal = 24.dp),
+                .padding(top = SafeArea.Vertical, end = SafeArea.Horizontal),
     )
 }

@@ -3,7 +3,6 @@ package dev.aldoborrero.peke.kids.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,8 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -128,10 +125,14 @@ fun KidsChannelRefusedPage(modifier: Modifier = Modifier) {
     }
 }
 
+/** The stop's message, where focus starts */
+const val KIDS_STOP_MESSAGE_TAG = "kids_stop_message"
+
 /**
  * A full screen message for children, narrated by the buddy in [mood], whose only action is Grown-ups, small in the
  * bottom corner, which opens the parent gate (design/DESIGN.md: friendly stops). Focus starts on the message, never on
- * Grown-ups (constitution V, spec 005 FR-013): OK there does nothing, and Down or Right reaches Grown-ups.
+ * Grown-ups (constitution V, spec 005 FR-013): OK there does nothing, and Down or Right reaches Grown-ups. The message
+ * holds focus without showing it, so it never looks like a button; Grown-ups shows the usual focus.
  */
 @Composable
 fun KidsGrownUpsMessage(
@@ -143,7 +144,6 @@ fun KidsGrownUpsMessage(
 ) {
     val messageFocus = remember { FocusRequester() }
     val grownUpsFocus = remember { FocusRequester() }
-    var messageFocused by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { messageFocus.tryRequestFocus() }
     Box(
         modifier =
@@ -165,23 +165,20 @@ fun KidsGrownUpsMessage(
                 contentDescription = null,
                 modifier = Modifier.height(200.dp),
             )
-            // Focusable so the remote has a place to start, but with no action
+            // Focusable so the remote has a place to start, but with no action and nothing drawn for it: no border,
+            // ring or scale, so it doesn't look like a button
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier =
                     Modifier
+                        .testTag(KIDS_STOP_MESSAGE_TAG)
                         .focusRequester(messageFocus)
                         .focusProperties {
                             down = grownUpsFocus
                             right = grownUpsFocus
-                        }.onFocusChanged { messageFocused = it.isFocused }
-                        .focusable()
-                        .border(
-                            width = 2.dp,
-                            color = if (messageFocused) MaterialTheme.colorScheme.border else Color.Transparent,
-                            shape = RoundedCornerShape(16.dp),
-                        ).padding(horizontal = 24.dp, vertical = 12.dp),
+                        }.focusable()
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
             ) {
                 Text(
                     text = title,

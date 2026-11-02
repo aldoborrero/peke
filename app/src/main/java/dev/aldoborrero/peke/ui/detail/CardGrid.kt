@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -73,6 +74,8 @@ import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.playback.isBackwardButton
 import dev.aldoborrero.peke.ui.playback.isForwardButton
 import dev.aldoborrero.peke.ui.playback.isPlayKeyUp
+import dev.aldoborrero.peke.ui.theme.FocusRoom
+import dev.aldoborrero.peke.ui.theme.bleedHorizontally
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.ExceptionHandler
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -100,6 +103,9 @@ data class GridItemDetails<T : CardGridItem>(
 
 /**
  * Shows a vertical grid of [CardGridItem]s
+ *
+ * @param kidsRoom the room a kid screen's grid leaves for a focused card, from the width of a column; it replaces
+ * [spacing]
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -119,6 +125,7 @@ fun <T : CardGridItem> CardGrid(
     columns: Int = 6,
     spacing: Dp = 16.dp,
     bringIntoViewSpec: BringIntoViewSpec = LocalBringIntoViewSpec.current,
+    kidsRoom: ((cellWidth: Dp) -> FocusRoom)? = null,
 ) {
     val startPosition =
         remember(initialPosition, pager.size) {
@@ -316,18 +323,22 @@ fun <T : CardGridItem> CardGrid(
             val density = LocalDensity.current
             var cardWidthPx by rememberSaveable { mutableIntStateOf(0) }
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier.weight(1f),
             ) {
+                // Kids: room for a focused card's scale-up, border and ring between the cards, above them and at the
+                // grid's sides, which the grid reaches past so the cards line up with the page while unfocused
+                val room = remember(kidsRoom, maxWidth, columns) { kidsRoom?.invoke(maxWidth / columns) }
                 CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
-                        horizontalArrangement = Arrangement.spacedBy(spacing),
-                        verticalArrangement = Arrangement.spacedBy(spacing),
+                        horizontalArrangement = Arrangement.spacedBy(room?.gap ?: spacing),
+                        verticalArrangement = Arrangement.spacedBy(room?.top ?: spacing),
                         state = gridState,
-                        contentPadding = PaddingValues(vertical = 16.dp),
+                        contentPadding = room?.padding ?: PaddingValues(vertical = 16.dp),
                         modifier =
                             Modifier
+                                .then(if (room != null) Modifier.bleedHorizontally(room.side) else Modifier)
                                 .fillMaxSize()
                                 .focusGroup()
                                 .focusRestorer(firstFocus)
@@ -338,8 +349,8 @@ fun <T : CardGridItem> CardGrid(
                                         }
                                     }
                                 }.onLayoutRectChanged(0, 0) {
-                                    val width = it.width
-                                    val spacingPx = with(density) { spacing.toPx() }
+                                    val width = it.width - with(density) { 2 * (room?.side ?: 0.dp).toPx() }
+                                    val spacingPx = with(density) { (room?.gap ?: spacing).toPx() }
                                     val cardWidth =
                                         ceil((width - (spacingPx * (columns - 1))) / columns)
                                     cardWidthPx = cardWidth.toInt()

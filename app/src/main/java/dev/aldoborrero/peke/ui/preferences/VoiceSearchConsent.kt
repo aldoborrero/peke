@@ -4,30 +4,49 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
-import dev.aldoborrero.peke.ui.components.BasicDialog
-import dev.aldoborrero.peke.ui.components.ConfirmDialog
-import dev.aldoborrero.peke.ui.components.TextButton
 import dev.aldoborrero.peke.ui.findActivity
+import dev.aldoborrero.peke.ui.theme.FocusRow
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.csp
+import dev.aldoborrero.peke.ui.theme.pekeFocus
+import dev.aldoborrero.peke.ui.tryRequestFocus
 
 private enum class ConsentStage {
     EXPLAIN,
@@ -60,47 +79,123 @@ fun VoiceSearchConsent(
         }
     when (stage) {
         ConsentStage.EXPLAIN -> {
-            ConfirmDialog(
+            MicCard(
                 title = stringResource(R.string.peke_voice_search_explain_title),
                 body = stringResource(R.string.peke_voice_search_explain),
-                onCancel = onDismissRequest,
+                confirm = stringResource(R.string.peke_voice_search_allow),
                 onConfirm = {
                     val granted =
                         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                             PackageManager.PERMISSION_GRANTED
                     if (granted) onEnabled() else launcher.launch(Manifest.permission.RECORD_AUDIO)
                 },
+                cancel = stringResource(R.string.peke_voice_search_not_now),
+                onDismissRequest = onDismissRequest,
             )
         }
 
         ConsentStage.DENIED, ConsentStage.DENIED_FOR_GOOD -> {
-            BasicDialog(
+            MicCard(
+                title = null,
+                body =
+                    stringResource(
+                        if (stage == ConsentStage.DENIED) {
+                            R.string.peke_voice_search_denied
+                        } else {
+                            R.string.peke_voice_search_denied_for_good
+                        },
+                    ),
+                confirm = stringResource(R.string.confirm),
+                onConfirm = onDismissRequest,
+                cancel = null,
                 onDismissRequest = onDismissRequest,
-                properties = DialogProperties(usePlatformDefaultWidth = false),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier =
-                        Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(.5f),
-                ) {
-                    Text(
-                        text =
-                            stringResource(
-                                if (stage == ConsentStage.DENIED) {
-                                    R.string.peke_voice_search_denied
-                                } else {
-                                    R.string.peke_voice_search_denied_for_good
-                                },
-                            ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                    )
-                    TextButton(stringRes = R.string.confirm, onClick = onDismissRequest)
-                }
+            )
+        }
+    }
+}
+
+/**
+ * The microphone question (OtherMicPekeTV): a 720 px card with the voice icon in tertiary, the title, the explanation
+ * and the buttons, the first one focused
+ */
+@Composable
+private fun MicCard(
+    title: String?,
+    body: String,
+    confirm: String,
+    onConfirm: () -> Unit,
+    cancel: String?,
+    onDismissRequest: () -> Unit,
+) {
+    val colors = LocalPekeColors.current
+    val focusRequester = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.cpx),
+            modifier =
+                Modifier
+                    .width(720.cpx)
+                    .background(colors.surface, RoundedCornerShape(36.cpx))
+                    .padding(40.cpx),
+        ) {
+            Icon(
+                painter = painterResource(PekeIcon.VOICE.outline),
+                contentDescription = null,
+                tint = colors.tertiary,
+                modifier = Modifier.size(120.cpx),
+            )
+            title?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = colors.text,
+                    textAlign = TextAlign.Center,
+                )
             }
+            Text(
+                text = body,
+                fontSize = 21.csp,
+                fontWeight = FontWeight.W800,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+            )
+            FocusRow(minGap = 16.cpx, modifier = Modifier.padding(top = 8.cpx)) {
+                MicPill(text = confirm, primary = true, onClick = onConfirm, modifier = Modifier.focusRequester(focusRequester))
+                cancel?.let { MicPill(text = it, primary = false, onClick = onDismissRequest) }
+            }
+        }
+    }
+    LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+}
+
+/**
+ * A 64 px pill: primary for the answer that goes on, the page colour for the other
+ */
+@Composable
+private fun MicPill(
+    text: String,
+    primary: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalPekeColors.current
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        scale = PekeFocus.surfaceScale,
+        border = PekeFocus.surfaceBorder(),
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = if (primary) colors.primary else colors.background,
+                contentColor = if (primary) colors.onPrimary else colors.text,
+                focusedContainerColor = colors.primary,
+                focusedContentColor = colors.onPrimary,
+            ),
+        modifier = modifier.height(64.cpx).pekeFocus(CircleShape),
+    ) {
+        Box(Modifier.height(64.cpx).padding(horizontal = 36.cpx), contentAlignment = Alignment.Center) {
+            Text(text = text, fontSize = 24.csp, fontWeight = if (primary) FontWeight.W900 else FontWeight.W800)
         }
     }
 }

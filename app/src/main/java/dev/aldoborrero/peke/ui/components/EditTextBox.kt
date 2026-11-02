@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,8 +25,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults.Container
@@ -34,8 +34,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -46,8 +56,14 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.ui.PreviewTvSpec
+import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.csp
+import dev.aldoborrero.peke.ui.theme.pekeFocus
 
 /**
  * An input field for text customized for TV entry
@@ -190,13 +206,7 @@ fun SearchEditTextBox(
         onKeyboardAction = {
             onSearchClick.invoke()
         },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        },
+        leadingIcon = { SearchIcon() },
         enabled = enabled,
         readOnly = readOnly,
         interactionSource = interactionSource,
@@ -222,6 +232,9 @@ fun EditTextBox(
     supportingText: @Composable (() -> Unit)? = null,
     placeholder: @Composable (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    focusLine: Boolean = true,
+    growWithText: Boolean = false,
 ) {
     val colors =
         TextFieldDefaults.colors(
@@ -242,11 +255,11 @@ fun EditTextBox(
                     .defaultMinSize(
                         minWidth = TextFieldDefaults.MinWidth,
                         minHeight = height,
-                    ).height(height),
+                    ).then(if (growWithText) Modifier.heightIn(min = height) else Modifier.height(height)),
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = MaterialTheme.typography.bodyLarge.merge(MaterialTheme.colorScheme.onSurface),
+            textStyle = textStyle.merge(MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(colors.cursorColor),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
@@ -302,7 +315,7 @@ fun EditTextBox(
                                 modifier = Modifier,
                                 colors = colors,
                                 shape = CircleShape,
-                                focusedIndicatorLineThickness = 4.dp,
+                                focusedIndicatorLineThickness = if (focusLine) 4.dp else 0.dp,
                                 unfocusedIndicatorLineThickness = 0.dp,
                             )
                         },
@@ -326,10 +339,12 @@ fun SearchEditTextBox(
     height: Dp = 40.dp,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val kids = LocalKidsMode.current.isActive
     EditTextBox(
         value,
         onValueChange,
-        modifier,
+        // Kids get Peke's border and ring, as on every other control, instead of the text field's line
+        if (kids) modifier.pekeFocus(CircleShape, grow = false) else modifier,
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,
@@ -342,17 +357,77 @@ fun SearchEditTextBox(
                     this.defaultKeyboardAction(ImeAction.Search)
                 },
             ),
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        },
+        leadingIcon = { SearchIcon(Modifier.padding(start = if (kids) 16.cpx else 0.dp)) },
         enabled = enabled,
         readOnly = readOnly,
-        height = height,
+        // KSearchPekeTV: a 72 px pill with 28 px text for kids
+        height = if (kids) 72.cpx else height,
+        textStyle =
+            if (kids) {
+                MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 28.csp,
+                    fontWeight = FontWeight.W900,
+                )
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
         interactionSource = interactionSource,
+        focusLine = !kids,
+        // Taller rather than cut when the TV's text is larger
+        growWithText = kids,
+    )
+}
+
+/**
+ * A search box's keys: OK starts typing ([onStartEditing] shows the keyboard) unless the kid is [editing], and the
+ * arrows move focus out of the box, so Down reaches the microphone or the results. Up and Down always leave, as a single
+ * line has nothing above or below, and the TV keyboard closes on Back without the page knowing typing ended; Left and
+ * Right move the cursor while typing. The text field lets arrows out only for a remote it knows as a D-pad; others, such
+ * as remotes that say they are keyboards, had them taken as cursor moves, and Down never left the box.
+ */
+fun Modifier.searchBoxKeys(
+    editing: Boolean,
+    focusManager: FocusManager,
+    onStartEditing: () -> Unit,
+): Modifier =
+    onPreviewKeyEvent { event ->
+        val direction = ArrowDirections[event.key]
+        when {
+            event.type == KeyEventType.KeyUp && !editing && (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
+                onStartEditing()
+                true
+            }
+
+            event.type == KeyEventType.KeyDown &&
+                direction != null &&
+                (!editing || direction == FocusDirection.Up || direction == FocusDirection.Down) -> {
+                focusManager.moveFocus(direction)
+            }
+
+            else -> {
+                false
+            }
+        }
+    }
+
+private val ArrowDirections =
+    mapOf(
+        Key.DirectionUp to FocusDirection.Up,
+        Key.DirectionDown to FocusDirection.Down,
+        Key.DirectionLeft to FocusDirection.Left,
+        Key.DirectionRight to FocusDirection.Right,
+    )
+
+/**
+ * Peke's search icon at the start of a search box, in the secondary colour
+ */
+@Composable
+private fun SearchIcon(modifier: Modifier = Modifier) {
+    Icon(
+        painter = painterResource(PekeIcon.SEARCH.outline),
+        contentDescription = stringResource(R.string.search),
+        tint = MaterialTheme.colorScheme.secondary,
+        modifier = modifier.size(32.cpx),
     )
 }
 
@@ -379,13 +454,7 @@ private fun EditTextBoxPreview() {
             )
             EditTextBox(
                 state = rememberTextFieldState("search"),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(R.string.search),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                },
+                leadingIcon = { SearchIcon() },
                 isInputValid = { true },
                 modifier = Modifier.width(280.dp),
             )

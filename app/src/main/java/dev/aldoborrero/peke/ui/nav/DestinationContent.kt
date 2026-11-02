@@ -11,6 +11,7 @@ import dev.aldoborrero.peke.data.filter.DefaultForGenresFilterOptions
 import dev.aldoborrero.peke.data.filter.DefaultForStudiosFilterOptions
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.livetv.KidsLiveGuide
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlayPage
 import dev.aldoborrero.peke.kids.ui.GrownUpGuard
@@ -39,7 +40,6 @@ import dev.aldoborrero.peke.ui.detail.PersonPage
 import dev.aldoborrero.peke.ui.detail.PlaylistDetails
 import dev.aldoborrero.peke.ui.detail.collection.CollectionDetails
 import dev.aldoborrero.peke.ui.detail.episode.EpisodeDetails
-import dev.aldoborrero.peke.ui.detail.livetv.TvGuideGrid
 import dev.aldoborrero.peke.ui.detail.movie.MovieDetails
 import dev.aldoborrero.peke.ui.detail.music.AlbumDetailsPage
 import dev.aldoborrero.peke.ui.detail.music.ArtistDetailsPage
@@ -102,6 +102,8 @@ internal fun DestinationPage(
 ) {
     when (destination) {
         is Destination.Home -> {
+            // The kids home has no backdrop (HomeRailPekeTV)
+            if (LocalKidsMode.current.isActive) LaunchedEffect(Unit) { onClearBackdrop.invoke() }
             HomePage(
                 preferences = preferences,
                 modifier = modifier,
@@ -161,11 +163,8 @@ internal fun DestinationPage(
         }
 
         Destination.KidsLiveTv -> {
-            TvGuideGrid(
-                preferences = preferences,
-                onRowPosition = {},
-                modifier = modifier.fillMaxSize(),
-            )
+            // The kid's channels as a list of cards (LiveGuidePekeTV) instead of Wholphin's guide grid
+            KidsLiveGuide(modifier = modifier.fillMaxSize())
         }
 
         // Only kids mode plays these directly, see above

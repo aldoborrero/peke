@@ -24,6 +24,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import androidx.tv.material3.SurfaceDefaults
 import dev.aldoborrero.peke.kids.setup.KidsOnTvPage
 import dev.aldoborrero.peke.kids.setup.KidsPicker
 import dev.aldoborrero.peke.kids.setup.NoKidsPage
@@ -58,6 +59,8 @@ fun MainContent(
             modifier
                 .background(MaterialTheme.colorScheme.background),
         shape = RectangleShape,
+        // DESIGN's background, not tv-material's default surface: cards and chips on surface stand out from the page
+        colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
     ) {
 //                            val backStack = rememberNavBackStack(SetupDestination.Loading)
 //                            setupNavigationManager.backStack = backStack

@@ -12,9 +12,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -35,11 +43,23 @@ import kotlin.time.Duration
 fun barMinutes(remaining: Duration): Int = ((remaining.inWholeSeconds + 59) / 60).toInt().coerceAtLeast(1)
 
 /**
+ * The room the time-left bar and its label take along the top or bottom edge, 0 where they don't show. The pages in the
+ * sidebar keep out of it, as the kids home keeps the time left in its header, so the label never covers a title or the
+ * search box, scrolled or not.
+ */
+@Stable
+class TimeLeftBand {
+    var top by mutableStateOf(0.dp)
+    var bottom by mutableStateOf(0.dp)
+}
+
+/**
  * The time left a kid sees (design/DESIGN.md: time left in the "time" colour): a bar along the top or bottom edge
  * and, next to it, the time-left icon with the minutes. From the plugin's first warning point ([nearEnd]) the bar grows
  * and the label gets bigger, together with the warning, and stays so until the end. Nothing flashes.
  *
  * @param position top or bottom; the caller shows nothing for [KidsTimerBarPosition.HIDDEN]
+ * @param band told the room the bar and label take, at the top or the bottom as [position], and 0 once they're gone
  */
 @Composable
 fun TimeLeftBar(
@@ -48,7 +68,22 @@ fun TimeLeftBar(
     nearEnd: Boolean,
     position: KidsTimerBarPosition,
     modifier: Modifier = Modifier,
+    band: TimeLeftBand? = null,
 ) {
+    val density = LocalDensity.current
+    var measured by remember { mutableStateOf(0.dp) }
+    // Read here, not in the effect, so a new size recomposes and reaches the band
+    val room = measured
+    SideEffect {
+        band?.top = if (position == KidsTimerBarPosition.TOP) room else 0.dp
+        band?.bottom = if (position == KidsTimerBarPosition.BOTTOM) room else 0.dp
+    }
+    DisposableEffect(band) {
+        onDispose {
+            band?.top = 0.dp
+            band?.bottom = 0.dp
+        }
+    }
     val colors = LocalPekeColors.current
     val fraction = (remaining / total).toFloat().coerceIn(0f, 1f)
     val height by animateDpAsState(if (nearEnd) 12.dp else 6.dp, label = "time left bar")
@@ -98,7 +133,7 @@ fun TimeLeftBar(
     }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().onSizeChanged { measured = with(density) { it.height.toDp() } },
     ) {
         if (position == KidsTimerBarPosition.BOTTOM) {
             label()

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -23,8 +24,10 @@ import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
+import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -110,16 +113,20 @@ fun ApplicationContent(
     viewModel: ApplicationContentViewModel = hiltViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val timeLeftBand = remember { TimeLeftBand() }
     Box(
         modifier = modifier,
     ) {
         val backdropStyle = preferences.appPreferences.interfacePreferences.backdropStyle
-        Backdrop(
-            drawerIsOpen = drawerState.isOpen,
-            backdropStyle = backdropStyle,
-            enableTopScrim = enableTopScrim,
-            viewModel = viewModel,
-        )
+        // Kid pages sit on the theme background, as on the canvas boards: no item art behind them
+        if (!LocalKidsMode.current.isActive) {
+            Backdrop(
+                drawerIsOpen = drawerState.isOpen,
+                backdropStyle = backdropStyle,
+                enableTopScrim = enableTopScrim,
+                viewModel = viewModel,
+            )
+        }
         val navDrawerListState = rememberLazyListState()
         // Peke is for kids: until it is known that the user is a kid nothing is shown, and anyone else goes back to the
         // launch rule
@@ -159,6 +166,7 @@ fun ApplicationContent(
                             navDrawerListState = navDrawerListState,
                             onClearBackdrop = viewModel::clearBackdrop,
                             modifier = Modifier.fillMaxSize(),
+                            timeLeftBand = timeLeftBand,
                         )
                     } else {
                         ErrorMessage("Trying to go to $key without a user logged in", null)
@@ -166,6 +174,6 @@ fun ApplicationContent(
                 }
             },
         )
-        KidsTimerEffects()
+        KidsTimerEffects(band = timeLeftBand)
     }
 }

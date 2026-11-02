@@ -3,9 +3,7 @@ package dev.aldoborrero.peke.ui.nav
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.animateIntOffsetAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.focusGroup
@@ -15,9 +13,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +43,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -52,8 +52,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -65,7 +66,6 @@ import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
@@ -73,8 +73,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.data.KidAvatars
+import dev.aldoborrero.peke.kids.home.rememberHomeTimeLeft
+import dev.aldoborrero.peke.kids.home.timeLeftText
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.KidAvatar
+import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.MusicService
@@ -88,8 +93,11 @@ import dev.aldoborrero.peke.ui.ifElse
 import dev.aldoborrero.peke.ui.launchDefault
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.spacedByWithFooter
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeAvatar
 import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
+import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.toServerString
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -275,6 +283,8 @@ private const val NOW_PLAYING_INDEX = -3
 
 /**
  * Display the left side navigation drawer with [DestinationContent] on the right
+ *
+ * @param timeLeftBand the room the kid's time-left bar takes at the top or bottom, which the page keeps out of
  */
 @Composable
 fun NavDrawer(
@@ -286,6 +296,7 @@ fun NavDrawer(
     navDrawerListState: LazyListState,
     onClearBackdrop: () -> Unit,
     modifier: Modifier = Modifier,
+    timeLeftBand: TimeLeftBand? = null,
     viewModel: NavDrawerViewModel =
         hiltViewModel(
             LocalView.current.findViewTreeViewModelStoreOwner()!!,
@@ -323,23 +334,8 @@ fun NavDrawer(
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
 
-    val closedDrawerWidth = CollapsedDrawerItemWidth
-    val openDrawerWidth = ExpandedDrawerItemWidth
-    val offset by animateIntOffsetAsState(
-        targetValue =
-            IntOffset(
-                x =
-                    with(density) {
-                        if (drawerState.isOpen) (openDrawerWidth - closedDrawerWidth).roundToPx() else 0
-                    },
-                y = 0,
-            ),
-        animationSpec =
-            spring(
-                stiffness = DrawerAnimationStiffness,
-                visibilityThreshold = IntOffset.VisibilityThreshold,
-            ),
-    )
+    // The open sidebar covers the page, which fades behind it (HomeDrawerPekeTV)
+    val contentAlpha by animateFloatAsState(if (drawerState.isOpen) .35f else 1f, label = "page behind the drawer")
 
     ModalNavigationDrawer(
         modifier = modifier,
@@ -349,10 +345,11 @@ fun NavDrawer(
         initialFocus = focusRequester,
         drawerContent = { drawerValue ->
             val isOpen = drawerValue.isOpen
-            val spacedBy = 4.dp
+            // HomeRailPekeTV: 18 px between the rail's tiles; HomeDrawerPekeTV: 12 px between the open rows
+            val spacedBy = if (isOpen) 12.cpx else 18.cpx
             val searchFocusRequester = remember { FocusRequester() }
 
-            ProvideTextStyle(MaterialTheme.typography.labelMedium) {
+            ProvideTextStyle(MaterialTheme.typography.bodyLarge.copy(fontSize = 24.csp)) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
@@ -362,11 +359,12 @@ fun NavDrawer(
                     val interactionSource = remember { MutableInteractionSource() }
                     val userImageUrl = remember(user) { viewModel.getUserImage(user) }
                     val avatar by remember(user) { viewModel.avatar(user) }.collectAsState(null)
+                    val timeLeft = rememberHomeTimeLeft()
                     ProfileIcon(
                         user = user,
                         imageUrl = userImageUrl,
                         avatar = avatar,
-                        serverName = server.name ?: server.url,
+                        timeLeft = timeLeft?.let { timeLeftText(it) },
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
                         onClick = {
@@ -379,6 +377,7 @@ fun NavDrawer(
                         },
                         modifier = Modifier,
                     )
+                    Spacer(Modifier.height(if (isOpen) 6.cpx else 16.cpx))
                     AnimatedVisibility(
                         visible = serviceState.nowPlayingEnabled && customization.allows(RestrictedFeature.NOW_PLAYING),
                         enter = expandVertically(expandFrom = Alignment.Top),
@@ -406,7 +405,8 @@ fun NavDrawer(
                     }
                     LazyColumn(
                         state = navDrawerListState,
-                        contentPadding = PaddingValues(0.dp),
+                        // Room for the first and last rows' focus rings, which the list would cut
+                        contentPadding = PaddingValues(vertical = DrawerRingRoom),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
                         modifier =
@@ -420,7 +420,8 @@ fun NavDrawer(
                                             focusRequester.tryRequestFocus()
                                         }
                                     }
-                                }.fillMaxHeight(),
+                                }.fillMaxHeight()
+                                .drawerRingRoom(),
                     ) {
                         if (customization.allows(RestrictedFeature.SEARCH)) {
                             item {
@@ -515,6 +516,7 @@ fun NavDrawer(
                                     text = stringResource(profileGate.title),
                                     icon = painterResource(profileGate.icon),
                                     selected = false,
+                                    small = true,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
                                     onClick = {
@@ -533,7 +535,8 @@ fun NavDrawer(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Drawer content
+            // Drawer content: the open sidebar covers it, and it fades to 35% behind (HomeDrawerPekeTV)
+            val kidsHome = destination is Destination.Home && LocalKidsMode.current.isActive
             DestinationContent(
                 destination = destination,
                 preferences = preferences,
@@ -541,11 +544,14 @@ fun NavDrawer(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .offset {
-                            offset
-                        }.padding(start = closedDrawerWidth + 8.dp, end = 16.dp),
+                        .graphicsLayer { alpha = contentAlpha }
+                        // Nothing scrolls under the time-left label: the page starts below it at the top, or ends above it at the bottom
+                        .padding(top = timeLeftBand?.top ?: 0.dp, bottom = timeLeftBand?.bottom ?: 0.dp)
+                        .padding(start = DrawerRailWidth + if (kidsHome) 0.dp else 8.dp, end = if (kidsHome) 0.dp else 16.dp),
             )
-            if (preferences.appPreferences.interfacePreferences.showClock) {
+            // The kids home and search show the clock in their own top row
+            val ownClock = LocalKidsMode.current.isActive && (kidsHome || destination is Destination.Search)
+            if (preferences.appPreferences.interfacePreferences.showClock && !ownClock) {
                 TimeDisplay()
             }
             shownProfileGate?.content?.invoke({ shownProfileGate = null }, afterProfileGate)
@@ -553,48 +559,64 @@ fun NavDrawer(
     }
 }
 
+/**
+ * The kid at the top of the sidebar: their avatar on the closed rail (64 px); open, a bigger avatar (72 px) with their
+ * name and, with a daily limit, the time left in the "time" colour (HomeDrawerPekeTV). Clicking it switches kid behind
+ * the parent gate; it never takes focus when the sidebar opens.
+ */
 @Composable
 fun NavigationDrawerScope.ProfileIcon(
     user: JellyfinUser,
     imageUrl: String?,
     avatar: PekeAvatar?,
-    serverName: String,
+    timeLeft: String?,
     drawerOpen: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
         modifier = modifier,
-        selected = false,
         onClick = onClick,
+        height = if (drawerOpen) 84.cpx else DrawerTileSize,
         leadingContent = {
             KidAvatar(
                 id = user.id,
                 name = user.name,
                 imageUrl = imageUrl,
                 avatar = avatar,
-                alpha = if (drawerOpen) 1f else .5f,
-                initialStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
-                modifier = Modifier.size(DrawerIconSize),
-            )
-        },
-        supportingContent = {
-            Text(
-                text = serverName,
-                maxLines = 1,
+                alpha = 1f,
+                initialStyle = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.size(if (drawerOpen) 72.cpx else 64.cpx),
             )
         },
         interactionSource = interactionSource,
     ) {
         Text(
-            modifier = Modifier,
             text = user.name ?: user.id.toString(),
+            fontSize = 26.csp,
+            fontWeight = FontWeight.W900,
+            color = drawerTextColor(current = true, focused = focused),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
+        timeLeft?.let {
+            Text(
+                text = it,
+                fontSize = 16.csp,
+                fontWeight = FontWeight.W800,
+                color = if (focused) LocalContentColor.current else LocalPekeColors.current.time,
+                maxLines = 1,
+            )
+        }
     }
 }
 
+/**
+ * A sidebar entry with [icon]; [small] for Grown-ups at the bottom, whose name is quieter (20 px). Its icon is the same
+ * size as the others', so the rail keeps one line of icons.
+ */
 @Composable
 fun NavigationDrawerScope.IconNavItem(
     text: String,
@@ -604,38 +626,30 @@ fun NavigationDrawerScope.IconNavItem(
     drawerOpen: Boolean,
     modifier: Modifier = Modifier,
     subtext: String? = null,
+    small: Boolean = false,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
         modifier = modifier,
-        selected = false,
         onClick = onClick,
+        current = selected,
         leadingContent = {
-            val color = navItemColor(selected, focused, drawerOpen)
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(DrawerIconSize),
-            )
+            Box(modifier = Modifier.size(DrawerIconSize), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = if (drawerOpen) null else text,
+                    tint = navItemColor(selected, focused, drawerOpen),
+                    modifier = Modifier.size(DrawerIconSize),
+                )
+            }
         },
-        supportingContent =
-            subtext?.let {
-                {
-                    Text(
-                        text = it,
-                        maxLines = 1,
-                    )
-                }
-            },
         interactionSource = interactionSource,
     ) {
-        Text(
-            modifier = Modifier,
-            text = text,
-            maxLines = 1,
-        )
+        DrawerItemText(text = text, current = selected, focused = focused, small = small)
+        subtext?.let {
+            Text(text = it, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        }
     }
 }
 
@@ -647,7 +661,6 @@ fun NavigationDrawerScope.NavItem(
     drawerOpen: Boolean,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    containerColor: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
     // The kids' entries use Peke's outline icons; libraries, which kids never see, keep Wholphin's
@@ -684,21 +697,18 @@ fun NavigationDrawerScope.NavItem(
             }
         }
     val focused by interactionSource.collectIsFocusedAsState()
+    val name = library.name(context)
     NavigationDrawerItem(
         modifier = modifier,
-        selected = false,
         onClick = onClick,
-        colors =
-            NavigationDrawerItemDefaults.colors(
-                containerColor = containerColor,
-            ),
+        current = selected,
         leadingContent = {
             val color = navItemColor(selected, focused, drawerOpen)
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(DrawerIconSize), contentAlignment = Alignment.Center) {
                 if (pekeIcon != null) {
                     Icon(
                         painter = painterResource(pekeIcon.outline),
-                        contentDescription = null,
+                        contentDescription = if (drawerOpen) null else name,
                         tint = color,
                         modifier = Modifier.size(DrawerIconSize),
                     )
@@ -723,12 +733,28 @@ fun NavigationDrawerScope.NavItem(
         },
         interactionSource = interactionSource,
     ) {
-        Text(
-            modifier = Modifier,
-            text = library.name(context),
-            maxLines = 1,
-        )
+        DrawerItemText(text = name, current = selected, focused = focused)
     }
+}
+
+/**
+ * An open sidebar entry's name: 24 px, bolder for the page you're on and the focused entry; 20 px for [small]
+ */
+@Composable
+private fun DrawerItemText(
+    text: String,
+    current: Boolean,
+    focused: Boolean,
+    small: Boolean = false,
+) {
+    Text(
+        text = text,
+        fontSize = if (small) 20.csp else 24.csp,
+        fontWeight = if ((current || focused) && !small) FontWeight.W900 else FontWeight.W800,
+        color = drawerTextColor(current = current, focused = focused),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
@@ -741,13 +767,11 @@ fun navItemColor(
     when {
         focused -> LocalContentColor.current
 
-        // The page you're on is drawn in the primary colour; the others in "text, secondary", so the closed rail stays
-        // quiet (design/DESIGN.md, Icons)
+        // The page you're on is drawn in the primary colour; the others in "text, secondary", so the rail stays quiet
+        // (design/DESIGN.md, Icons)
         selected -> MaterialTheme.colorScheme.primary
 
-        drawerOpen -> MaterialTheme.colorScheme.onSurface
-
-        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .8f)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
 val DrawerState.isOpen: Boolean get() = this.currentValue.isOpen

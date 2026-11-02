@@ -37,6 +37,7 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.playback.KidsPlayerWarning
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
@@ -46,6 +47,7 @@ import dev.aldoborrero.peke.services.PlayerFactory
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.cpx
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
@@ -128,17 +130,23 @@ class KidsTimerEffectsViewModel
 
 /**
  * App-wide kids timer UI: the remaining-time bar, warnings and switching to the time's up screen
+ *
+ * @param band where to say how much room the bar takes at the top or bottom, for the pages to keep clear of it
  */
 @Composable
-fun KidsTimerEffects(modifier: Modifier = Modifier) {
+fun KidsTimerEffects(
+    modifier: Modifier = Modifier,
+    band: TimeLeftBand? = null,
+) {
     // Outside kids mode there is nothing to show, so no view model is created
     if (!LocalKidsMode.current.isActive) return
-    KidsTimerEffectsContent(modifier = modifier, viewModel = hiltViewModel())
+    KidsTimerEffectsContent(modifier = modifier, band = band, viewModel = hiltViewModel())
 }
 
 @Composable
 private fun KidsTimerEffectsContent(
     viewModel: KidsTimerEffectsViewModel,
+    band: TimeLeftBand?,
     modifier: Modifier = Modifier,
 ) {
     val limits by viewModel.timeLimits.state.collectAsState()
@@ -185,17 +193,34 @@ private fun KidsTimerEffectsContent(
     Box(modifier = modifier.fillMaxSize()) {
         val remaining = limits.remaining
         val total = limits.total
-        if (remaining != null && total != null && total.isPositive() && barPosition != KidsTimerBarPosition.HIDDEN) {
+        // The kids home shows the time left in its header instead (KidsHomeHeader)
+        val onHome = top is Destination.Home
+        if (remaining != null && total != null && total.isPositive() && barPosition != KidsTimerBarPosition.HIDDEN && !onHome) {
             TimeLeftBar(
                 remaining = remaining,
                 total = total,
                 nearEnd = limits.nearEnd,
                 position = barPosition,
+                // The pages in the sidebar keep out of the bar and its label
+                band = band,
                 modifier = Modifier.align(if (barPosition == KidsTimerBarPosition.BOTTOM) Alignment.BottomCenter else Alignment.TopCenter),
             )
         }
+        // On the player the warning is the dark pill with the buddy at the top right (PlayerPekeTV)
         AnimatedVisibility(
-            visible = warning != null,
+            visible = warning != null && playing,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    // Below the time left when it is at the top
+                    .padding(top = if (barPosition == KidsTimerBarPosition.TOP) 64.dp else 40.cpx, end = 56.cpx),
+        ) {
+            KidsPlayerWarning(minutes = warning?.inWholeMinutes?.toInt() ?: 1)
+        }
+        AnimatedVisibility(
+            visible = warning != null && !playing,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier =

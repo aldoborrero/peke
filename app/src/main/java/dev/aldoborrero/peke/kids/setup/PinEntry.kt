@@ -135,8 +135,9 @@ fun PinArrowRow(modifier: Modifier = Modifier) {
                 fontFamily = FontAwesome,
             )
         }
+        // The digits count too, in words rather than Wholphin's "[0–9]", which read as a placeholder
         Text(
-            text = stringResource(R.string.pin_digits_hint),
+            text = stringResource(R.string.pin_arrows_digits_hint),
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,

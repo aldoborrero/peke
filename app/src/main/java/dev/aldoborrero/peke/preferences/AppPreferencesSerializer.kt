@@ -46,6 +46,7 @@ class AppPreferencesSerializer
                                     AppPreference.RefreshRateSwitching.defaultValue
                                 resolutionSwitching = AppPreference.ResolutionSwitching.defaultValue
                                 dpadSeekMode = AppPreference.DpadSeekModePref.defaultValue
+                                oneClickPause = AppPreference.OneClickPause.defaultValue
 
                                 overrides =
                                     PlaybackOverrides

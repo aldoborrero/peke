@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -48,7 +49,10 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +61,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.tv.material3.ClickableSurfaceColors
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
@@ -65,6 +70,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.ui.AppColors
 import dev.aldoborrero.peke.ui.FontAwesome
 import dev.aldoborrero.peke.ui.PreviewTvSpec
@@ -78,8 +85,10 @@ import dev.aldoborrero.peke.ui.playback.PlaybackDialogType
 import dev.aldoborrero.peke.ui.seekBack
 import dev.aldoborrero.peke.ui.seekForward
 import dev.aldoborrero.peke.ui.skipStringRes
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
@@ -179,15 +188,9 @@ fun PlaybackControls(
             seekForward = seekForward,
             modifier =
                 Modifier
-                    .padding(vertical = 0.dp)
-                    .fillMaxWidth(.95f),
-        )
-        Box(
-            modifier =
-                Modifier
-                    .padding(horizontal = 8.dp)
                     .fillMaxWidth(),
-        ) {
+        )
+        Box(modifier = Modifier.fillMaxWidth()) {
             LeftPlaybackButtons(
                 onControllerInteraction = onControllerInteraction,
                 onClickPlaybackDialogType = onClickPlaybackDialogType,
@@ -276,11 +279,14 @@ fun SeekBar(
             seekBack = seekBack,
             seekForward = seekForward,
         )
-        SeekTimecodes(
-            positionMs = position,
-            durationMs = player.duration,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // Kids see the bar without the times (PlayerPekeTV)
+        if (!LocalKidsMode.current.isActive) {
+            SeekTimecodes(
+                positionMs = position,
+                durationMs = player.duration,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -343,6 +349,7 @@ fun LeftPlaybackButtons(
         if (LocalInterfaceCustomization.current.allows(RestrictedFeature.ADVANCED_PLAYBACK)) {
             PlaybackButton(
                 iconRes = R.drawable.vector_settings,
+                label = R.string.settings,
                 onClick = {
                     onControllerInteraction.invoke()
                     onClickPlaybackDialogType.invoke(PlaybackDialogType.SETTINGS)
@@ -369,6 +376,7 @@ fun RightPlaybackButtons(
         PlaybackButton(
             enabled = true,
             iconRes = PekeIcon.SUBTITLES.outline,
+            label = R.string.subtitles,
             onClick = {
                 onControllerInteraction.invoke()
                 onClickPlaybackDialogType.invoke(PlaybackDialogType.CAPTIONS)
@@ -377,9 +385,10 @@ fun RightPlaybackButtons(
             modifier = Modifier,
         )
         // Audio
-        PlaybackFaButton(
+        PlaybackButton(
             enabled = true,
-            iconRes = R.string.fa_volume_high,
+            iconRes = PekeIcon.AUDIO.outline,
+            label = R.string.audio,
             onClick = {
                 onControllerInteraction.invoke()
                 onClickPlaybackDialogType.invoke(PlaybackDialogType.AUDIO)
@@ -412,6 +421,7 @@ fun PlaybackButtons(
         ) {
             PlaybackButton(
                 iconRes = R.drawable.baseline_skip_previous_24,
+                label = R.string.playback_previous,
                 onClick = {
                     onControllerInteraction.invoke()
                     onPlaybackActionClick.invoke(PlaybackAction.Previous)
@@ -421,6 +431,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 iconRes = R.drawable.baseline_fast_rewind_24,
+                label = R.string.playback_rewind,
                 onClick = {
                     onControllerInteraction.invoke()
                     player.seekBack(seekBack)
@@ -430,6 +441,8 @@ fun PlaybackButtons(
             PlaybackButton(
                 modifier = Modifier.focusRequester(initialFocusRequester),
                 iconRes = if (showPlay) PekeIcon.PLAY.outline else PekeIcon.PAUSE.outline,
+                label = if (showPlay) R.string.play else R.string.playback_pause,
+                large = true,
                 onClick = {
                     onControllerInteraction.invoke()
                     if (showPlay) {
@@ -445,6 +458,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 iconRes = R.drawable.baseline_fast_forward_24,
+                label = R.string.playback_fast_forward,
                 onClick = {
                     onControllerInteraction.invoke()
                     player.seekForward(seekForward)
@@ -453,6 +467,7 @@ fun PlaybackButtons(
             )
             PlaybackButton(
                 iconRes = PekeIcon.NEXT_EPISODE.outline,
+                label = R.string.playback_next,
                 onClick = {
                     onControllerInteraction.invoke()
                     onPlaybackActionClick.invoke(PlaybackAction.Next)
@@ -464,38 +479,39 @@ fun PlaybackButtons(
     }
 }
 
+/**
+ * A transport button: its icon, and [label] for TalkBack, as "Pause" or "Rewind"
+ */
 @Composable
 fun PlaybackButton(
     @DrawableRes iconRes: Int,
+    @StringRes label: Int,
     onClick: () -> Unit,
     onControllerInteraction: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
+    large: Boolean = false,
 ) {
-    val selectedColor = MaterialTheme.colorScheme.primary
+    val style = playbackButtonStyle(large)
+    val description = stringResource(label)
     Button(
         enabled = enabled,
         onClick = onClick,
 //        shape = ButtonDefaults.shape(CircleShape),
-        colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = AppColors.TransparentBlack25,
-                contentColor = Color.White,
-                focusedContainerColor = selectedColor,
-                focusedContentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        contentPadding = PaddingValues(4.dp),
+        colors = style.colors,
+        contentPadding = style.padding,
         interactionSource = interactionSource,
         modifier =
             modifier
-                .size(36.dp, 36.dp)
+                .size(style.size)
+                .semantics { contentDescription = description }
                 .onFocusChanged { onControllerInteraction.invoke() },
     ) {
         Icon(
             modifier = Modifier.fillMaxSize(),
             painter = painterResource(iconRes),
-            contentDescription = "",
+            contentDescription = null,
             tint = LocalContentColor.current,
         )
     }
@@ -511,23 +527,17 @@ fun PlaybackFaButton(
     interactionSource: MutableInteractionSource? = null,
     textColor: Color = Color.Unspecified,
 ) {
-    val selectedColor = MaterialTheme.colorScheme.primary
+    val style = playbackButtonStyle(large = false)
     Button(
         enabled = enabled,
         onClick = onClick,
 //        shape = ButtonDefaults.shape(CircleShape),
-        colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = AppColors.TransparentBlack25,
-                contentColor = Color.White,
-                focusedContainerColor = selectedColor,
-                focusedContentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        contentPadding = PaddingValues(4.dp),
+        colors = style.colors,
+        contentPadding = style.padding,
         interactionSource = interactionSource,
         modifier =
             modifier
-                .size(36.dp, 36.dp)
+                .size(style.size)
                 .onFocusChanged { onControllerInteraction.invoke() },
     ) {
         Text(
@@ -647,6 +657,7 @@ private fun ButtonPreview() {
         Row(Modifier.background(Color.Red)) {
             PlaybackButton(
                 iconRes = R.drawable.baseline_play_arrow_24,
+                label = R.string.play,
                 onClick = {},
                 onControllerInteraction = {},
             )
@@ -657,5 +668,62 @@ private fun ButtonPreview() {
                 textColor = Color.Green,
             )
         }
+    }
+}
+
+/**
+ * How a transport button looks: Wholphin's small square button, or for kids the round buttons of PlayerPekeTV: play
+ * and pause 76 px in primary, the others 62 px on the outline colour, both turning primary with Peke's focus
+ */
+@Immutable
+data class PlaybackButtonStyle(
+    val size: Dp,
+    val padding: PaddingValues,
+    val colors: ClickableSurfaceColors,
+)
+
+@Composable
+fun playbackButtonStyle(large: Boolean): PlaybackButtonStyle {
+    val selectedColor = MaterialTheme.colorScheme.primary
+    if (!LocalKidsMode.current.isActive) {
+        return PlaybackButtonStyle(
+            size = 36.dp,
+            padding = PaddingValues(4.dp),
+            colors =
+                ClickableSurfaceDefaults.colors(
+                    containerColor = AppColors.TransparentBlack25,
+                    contentColor = Color.White,
+                    focusedContainerColor = selectedColor,
+                    focusedContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+        )
+    }
+    val colors = LocalPekeColors.current
+    return if (large) {
+        PlaybackButtonStyle(
+            size = 76.cpx,
+            // A 28 px icon
+            padding = PaddingValues(24.cpx),
+            colors =
+                ClickableSurfaceDefaults.colors(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary,
+                    focusedContainerColor = colors.primary,
+                    focusedContentColor = colors.onPrimary,
+                ),
+        )
+    } else {
+        PlaybackButtonStyle(
+            size = 62.cpx,
+            // A 26 px icon
+            padding = PaddingValues(18.cpx),
+            colors =
+                ClickableSurfaceDefaults.colors(
+                    containerColor = colors.outline.copy(alpha = .92f),
+                    contentColor = Color.White,
+                    focusedContainerColor = colors.primary,
+                    focusedContentColor = colors.onPrimary,
+                ),
+        )
     }
 }

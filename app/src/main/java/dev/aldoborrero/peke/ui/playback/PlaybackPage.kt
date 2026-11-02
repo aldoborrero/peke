@@ -71,11 +71,16 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import dev.aldoborrero.peke.R
+import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.playback.KidsAutoplayPolicy
+import dev.aldoborrero.peke.kids.playback.KidsInARowChip
+import dev.aldoborrero.peke.kids.playback.KidsNextUpPanel
+import dev.aldoborrero.peke.kids.playback.inARow
 import dev.aldoborrero.peke.kids.playback.rememberKidsSuggestions
 import dev.aldoborrero.peke.kids.ui.KidsEndScreen
+import dev.aldoborrero.peke.kids.ui.episodeLabel
 import dev.aldoborrero.peke.preferences.AssPlaybackMode
 import dev.aldoborrero.peke.preferences.DpadSeekMode
 import dev.aldoborrero.peke.preferences.PlayerBackend
@@ -98,6 +103,8 @@ import dev.aldoborrero.peke.ui.playback.overlay.rememberSeekBarState
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings.applyTo
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
 import dev.aldoborrero.peke.ui.seasonEpisode
+import dev.aldoborrero.peke.ui.theme.SafeArea
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
 import dev.aldoborrero.peke.ui.util.RestrictedFeature
@@ -258,7 +265,7 @@ fun PlaybackPageContent(
         seekBarState.onValueChange(skipPosition)
     }
     val keyHandler =
-        remember(preferences) {
+        remember(preferences, kidsMode) {
             PlaybackKeyHandler(
                 player = player,
                 controlsEnabled = state.nextUp == null,
@@ -271,7 +278,8 @@ fun PlaybackPageContent(
                 clearSkipIndicator = { skipIndicatorDuration = 0 },
                 skipBackOnResume = preferences.appPreferences.playbackPreferences.skipBackOnResume,
                 onInteraction = viewModel::reportInteraction,
-                oneClickPause = preferences.appPreferences.playbackPreferences.oneClickPause,
+                // OK pauses on the first press (TV-PC), always for a kid; grown-ups can turn it off
+                oneClickPause = kidsMode || preferences.appPreferences.playbackPreferences.oneClickPause,
                 onStop = {
                     player.stop()
                     viewModel.navigationManager.goBack()
@@ -349,7 +357,8 @@ fun PlaybackPageContent(
         modifier
             .background(if (state.nextUp == null) Color.Black else MaterialTheme.colorScheme.background),
     ) {
-        val playerSize by animateFloatAsState(if (state.nextUp == null) 1f else .6f)
+        // Kids keep the picture full screen: their next-up panel sits over the credits (KNextUpPekeTV)
+        val playerSize by animateFloatAsState(if (state.nextUp == null || kidsMode) 1f else .6f)
         Box(
             modifier =
                 Modifier
@@ -413,8 +422,8 @@ fun PlaybackPageContent(
                         modifier =
                             Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp)
-                                .fillMaxWidth(.95f),
+                                .padding(SafeArea.padding)
+                                .fillMaxWidth(),
                     )
                 }
                 // Clear the overlay after a delay
@@ -618,7 +627,7 @@ fun PlaybackPageContent(
             showSegment,
             modifier =
                 Modifier
-                    .padding(40.dp)
+                    .padding(SafeArea.padding)
                     .align(Alignment.BottomEnd),
         ) {
             state.currentSegment?.let { segment ->
@@ -680,6 +689,44 @@ fun PlaybackPageContent(
                         }
                     }
                 }
+                if (kidsMode) {
+                    // KNextUpPekeTV: the panel at the bottom right; Play now is the card's click, Stop is Back
+                    Box(Modifier.fillMaxSize()) {
+                        val cap =
+                            (LocalKidsMode.current as? KidsModeState.Active)
+                                ?.profile
+                                ?.takeIf { p ->
+                                    p.autoplayEnabled
+                                }?.validAutoplayCap
+                        inARow(viewModel.autoPlayedInARowCount, cap)?.let { chip ->
+                            KidsInARowChip(chip, Modifier.align(Alignment.BottomStart).padding(start = 64.cpx, bottom = 56.cpx))
+                        }
+                        KidsNextUpPanel(
+                            itemId = it.id,
+                            title = episodeLabel(it.data.indexNumber, it.name),
+                            imageUrl = LocalImageUrlService.current.rememberImageUrl(it),
+                            secondsLeft = if (autoPlayEnabled && timeLeft > 0) timeLeft else null,
+                            countdownSeconds = KidsAutoplayPolicy.COUNTDOWN_SECONDS,
+                            onPlayNow = {
+                                viewModel.reportInteraction()
+                                controllerViewState.hideControls()
+                                viewModel.playNextUp()
+                            },
+                            onStop = {
+                                if (timeLeft > 0 && autoPlayEnabled) {
+                                    timeLeft = -1
+                                    autoPlayEnabled = false
+                                } else if (player.isPlaying) {
+                                    scope.launch(ExceptionHandler()) { viewModel.cancelUpNextEpisode() }
+                                } else {
+                                    viewModel.navigationManager.goBack()
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 64.cpx, bottom = 56.cpx),
+                        )
+                    }
+                    return@let
+                }
                 NextUpEpisode(
                     title =
                         listOfNotNull(
@@ -698,7 +745,7 @@ fun PlaybackPageContent(
                     runtime = it.data.runTimeTicks?.ticks,
                     modifier =
                         Modifier
-                            .padding(8.dp)
+                            .padding(top = 8.dp, bottom = SafeArea.Vertical)
 //                                    .height(128.dp)
                             .fillMaxHeight(1 - playerSize)
                             .fillMaxWidth(.66f)
@@ -718,7 +765,7 @@ fun PlaybackPageContent(
                 onClickSuggestion = onClickSuggestion,
                 modifier =
                     Modifier
-                        .padding(8.dp)
+                        .padding(top = 8.dp, bottom = SafeArea.Vertical)
                         .fillMaxWidth(.8f)
                         .align(Alignment.BottomCenter)
                         .background(

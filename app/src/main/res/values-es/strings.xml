@@ -554,7 +554,8 @@
     <string name="skip_behavior_summary">Para cabecera, créditos finales, etc</string>
     <string name="play_with">Reproducir con</string>
     <string name="transcoding">Transcodificar</string>
-    <string name="pin_digits_hint">[0-9]</string>
+    <string name="pin_digits_hint">Usa las teclas de números</string>
+    <string name="pin_arrows_digits_hint">o las teclas de números</string>
     <string name="combined_search_results">Resultados de búsqueda combinados</string>
     <string name="combined_search_results_on">Mostrar todos los resultados en una sola lista</string>
     <string name="combined_search_results_off">Mostrar resultados por categoría</string>
@@ -946,4 +947,59 @@
     <string name="peke_settings_this_tv">Esta tele</string>
     <string name="kids_code_cant_change">No hay código de padres que cambiar. Ponlo en Adultos como administrador del servidor.</string>
     <string name="kids_code_needs_grant">Vuelve a abrir Adultos para cambiar el código de padres</string>
+    <!-- 008 Phase 1: the kids home -->
+    <string name="kids_live_badge">EN DIRECTO</string>
+    <string name="kids_home_greeting">¡Hola, %1$s!</string>
+    <string name="kids_home_question">¿Qué quieres ver?</string>
+    <plurals name="kids_home_time_left_today">
+        <item quantity="one">Queda %1$d min hoy</item>
+        <item quantity="many">Quedan %1$d min hoy</item>
+        <item quantity="other">Quedan %1$d min hoy</item>
+    </plurals>
+    <plurals name="kids_home_time_left">
+        <item quantity="one">Queda %1$d min</item>
+        <item quantity="many">Quedan %1$d min</item>
+        <item quantity="other">Quedan %1$d min</item>
+    </plurals>
+    <!-- 008 Phase 2: details and seasons -->
+    <string name="kids_play_episode">Ver el episodio %1$d</string>
+    <plurals name="kids_episode_count">
+        <item quantity="one">%1$d episodio</item>
+        <item quantity="many">%1$d episodios</item>
+        <item quantity="other">%1$d episodios</item>
+    </plurals>
+    <plurals name="kids_season_count">
+        <item quantity="one">%1$d temporada</item>
+        <item quantity="many">%1$d temporadas</item>
+        <item quantity="other">%1$d temporadas</item>
+    </plurals>
+    <plurals name="kids_runtime">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
+    <!-- 008 Phase 3: player and next-up -->
+    <string name="kids_episode_number">Episodio %1$d</string>
+    <string name="kids_play_now">Ver ya</string>
+    <string name="kids_stop">Parar</string>
+    <string name="playback_pause">Pausar</string>
+    <string name="playback_previous">Anterior</string>
+    <string name="playback_next">Siguiente</string>
+    <string name="playback_rewind">Retroceder</string>
+    <string name="playback_fast_forward">Avanzar</string>
+    <string name="playback_stop">Detener</string>
+    <string name="kids_in_a_row">Episodio %1$d de %2$d seguidos</string>
+    <!-- 008 Phase 4: live TV -->
+    <string name="kids_next_programme">Después: %1$s</string>
+    <!-- 008 Phase 5: search, voice, favourites, library -->
+    <string name="kids_voice_title">Habla para buscar</string>
+    <string name="kids_voice_back">Pulsa Atrás para parar</string>
+    <string name="kids_favourites_title">Favoritos de %1$s</string>
+    <string name="kids_favourites_hint">Pulsa el corazón en cualquier serie para guardarla aquí</string>
+    <!-- 008 Phase 6: update and microphone -->
+    <string name="peke_voice_search_allow">Permitir</string>
+    <string name="update_installed_version">Versión instalada %1$s</string>
+    <string name="update_new_version">Versión nueva %1$s</string>
+    <string name="update_whats_new">Novedades</string>
+    <string name="update_later">Más tarde</string>
 </resources>

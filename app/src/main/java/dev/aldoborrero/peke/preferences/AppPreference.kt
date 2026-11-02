@@ -828,7 +828,7 @@ sealed interface AppPreference<Pref, T> {
         val OneClickPause =
             AppSwitchPreference<AppPreferences>(
                 title = R.string.one_click_pause,
-                defaultValue = false,
+                defaultValue = true,
                 getter = { it.playbackPreferences.oneClickPause },
                 setter = { prefs, value ->
                     prefs.updatePlaybackPreferences { oneClickPause = value }

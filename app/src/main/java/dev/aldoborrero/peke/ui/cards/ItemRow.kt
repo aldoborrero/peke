@@ -24,7 +24,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
+import dev.aldoborrero.peke.kids.ui.KidsPosterCardSize
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.theme.FocusRoom
+import dev.aldoborrero.peke.ui.theme.bleedHorizontally
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 @Composable
@@ -44,6 +49,8 @@ fun <T> ItemRow(
     horizontalPadding: Dp = 16.dp,
     showViewMore: Boolean = false,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
+    kidsLayout: Boolean = false,
+    kidsRoom: FocusRoom = FocusRoom.of(KidsPosterCardSize, KidsMinCardGap),
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -54,7 +61,7 @@ fun <T> ItemRow(
     val currentOnLongClickItem by rememberUpdatedState(onLongClickItem)
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(if (kidsLayout) 0.dp else 8.dp),
         modifier =
             modifier.focusProperties {
                 onEnter = {
@@ -62,16 +69,19 @@ fun <T> ItemRow(
                 }
             },
     ) {
-        ItemRowTitle(title)
+        ItemRowTitle(title, startPadding = if (kidsLayout) 0.dp else 8.dp)
 
-        // DESIGN's 20–24 px between cards, and room above and below for the focus ring and scale-up
-        val gap = maxOf(horizontalPadding, CardGap)
+        // DESIGN's 20–24 px between cards, and room above and below for the focus ring and scale-up. Kids (the canvas
+        // boards): [kidsRoom], with the first card lined up with the title and the row reaching past both sides into the
+        // room its first and last cards' rings need
+        val gap = if (kidsLayout) kidsRoom.gap else maxOf(horizontalPadding, CardGap)
         LazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(gap),
-            contentPadding = PaddingValues(horizontal = gap, vertical = 16.dp),
+            contentPadding = if (kidsLayout) kidsRoom.padding else PaddingValues(horizontal = gap, vertical = 16.dp),
             modifier =
                 Modifier
+                    .then(if (kidsLayout) Modifier.bleedHorizontally(kidsRoom.side) else Modifier)
                     .fillMaxWidth()
                     .focusGroup()
                     .focusRestorer(firstFocus)
@@ -133,11 +143,12 @@ fun <T> ItemRow(
 fun ItemRowTitle(
     title: String,
     modifier: Modifier = Modifier,
+    startPadding: Dp = 8.dp,
 ) = Text(
     text = title,
     style = MaterialTheme.typography.titleLarge,
     color = MaterialTheme.colorScheme.onBackground,
-    modifier = modifier.padding(start = 8.dp),
+    modifier = modifier.padding(start = startPadding),
 )
 
 /**

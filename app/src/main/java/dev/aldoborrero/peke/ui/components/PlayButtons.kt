@@ -46,6 +46,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -301,11 +304,13 @@ fun ExpandablePlayButton(
         onClick = { onClick.invoke(resume) },
         enabled = enabled,
         modifier =
-            modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxHeight = MinButtonSize,
-            ),
+            modifier
+                .buttonLabel(stringResource(title))
+                .requiredSizeIn(
+                    minWidth = MinButtonSize,
+                    minHeight = MinButtonSize,
+                    maxHeight = MinButtonSize,
+                ),
         contentPadding = DefaultButtonPadding,
         interactionSource = interactionSource,
     ) {
@@ -314,7 +319,8 @@ fun ExpandablePlayButton(
             modifier =
                 Modifier
                     .padding(start = 2.dp)
-                    .height(MinButtonSize),
+                    .height(MinButtonSize)
+                    .clearAndSetSemantics {},
         ) {
             icon.invoke(this)
         }
@@ -323,7 +329,7 @@ fun ExpandablePlayButton(
             Text(
                 text = stringResource(title),
                 style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(end = 4.dp),
+                modifier = Modifier.padding(end = 4.dp).clearAndSetSemantics {},
             )
         }
     }
@@ -347,18 +353,21 @@ fun ExpandableFaButton(
         onClick = onClick,
         enabled = enabled,
         modifier =
-            modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxHeight = MinButtonSize,
-            ),
+            modifier
+                .buttonLabel(stringResource(title))
+                .requiredSizeIn(
+                    minWidth = MinButtonSize,
+                    minHeight = MinButtonSize,
+                    maxHeight = MinButtonSize,
+                ),
         contentPadding = DefaultButtonPadding,
         interactionSource = interactionSource,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(32.dp),
+                    .size(32.dp)
+                    .clearAndSetSemantics {},
         ) {
             Text(
                 text = stringResource(iconStringRes),
@@ -374,11 +383,17 @@ fun ExpandableFaButton(
             Text(
                 text = stringResource(title),
                 style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(end = 4.dp),
+                modifier = Modifier.padding(end = 4.dp).clearAndSetSemantics {},
             )
         }
     }
 }
+
+/**
+ * An icon button's name for TalkBack: the same while its title is hidden or shown when focused, so the icon and the
+ * shown title add nothing to it
+ */
+internal fun Modifier.buttonLabel(label: String): Modifier = semantics { contentDescription = label }
 
 @Composable
 fun DeleteButton(
