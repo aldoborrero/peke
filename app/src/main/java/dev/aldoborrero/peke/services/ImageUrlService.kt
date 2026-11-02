@@ -1,8 +1,11 @@
 package dev.aldoborrero.peke.services
 
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.ui.Cards
+import dev.aldoborrero.peke.ui.theme.CANVAS_PX
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.model.UUID
@@ -11,6 +14,7 @@ import org.jellyfin.sdk.model.api.ImageFormat
 import org.jellyfin.sdk.model.api.ImageType
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.ceil
 
 /**
  * Provides image URLs for items with several convenience methods
@@ -263,7 +267,7 @@ class ImageUrlService
             )
         }
 
-        fun getUserImageUrl(userId: UUID) = api.imageApi.getUserImageUrl(userId)
+        fun getUserImageUrl(userId: UUID) = api.imageApi.getUserImageUrl(userId, maxHeight = userImageMaxHeight)
 
         /**
          * Just a convenient way to get the image URL and remember it
@@ -282,5 +286,26 @@ class ImageUrlService
 
         companion object {
             private const val QUALITY = 96
+
+            /** Avatars show at most this tall: the kids picker's circle, [Cards.serverUserCircle] */
+            private val USER_IMAGE_MAX_DP = Cards.serverUserCircle.value
+
+            /** Channel logos show at most this tall: the kids guide's, 160 canvas px */
+            private val CHANNEL_IMAGE_MAX_DP = 160 * CANVAS_PX
+
+            /** A 1080p TV's pixels per dp, for where there are no system resources (JVM unit tests) */
+            private const val FALLBACK_DENSITY = 2f
+
+            /** In pixels on this screen: 2 per dp on a 1080p TV, 4 on a 4K one */
+            private fun pixels(dp: Float): Int {
+                val density = runCatching { Resources.getSystem().displayMetrics.density }.getOrDefault(FALLBACK_DENSITY)
+                return ceil(dp * density).toInt()
+            }
+
+            /** The height avatars are asked at, the largest they show on this screen */
+            val userImageMaxHeight: Int get() = pixels(USER_IMAGE_MAX_DP)
+
+            /** The height channel logos are asked at, the largest they show on this screen */
+            val channelImageMaxHeight: Int get() = pixels(CHANNEL_IMAGE_MAX_DP)
         }
     }

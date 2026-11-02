@@ -23,6 +23,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import dev.aldoborrero.peke.test.currentUser as testUser
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LatestNextUpSchedulerServiceTest {
@@ -58,11 +59,22 @@ class LatestNextUpSchedulerServiceTest {
     fun cancels_latestNextUp_work_when_user_null() =
         runTest(testDispatcher) {
             createService()
+            currentUser.value = testUser()
+            advanceUntilIdle()
 
             currentUser.value = null
             advanceUntilIdle()
 
             verify { mockWorkManager.cancelUniqueWork(LatestNextUpWorker.WORK_NAME) }
             verify(exactly = 0) { mockWorkManager.cancelUniqueWork(SuggestionsWorker.WORK_NAME) }
+        }
+
+    @Test
+    fun keeps_latestNextUp_work_when_no_user_yet() =
+        runTest(testDispatcher) {
+            createService()
+            advanceUntilIdle()
+
+            verify(exactly = 0) { mockWorkManager.cancelUniqueWork(any()) }
         }
 }

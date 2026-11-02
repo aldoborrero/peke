@@ -20,6 +20,7 @@ import org.jellyfin.sdk.api.client.extensions.studiosApi
 import org.jellyfin.sdk.api.client.extensions.suggestionsApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemDtoQueryResult
 import org.jellyfin.sdk.model.api.GetProgramsDto
 import org.jellyfin.sdk.model.api.request.GetArtistsRequest
@@ -71,10 +72,11 @@ class ApiRequestPager<T>(
     suspend fun refreshItem(
         position: Int,
         itemId: UUID,
+        read: (suspend () -> BaseItemDto)? = null,
     ) {
         mutex.withLock {
             val item =
-                api.userLibraryApi.getItem(itemId).content.let {
+                (read?.invoke() ?: api.userLibraryApi.getItem(itemId).content).let {
                     BaseItem.from(
                         it,
                         api,

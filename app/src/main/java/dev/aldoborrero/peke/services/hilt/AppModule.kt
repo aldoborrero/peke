@@ -13,8 +13,10 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.kids.setup.RefusedSessions
 import dev.aldoborrero.peke.kids.setup.RefusedTokenInterceptor
+import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.util.CoroutineContextApiClientFactory
 import dev.aldoborrero.peke.util.PekeDispatchers
+import dev.aldoborrero.peke.util.RequestLogInterceptor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -90,14 +92,29 @@ object AppModule {
     @StandardOkHttpClient
     @Provides
     @Singleton
-    fun okHttpClient(refusedSessions: Lazy<RefusedSessions>) =
-        OkHttpClient
-            .Builder()
-            .apply {
-                // TODO user agent, timeouts, logging, etc
-                // A kid's session the server refused shows as needing a grown-up (spec FR-019)
-                addNetworkInterceptor(RefusedTokenInterceptor { refusedSessions.get().refused(it) })
-            }.build()
+    fun okHttpClient(
+        refusedSessions: Lazy<RefusedSessions>,
+        navigationManager: Lazy<NavigationManager>,
+    ) = OkHttpClient
+        .Builder()
+        .apply {
+            // TODO user agent, timeouts, etc
+            // Debug builds log every request of the SDK, the Kids plugin, images and streams (spec 010)
+            if (BuildConfig.DEBUG) {
+                addInterceptor(
+                    RequestLogInterceptor {
+                        navigationManager
+                            .get()
+                            .backStack
+                            .lastOrNull()
+                            ?.javaClass
+                            ?.simpleName
+                    },
+                )
+            }
+            // A kid's session the server refused shows as needing a grown-up (spec FR-019)
+            addNetworkInterceptor(RefusedTokenInterceptor { refusedSessions.get().refused(it) })
+        }.build()
 
     @AuthOkHttpClient
     @Provides

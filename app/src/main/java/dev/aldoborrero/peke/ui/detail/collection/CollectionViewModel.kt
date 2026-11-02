@@ -140,7 +140,7 @@ class CollectionViewModel
                             .getItem(itemId)
                             .content
                             .let { BaseItem(it, false) }
-                    backdropService.submit(collection)
+                    viewModelScope.launchDefault { backdropService.submit(collection) }
                     val logoImageUrl =
                         if (ImageType.LOGO in collection.data.imageTags.orEmpty()) {
                             imageUrlService.getItemImageUrl(collection, ImageType.LOGO)

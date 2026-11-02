@@ -31,6 +31,8 @@ import dev.aldoborrero.peke.ui.data.ItemDetailsDialogInfo
 import dev.aldoborrero.peke.ui.detail.PlaylistDialog
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.rememberInt
+import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
+import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import dev.aldoborrero.peke.util.DataLoadingState
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
@@ -92,6 +94,8 @@ fun SeriesOverview(
     LaunchedEffect(Unit) {
         if (state.seasons.isNotEmpty()) {
             state.seasons.getOrNull(position.seasonTabIndex)?.let {
+                // Also coming back, for example from the player: autoplay can have played the episodes after the one
+                // chosen, so the whole season is read again for what was watched and where each was left
                 viewModel.loadEpisodes(it.id, it.indexNumber)
             }
         }
@@ -147,6 +151,10 @@ fun SeriesOverview(
             )
         }
 
+    // The cast rows are hidden where people are (kids), so the episode isn't read again for them
+    val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
+    // Where there are no item menus (kids), only the version choice needs the media sources, for more than one version
+    val showTracks = LocalInterfaceCustomization.current.allows(RestrictedFeature.ITEM_MENUS)
     LaunchedEffect(position, state.episodes) {
         val focusedEpisode =
             (state.episodes as? EpisodeList.Success)
@@ -154,8 +162,9 @@ fun SeriesOverview(
                 ?.getOrNull(position.episodeRowIndex)
 
         focusedEpisode?.let {
-            viewModel.lookUpChosenTracks(it.id, it)
-            viewModel.lookupPeopleInEpisode(it)
+            val needsSources = showTracks || (it.data.mediaSourceCount ?: 0) > 1
+            viewModel.lookUpChosenTracks(it.id, it, position.episodeRowIndex.takeIf { needsSources })
+            if (showPeople) viewModel.lookupPeopleInEpisode(it)
         }
     }
     val chosenStreams = state.chosenStreams
@@ -234,18 +243,21 @@ fun SeriesOverview(
                     )
                 },
                 onLongClick = { ep ->
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = true,
-                            item = ep,
-                            chosenStreams = chosenStreams,
-                            showGoTo = false,
-                            showStreamChoices = true,
-                            canDelete = viewModel.canDelete(ep, preferences.appPreferences),
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
-                        )
+                    // The menu's version, track and media information choices need the episode's media sources
+                    viewModel.withEpisodeSources(position.episodeRowIndex, ep) { full ->
+                        showContextMenu =
+                            ContextMenu.ForBaseItem(
+                                fromLongClick = true,
+                                item = full,
+                                chosenStreams = viewModel.state.value.chosenStreams,
+                                showGoTo = false,
+                                showStreamChoices = true,
+                                canDelete = viewModel.canDelete(full, preferences.appPreferences),
+                                canRemoveContinueWatching = false,
+                                canRemoveNextUp = false,
+                                actions = contextActions,
+                            )
+                    }
                 },
                 playOnClick = { resume ->
                     rowFocused = EPISODE_ROW
@@ -272,23 +284,26 @@ fun SeriesOverview(
                 },
                 moreOnClick = {
                     episodeList?.getOrNull(position.episodeRowIndex)?.let { ep ->
-                        showContextMenu =
-                            ContextMenu.ForBaseItem(
-                                fromLongClick = false,
-                                item = ep,
-                                chosenStreams = chosenStreams,
-                                showGoTo = false,
-                                showStreamChoices = true,
-                                canDelete = viewModel.canDelete(ep, preferences.appPreferences),
-                                canRemoveContinueWatching = false,
-                                canRemoveNextUp = false,
-                                actions = contextActions,
-                            )
+                        viewModel.withEpisodeSources(position.episodeRowIndex, ep) { full ->
+                            showContextMenu =
+                                ContextMenu.ForBaseItem(
+                                    fromLongClick = false,
+                                    item = full,
+                                    chosenStreams = viewModel.state.value.chosenStreams,
+                                    showGoTo = false,
+                                    showStreamChoices = true,
+                                    canDelete = viewModel.canDelete(full, preferences.appPreferences),
+                                    canRemoveContinueWatching = false,
+                                    canRemoveNextUp = false,
+                                    actions = contextActions,
+                                )
+                        }
                     }
                 },
                 overviewOnClick = {
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let {
-                        overviewDialog = ItemDetailsDialogInfo(it)
+                    episodeList?.getOrNull(position.episodeRowIndex)?.let { ep ->
+                        // The dialog shows the media information from the episode's media sources
+                        viewModel.withEpisodeSources(position.episodeRowIndex, ep) { overviewDialog = ItemDetailsDialogInfo(it) }
                     }
                 },
                 personOnClick = {

@@ -8,7 +8,10 @@ import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.timer.MonotonicClock
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -95,6 +98,9 @@ class KidsPluginService
     ) : DefaultLifecycleObserver {
         private val lastChecked = ConcurrentHashMap<UUID, Long>()
 
+        /** The plugin checks in flight, see [askShared] */
+        private val asking = mutableMapOf<UUID, Deferred<Boolean?>>()
+
         /**
          * Kids mode on the current server
          */
@@ -143,8 +149,24 @@ class KidsPluginService
          * @return what is now known about the server
          */
         suspend fun check(server: JellyfinServer): KidsServer? {
-            ask(server)
+            askShared(server)
             return kidsServerDao.get(server.id)
+        }
+
+        /**
+         * [ask], shared by the callers that check the same server at the same time (at start the kids mode, the
+         * parent lock and the server switch all do), and forgotten once answered
+         */
+        private suspend fun askShared(server: JellyfinServer): Boolean? {
+            val answer =
+                synchronized(asking) {
+                    asking[server.id] ?: scope.async(start = CoroutineStart.LAZY) { ask(server) }.also { answer ->
+                        asking[server.id] = answer
+                        answer.invokeOnCompletion { synchronized(asking) { asking.remove(server.id, answer) } }
+                        answer.start()
+                    }
+                }
+            return answer.await()
         }
 
         /**

@@ -411,7 +411,7 @@ fun RecommendedContent(
 
             HomePageContent(
                 homeRows = state.rows,
-                position = position,
+                position = { position },
                 onClickItem = { _, item ->
                     viewModel.navigationManager.navigateTo(item.destination())
                 },

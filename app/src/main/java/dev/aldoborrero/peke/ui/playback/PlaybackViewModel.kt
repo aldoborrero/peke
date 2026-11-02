@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.annotation.VisibleForTesting
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.Density
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
@@ -26,6 +27,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.MediaSession
 import coil3.imageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.size.Size
 import com.github.damontecres.wholphin.mpv.MpvPlayer
@@ -98,6 +100,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -136,10 +139,14 @@ import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+
+/** Items left after the playing one at which an in-order queue of episodes reads its next window */
+private const val QUEUE_CONTINUE_AT = 3
 
 /**
  * This [ViewModel] is responsible for playing media including moving through playlists (including next up episodes)
@@ -386,6 +393,12 @@ class PlaybackViewModel
                 }
 
             viewModelScope.launch(ExceptionHandler()) { controllerViewState.observe() }
+            // The trickplay sheets are fetched once the controls open, so a seek right after shows its previews
+            viewModelScope.launch(ExceptionHandler()) {
+                snapshotFlow { controllerViewState.controlsVisible }
+                    .filter { it }
+                    .collect { prefetchTrickplayFromPosition() }
+            }
 
             val played =
                 play(
@@ -402,7 +415,7 @@ class PlaybackViewModel
                 if (result is PlaylistCreationResult.Success && result.playlist.items.isNotEmpty()) {
                     _state.update {
                         it.copy(
-                            playlist = Playlist(it.playlist.items + result.playlist.items),
+                            playlist = result.playlist.copy(items = it.playlist.items + result.playlist.items),
                         )
                     }
                 }
@@ -412,6 +425,27 @@ class PlaybackViewModel
         internal fun updateCurrentPlayback(block: (CurrentPlayback?) -> CurrentPlayback?) {
             _state.update {
                 it.copy(currentPlayback = block.invoke(it.currentPlayback))
+            }
+        }
+
+        /**
+         * A queued item comes without its details ([PlaylistItemFields]), so they are read when it's about to play
+         *
+         * @return null when they couldn't be read: the item can't play without its media sources, and skipping it would
+         * skip the whole queue while the server can't be reached
+         */
+        private suspend fun withDetails(playlistItem: PlaylistItem): PlaylistItem? {
+            val item = playlistItem.item
+            if (playlistItem !is PlaylistItem.Media || item.data.mediaSources != null) return playlistItem
+            if (item.type == BaseItemKind.TV_CHANNEL || item.type !in supportItemKinds) return playlistItem
+            return try {
+                PlaylistItem.Media(item.copy(data = api.userLibraryApi.getItem(item.id).content))
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Could not read the details of %s", item.id)
+                _state.update { it.copy(loading = LoadingState.Error("Could not read the item from the server", ex)) }
+                null
             }
         }
 
@@ -429,6 +463,8 @@ class PlaybackViewModel
             forceTranscoding: Boolean = this.forceTranscoding,
         ): Boolean =
             withContext(PekeDispatchers.IO) {
+                // Not played, but not to be skipped either: the error shows instead
+                val playlistItem = withDetails(playlistItem) ?: return@withContext true
                 val item =
                     when (playlistItem) {
                         is PlaylistItem.Intro -> playlistItem.item
@@ -445,6 +481,7 @@ class PlaybackViewModel
                     // Starting playback, so want to invalidate the last played timestamp for this item
                     datePlayedService.invalidate(item)
                 }
+                continueQueueIfNearEnd()
 
                 if (item.type !in supportItemKinds) {
                     showToast(
@@ -487,7 +524,7 @@ class PlaybackViewModel
                 val subtitleStc =
                     streamChoiceService.getSeriesTrackChoices(
                         base,
-                        SeriesTrackChoiceType.AUDIO,
+                        SeriesTrackChoiceType.SUBTITLE,
                     )
 
                 if (mediaSource == null && !isLiveTv) {
@@ -558,17 +595,14 @@ class PlaybackViewModel
                             ?.firstOrNull()
                     }
 
-                trickPlayInfo?.let { trickplayInfo ->
-                    mediaSource.runTimeTicks?.ticks?.let { duration ->
-                        viewModelScope.launchIO {
-                            prefetchTrickplay(
-                                duration,
-                                trickplayInfo,
-                                mediaSource.id?.toUUIDOrNull(),
-                            )
+                // The sheets are fetched when the controls first open, not for kids who never open them
+                trickplayToPrefetch.set(
+                    trickPlayInfo?.let { trickplayInfo ->
+                        mediaSource.runTimeTicks?.ticks?.let { duration ->
+                            TrickplayPrefetch(duration, trickplayInfo, mediaSource.id?.toUUIDOrNull())
                         }
-                    }
-                }
+                    },
+                )
 
                 val chapters = Chapter.fromDto(base)
                 _state.update {
@@ -1041,34 +1075,74 @@ class PlaybackViewModel
             }
         }
 
-        private suspend fun prefetchTrickplay(
-            duration: Duration,
-            trickplayInfo: TrickplayInfo,
-            mediaSourceId: UUID?,
+        private data class TrickplayPrefetch(
+            val duration: Duration,
+            val trickplayInfo: TrickplayInfo,
+            val mediaSourceId: UUID?,
+        )
+
+        private val trickplayToPrefetch = AtomicReference<TrickplayPrefetch?>(null)
+
+        /**
+         * The controls opened: fetch the item's sheets, the one at the playing position first, which a seek shows
+         * first
+         */
+        private suspend fun prefetchTrickplayFromPosition() {
+            val prefetch = trickplayToPrefetch.getAndSet(null) ?: return
+            val info = prefetch.trickplayInfo
+            val positionMs = onMain { player.currentPosition }
+            val index = (positionMs / info.interval).toInt() / (info.tileWidth * info.tileHeight)
+            viewModelScope.launchIO { prefetchTrickplay(prefetch, first = index) }
+        }
+
+        /**
+         * @param shownIndex a sheet being shown, which the preview loads itself
+         * @param first the sheet to fetch first
+         */
+        private fun prefetchTrickplay(
+            prefetch: TrickplayPrefetch,
+            shownIndex: Int? = null,
+            first: Int? = null,
         ) {
+            val trickplayInfo = prefetch.trickplayInfo
             val tilesPerImage = trickplayInfo.tileWidth * trickplayInfo.tileHeight
             val totalCount =
-                (duration.inWholeMilliseconds / trickplayInfo.interval).toInt() / tilesPerImage + 1
-            (0..<totalCount).forEach {
-                val url = getTrickplayUrl(it, trickplayInfo, mediaSourceId)
+                (prefetch.duration.inWholeMilliseconds / trickplayInfo.interval).toInt() / tilesPerImage + 1
+            val order = (0..<totalCount).sortedBy { if (it == first) -1 else it }
+            order.filter { it != shownIndex }.forEach {
+                val url = trickplayUrl(it, trickplayInfo, prefetch.mediaSourceId)
                 context.imageLoader.enqueue(
                     ImageRequest
                         .Builder(context)
                         .data(url)
                         .size(Size.ORIGINAL)
+                        // Only warm the disk cache: the sheets are full size and most are never shown
+                        .memoryCachePolicy(CachePolicy.DISABLED)
                         .build(),
                 )
             }
         }
 
-        fun getTrickplayUrl(
-            index: Int,
-            trickPlayInfo: TrickplayInfo? = state.value.currentMediaInfo.trickPlayInfo,
-            mediaSourceId: UUID? =
+        /**
+         * The URL of a sheet a preview shows. The sheets are fetched when the controls open; a preview shown before
+         * that starts the fetch of the others.
+         */
+        fun getTrickplayUrl(index: Int): String? {
+            trickplayToPrefetch.getAndSet(null)?.let { viewModelScope.launchIO { prefetchTrickplay(it, shownIndex = index) } }
+            return trickplayUrl(
+                index,
+                state.value.currentMediaInfo.trickPlayInfo,
                 state.value.currentPlayback
                     ?.mediaSourceInfo
                     ?.id
                     ?.toUUIDOrNull(),
+            )
+        }
+
+        private fun trickplayUrl(
+            index: Int,
+            trickPlayInfo: TrickplayInfo?,
+            mediaSourceId: UUID?,
         ): String? =
             trickPlayInfo?.let {
                 val itemId = currentItem.id
@@ -1380,6 +1454,57 @@ class PlaybackViewModel
                     }
                 }
             }
+        }
+
+        private var continueQueueJob: Job? = null
+
+        /**
+         * An in-order queue of episodes holds a window of them: the next window is read while an item at most
+         * [QUEUE_CONTINUE_AT] from its end plays, well before autoplay or the next up card look for the next one
+         */
+        private fun continueQueueIfNearEnd() {
+            val state = state.value
+            if (state.playlist.continuation == null) return
+            if (state.playlist.items.size - 1 - state.playlistIndex > QUEUE_CONTINUE_AT) return
+            continueQueue(untilFull = false)
+        }
+
+        /**
+         * The queue row shows: read the windows left, up to [Playlist.MAX_SIZE] items, so it lists the episodes to come
+         * as it did before the queue held windows
+         */
+        fun onQueueShown() {
+            if (state.value.playlist.continuation == null) return
+            continueQueue(untilFull = true)
+        }
+
+        private fun continueQueue(untilFull: Boolean) {
+            if (continueQueueJob?.isActive == true && !untilFull) return
+            val previous = continueQueueJob
+            continueQueueJob =
+                viewModelScope.launchIO {
+                    previous?.join()
+                    do {
+                        if (untilFull && state.value.playlist.items.size >= Playlist.MAX_SIZE) return@launchIO
+                        val continuation = state.value.playlist.continuation ?: return@launchIO
+                        val more =
+                            try {
+                                playlistCreator.continueEpisodes(continuation)
+                            } catch (ex: Exception) {
+                                if (ex is CancellationException) throw ex
+                                // Tried again when the next item plays
+                                Timber.w(ex, "Could not continue the queue")
+                                return@launchIO
+                            }
+                        _state.update {
+                            if (it.playlist.continuation != continuation) {
+                                it
+                            } else {
+                                it.copy(playlist = more.copy(items = it.playlist.items + more.items))
+                            }
+                        }
+                    } while (untilFull && state.value.playlist.items.size < Playlist.MAX_SIZE)
+                }
         }
 
         suspend fun cancelUpNextEpisode() {

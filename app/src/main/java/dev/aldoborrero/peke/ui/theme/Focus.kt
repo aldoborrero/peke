@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -33,6 +32,7 @@ import androidx.compose.ui.node.invalidatePlacement
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.CardBorder
@@ -162,19 +162,37 @@ private data class PekeFocusElement(
 }
 
 private class PekeFocusNode(
-    var shape: Shape,
+    shape: Shape,
     var grow: Boolean,
 ) : Modifier.Node(),
     FocusEventModifierNode,
     LayoutModifierNode,
     DrawModifierNode,
     CompositionLocalConsumerModifierNode {
+    var shape: Shape = shape
+        set(value) {
+            if (field != value) ringsValid = false
+            field = value
+        }
+
     private var focused = false
     private var scale = Animatable(1f)
+
+    // The border and the ring, made again only when the size, direction, density or shape change: the focused card
+    // draws them on every frame of its scale animation
+    private val borderPath = Path()
+    private val ringPath = Path()
+    private var borderStroke = Stroke(0f)
+    private var ringStroke = Stroke(0f)
+    private var ringsValid = false
+    private var ringsSize = Size.Unspecified
+    private var ringsDirection = LayoutDirection.Ltr
+    private var ringsDensity = 0f
 
     override fun onReset() {
         focused = false
         scale = Animatable(1f)
+        ringsValid = false
     }
 
     override fun onFocusEvent(focusState: FocusState) {
@@ -200,42 +218,44 @@ private class PekeFocusNode(
         scale(scale.value) {
             this@draw.drawContent()
             if (focused) {
-                val border = PekeFocus.BorderWidth.toPx()
-                val ring = PekeFocus.RingWidth.toPx()
-                strokeOutside(border / 2, border, colors.focusBorder)
-                strokeOutside(border + ring / 2, ring, colors.primary)
+                updateRings()
+                drawPath(borderPath, colors.focusBorder, style = borderStroke)
+                drawPath(ringPath, colors.primary, style = ringStroke)
             }
         }
     }
 
-    /**
-     * A stroke of [width] centred [distance] outside the shape's edge, its corners grown by as much
-     */
-    private fun DrawScope.strokeOutside(
-        distance: Float,
-        width: Float,
-        color: Color,
-    ) {
-        val style = Stroke(width)
-        when (val outline = shape.createOutline(size, layoutDirection, this)) {
-            is Outline.Rectangle -> {
-                drawRect(color, Offset(-distance, -distance), Size(size.width + 2 * distance, size.height + 2 * distance), style = style)
-            }
+    private fun DrawScope.updateRings() {
+        if (ringsValid && ringsSize == size && ringsDirection == layoutDirection && ringsDensity == density) return
+        val border = PekeFocus.BorderWidth.toPx()
+        val ring = PekeFocus.RingWidth.toPx()
+        val outline = shape.createOutline(size, layoutDirection, this)
+        borderPath.outside(outline, border / 2)
+        ringPath.outside(outline, border + ring / 2)
+        borderStroke = Stroke(border)
+        ringStroke = Stroke(ring)
+        ringsValid = true
+        ringsSize = size
+        ringsDirection = layoutDirection
+        ringsDensity = density
+    }
+}
 
-            is Outline.Rounded -> {
-                val r = outline.roundRect.grow(distance)
-                if (r.hasSameCorners()) {
-                    drawRoundRect(color, Offset(r.left, r.top), Size(r.width, r.height), r.topLeftCornerRadius, style = style)
-                } else {
-                    drawPath(Path().apply { addRoundRect(r) }, color, style = style)
-                }
-            }
+/**
+ * Sets this path to the line [distance] outside [outline]'s edge, its corners grown by as much, for a stroke centred on it
+ */
+private fun Path.outside(
+    outline: Outline,
+    distance: Float,
+) {
+    rewind()
+    when (outline) {
+        is Outline.Rectangle -> addRect(outline.rect.inflate(distance))
 
-            // Only in custom shapes: drawn on the edge
-            is Outline.Generic -> {
-                drawPath(outline.path, color, style = style)
-            }
-        }
+        is Outline.Rounded -> addRoundRect(outline.roundRect.grow(distance))
+
+        // Only in custom shapes: drawn on the edge
+        is Outline.Generic -> addPath(outline.path)
     }
 }
 
@@ -252,8 +272,3 @@ private fun RoundRect.grow(by: Float) =
         bottomRightCornerRadius = bottomRightCornerRadius.grow(by),
         bottomLeftCornerRadius = bottomLeftCornerRadius.grow(by),
     )
-
-private fun RoundRect.hasSameCorners() =
-    topLeftCornerRadius == topRightCornerRadius &&
-        topLeftCornerRadius == bottomRightCornerRadius &&
-        topLeftCornerRadius == bottomLeftCornerRadius

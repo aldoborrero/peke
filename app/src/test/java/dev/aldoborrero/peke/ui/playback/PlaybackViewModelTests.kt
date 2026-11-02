@@ -7,6 +7,7 @@ import dev.aldoborrero.peke.data.ItemPlaybackDao
 import dev.aldoborrero.peke.data.ItemPlaybackRepository
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.data.model.EpisodesContinuation
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.data.model.Playlist
@@ -83,6 +84,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -188,6 +190,8 @@ class PlaybackViewModelTests {
         every { mockApi.mediaInfoApi } returns mockMediaInfoApi
         every { mockApi.videosApi } returns mockVideosApi
         every { mockApi.mediaSegmentsApi } returns mockMediaSegmentsApi
+        // A queued item's details, read when it's about to play
+        coEvery { mockUserLibraryApi.getItem(any(), any()) } answers { successResponse(movie(id = firstArg())) }
 
         coEvery { mockMediaInfoApi.getPostedPlaybackInfo(any(), any()) } returns
             successResponse(
@@ -477,6 +481,93 @@ class PlaybackViewModelTests {
                 Assert.assertFalse(state.hasNext)
             }
             verify(exactly = 1) { mockNavigationManager.goBack() }
+        }
+
+    @Test
+    fun `An episode queue goes on near its end`() =
+        runTest(testDispatcher) {
+            val movie4 = movie(name = "Test Movie 4")
+            val continuation = EpisodesContinuation(UUID.randomUUID(), null, movie3.id)
+            coEvery { mockUserLibraryApi.getItem(playlist.id, any()) } returns successResponse(playlist)
+            coEvery {
+                mockPlaylistCreator.createFrom(
+                    item = playlist,
+                    startIndex = any(),
+                    sortAndDirection = any(),
+                    shuffled = any(),
+                    recursive = any(),
+                    filter = any(),
+                )
+            } returns PlaylistCreationResult.Success(playlistItems.copy(continuation = continuation))
+            coEvery { mockPlaylistCreator.continueEpisodes(continuation) } returns
+                Playlist.fromMedia(listOf(BaseItem(movie4)))
+
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            testScheduler.advanceUntilIdle()
+
+            viewModel.state.value.also { state ->
+                Assert.assertEquals(
+                    listOf(movie.id, movie2.id, movie3.id, movie4.id),
+                    state.playlist.items.map { it.id },
+                )
+                Assert.assertNull(state.playlist.continuation)
+            }
+
+            viewModel.playNextUp()
+            testScheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { mockPlaylistCreator.continueEpisodes(any()) }
+            Assert.assertTrue(viewModel.state.value.hasNext)
+        }
+
+    @Test
+    fun `A queued item that can't be read shows an error instead of skipping the queue`() =
+        runTest(testDispatcher) {
+            setupForPlaylist()
+            coEvery { mockUserLibraryApi.getItem(movie2.id, any()) } throws IOException("no network")
+
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            viewModel.playNextUp()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.state.value.also { state ->
+                Assert.assertEquals(1, state.playlistIndex)
+                Assert.assertTrue(state.loading is LoadingState.Error)
+            }
+            verify(exactly = 1) { mockPlayer.setMediaItem(any(), any<Long>()) }
+        }
+
+    @Test
+    fun `The queue row lists the episodes to come`() =
+        runTest(testDispatcher) {
+            val first = Playlist.fromMedia(List(Playlist.EPISODES_WINDOW) { BaseItem(movie(name = "Episode $it")) })
+            val second = Playlist.fromMedia(List(Playlist.EPISODES_WINDOW) { BaseItem(movie(name = "Episode 1$it")) })
+            val third = Playlist.fromMedia(List(3) { BaseItem(movie(name = "Episode 2$it")) })
+            val afterFirst = EpisodesContinuation(UUID.randomUUID(), null, first.items.last().id)
+            val afterSecond = afterFirst.copy(afterEpisodeId = second.items.last().id)
+            coEvery { mockUserLibraryApi.getItem(playlist.id, any()) } returns successResponse(playlist)
+            coEvery {
+                mockPlaylistCreator.createFrom(
+                    item = playlist,
+                    startIndex = any(),
+                    sortAndDirection = any(),
+                    shuffled = any(),
+                    recursive = any(),
+                    filter = any(),
+                )
+            } returns PlaylistCreationResult.Success(first.copy(continuation = afterFirst))
+            coEvery { mockPlaylistCreator.continueEpisodes(afterFirst) } returns second.copy(continuation = afterSecond)
+            coEvery { mockPlaylistCreator.continueEpisodes(afterSecond) } returns third
+
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            Assert.assertEquals(Playlist.EPISODES_WINDOW - 1, viewModel.state.value.upcomingItems.size)
+
+            viewModel.onQueueShown()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.state.value.also { state ->
+                Assert.assertEquals((first.items + second.items + third.items).map { it.id }, state.playlist.items.map { it.id })
+                Assert.assertNull(state.playlist.continuation)
+            }
         }
 
     @Test

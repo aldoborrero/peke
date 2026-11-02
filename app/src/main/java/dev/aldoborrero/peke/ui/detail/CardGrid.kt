@@ -357,7 +357,7 @@ fun <T : CardGridItem> CardGrid(
 //                                    Timber.v("cardWidthPx=%s", cardWidthPx)
                                 },
                     ) {
-                        items(pager.size) { index ->
+                        items(pager.size, contentType = { "card" }) { index ->
                             val item = pager[index]
                             val details =
                                 remember(index, item, cardWidthPx, columns) {

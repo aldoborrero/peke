@@ -52,6 +52,19 @@ val DetailItemFields =
     )
 
 /**
+ * [ItemFields] for the items of a play queue: what the queue shows. The player reads the rest of [DetailItemFields]
+ * when an item plays.
+ */
+val PlaylistItemFields =
+    listOf(
+        ItemFields.OVERVIEW,
+        ItemFields.SORT_NAME,
+        ItemFields.MEDIA_SOURCE_COUNT,
+        ItemFields.CAN_DELETE,
+        ItemFields.PRIMARY_IMAGE_ASPECT_RATIO,
+    )
+
+/**
  * [ItemFields] for higher level displays such as grids or rows
  */
 val SlimItemFields =

@@ -32,11 +32,15 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
@@ -59,6 +63,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.IOException
 
 class ServerRepositoryTest {
     private val testDispatcher = StandardTestDispatcher()
@@ -685,6 +690,82 @@ class ServerRepositoryTest {
 
             assertEquals(serverUserConfig, serverRepository.currentUserDto)
             coVerify { userConfigCache.save(userDto) }
+        }
+
+    @Test
+    fun `an update arriving during another waits for it`() =
+        runTest(testDispatcher) {
+            val answer = CompletableDeferred<Unit>()
+            coEvery { mockUserApi.getCurrentUser() } coAnswers {
+                answer.await()
+                successResponse(userDto)
+            }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            val first = launch { serverRepository.updateUserDto() }
+            val second = launch { serverRepository.updateUserDto() }
+            advanceUntilIdle()
+            answer.complete(Unit)
+            joinAll(first, second)
+
+            coVerify(exactly = 1) { mockUserApi.getCurrentUser() }
+            assertEquals(serverUserConfig, serverRepository.currentUserDto)
+        }
+
+    @Test
+    fun `an update waiting for one that failed asks itself`() =
+        runTest(testDispatcher) {
+            val answer = CompletableDeferred<Unit>()
+            var calls = 0
+            coEvery { mockUserApi.getCurrentUser() } coAnswers {
+                if (++calls == 1) {
+                    answer.await()
+                    throw IOException("offline")
+                }
+                successResponse(userDto)
+            }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            val first = launch { runCatching { serverRepository.updateUserDto() } }
+            val second = launch { serverRepository.updateUserDto() }
+            advanceUntilIdle()
+            answer.complete(Unit)
+            joinAll(first, second)
+
+            coVerify(exactly = 2) { mockUserApi.getCurrentUser() }
+            assertEquals(serverUserConfig, serverRepository.currentUserDto)
+        }
+
+    @Test
+    fun `an update waiting for one of the user before a switch asks itself`() =
+        runTest(testDispatcher) {
+            val other = user.copy(rowId = 2, id = UUID.randomUUID(), name = "other")
+            val otherDto = userDto.copy(id = other.id, name = "other")
+            val answer = CompletableDeferred<Unit>()
+            var calls = 0
+            coEvery { mockUserApi.getCurrentUser() } coAnswers {
+                if (++calls == 1) {
+                    answer.await()
+                    successResponse(userDto)
+                } else {
+                    successResponse(otherDto)
+                }
+            }
+            val serverRepository = create()
+            setUpCurrentUser(serverRepository)
+
+            val first = launch { serverRepository.updateUserDto() }
+            advanceUntilIdle()
+            (serverRepository.current as MutableStateFlow).value = CurrentUser(server, other)
+            val second = launch { serverRepository.updateUserDto() }
+            advanceUntilIdle()
+            answer.complete(Unit)
+            joinAll(first, second)
+
+            coVerify(exactly = 2) { mockUserApi.getCurrentUser() }
+            assertEquals(ServerUserConfig(otherDto), serverRepository.currentUserDto)
         }
 
     @Test

@@ -30,3 +30,4 @@ dependencyResolutionManagement {
 rootProject.name = "Peke"
 include(":app")
 include(":wholphin-mpv-stub")
+include(":baselineprofile")

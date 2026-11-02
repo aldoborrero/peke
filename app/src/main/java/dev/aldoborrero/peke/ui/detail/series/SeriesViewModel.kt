@@ -21,6 +21,7 @@ import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.ExtrasService
 import dev.aldoborrero.peke.services.FavoriteWatchManager
+import dev.aldoborrero.peke.services.ItemHandOver
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PeopleFavorites
@@ -53,6 +54,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -63,6 +66,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -91,6 +95,7 @@ class SeriesViewModel
         private val userPreferencesService: UserPreferencesService,
         private val backdropService: BackdropService,
         private val mediaManagementService: MediaManagementService,
+        private val itemHandOver: ItemHandOver,
         @Assisted val seriesId: UUID,
         @Assisted val seasonEpisodeIds: SeasonEpisodeIds?,
         @Assisted val seriesPageType: SeriesPageType,
@@ -109,15 +114,24 @@ class SeriesViewModel
 
         val position = MutableStateFlow(SeriesOverviewPosition(0, 0))
 
+        /** Whether the page shows people, so they're read only then; null until the page says */
+        private val peopleShown = MutableStateFlow<Boolean?>(null)
+
+        fun setPeopleShown(shown: Boolean) {
+            peopleShown.value = shown
+        }
+
         init {
             viewModelScope.launchIO {
                 Timber.v("Start")
                 val series =
                     try {
-                        api.userLibraryApi
-                            .getItem(seriesId)
-                            .content
-                            .let { BaseItem(it) }
+                        // A season opened from the series page gets the series it just read
+                        itemHandOver.takeIf { seriesPageType == SeriesPageType.OVERVIEW }?.take(seriesId)
+                            ?: api.userLibraryApi
+                                .getItem(seriesId)
+                                .content
+                                .let { BaseItem(it) }
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -130,7 +144,7 @@ class SeriesViewModel
                         _state.update { it.copy(canDeleteSeries = canDelete) }
                     }
                 }
-                backdropService.submit(series)
+                viewModelScope.launchDefault { backdropService.submit(series) }
 
                 val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
 
@@ -210,6 +224,7 @@ class SeriesViewModel
 
                 if (seriesPageType == SeriesPageType.DETAILS) {
                     viewModelScope.launchIO {
+                        if (!peopleShown.filterNotNull().first()) return@launchIO
                         val people = peopleFavorites.getPeopleFor(series)
                         _state.update { it.copy(people = people) }
                     }
@@ -257,7 +272,23 @@ class SeriesViewModel
             }
         }
 
+        /** Whether the page was left since it last showed, see [refresh] */
+        private var left = false
+
+        /**
+         * The page was left (another page opened, or the app went to the background)
+         */
+        fun onLeft() {
+            left = true
+        }
+
+        /**
+         * Coming back to the page: read the seasons again, for what was watched meanwhile. The page's first showing
+         * isn't a return, the seasons were just read.
+         */
         fun refresh() {
+            if (!left) return
+            left = false
             state.value.series.successValue?.let { item ->
                 viewModelScope.launchIO {
                     (state.value.seasons as? ApiRequestPager<*>)?.refresh()
@@ -313,9 +344,9 @@ class SeriesViewModel
                     seriesId = seriesId,
                     seasonId = seasonId,
                     sortBy = ItemSortBy.INDEX_NUMBER,
+                    // No media sources for the whole season: lookUpChosenTracks reads them for the focused episode
                     fields =
                         listOf(
-                            ItemFields.MEDIA_SOURCES,
                             ItemFields.MEDIA_SOURCE_COUNT,
                             ItemFields.OVERVIEW,
                             ItemFields.CUSTOM_RATING,
@@ -356,7 +387,9 @@ class SeriesViewModel
             seasonNum: Int?,
         ) {
             val currentEpisodes = (state.value.episodes as? EpisodeList.Success)
-            if (currentEpisodes == null || currentEpisodes.seasonId != seasonId) {
+            // The same season read again keeps its list until the new one comes, and its extras
+            val otherSeason = currentEpisodes == null || currentEpisodes.seasonId != seasonId
+            if (otherSeason) {
                 _state.update {
                     it.copy(
                         peopleInEpisode = PeopleInItem(),
@@ -375,9 +408,11 @@ class SeriesViewModel
                     }
                 _state.update { it.copy(episodes = episodes) }
             }
-            viewModelScope.launchIO {
-                val extras = extrasService.getExtras(seasonId)
-                _state.update { it.copy(extras = extras) }
+            if (otherSeason) {
+                viewModelScope.launchIO {
+                    val extras = extrasService.getExtras(seasonId)
+                    _state.update { it.copy(extras = extras) }
+                }
             }
         }
 
@@ -401,9 +436,11 @@ class SeriesViewModel
                             .content
                             .let(::BaseItem)
                     _state.update { it.copy(series = DataLoadingState.Success(series)) }
-                    viewModelScope.launchIO {
-                        val people = peopleFavorites.getPeopleFor(series)
-                        _state.update { it.copy(people = people) }
+                    if (peopleShown.value == true) {
+                        viewModelScope.launchIO {
+                            val people = peopleFavorites.getPeopleFor(series)
+                            _state.update { it.copy(people = people) }
+                        }
                     }
                     viewModelScope.launchIO {
                         val seasons = getSeasons(series, null).await()
@@ -485,22 +522,106 @@ class SeriesViewModel
         }
 
         fun navigateTo(destination: Destination) {
+            if (seriesPageType == SeriesPageType.DETAILS && destination is Destination.SeriesOverview && destination.itemId == seriesId) {
+                state.value.series.successValue
+                    ?.let { itemHandOver.put(it) }
+            }
             navigationManager.navigateTo(destination)
         }
 
         private var chosenStreamsJob: Job? = null
 
+        /**
+         * The full read of the focused episode (media sources, people), shared by everything that needs it: the people
+         * row, the track and version choices, and the menus that need its sources. Only the focused one is kept, and a
+         * failed read is tried again.
+         */
+        private var focusedDetails: Pair<UUID, Deferred<BaseItemDto>>? = null
+
+        @Synchronized
+        private fun detailsOf(itemId: UUID): Deferred<BaseItemDto> =
+            focusedDetails
+                ?.takeIf { (id, read) ->
+                    id == itemId && !read.isCancelled &&
+                        (!read.isCompleted || read.getCompletionExceptionOrNull() == null)
+                }?.second
+                ?: viewModelScope
+                    .async(PekeDispatchers.IO) { api.userLibraryApi.getItem(itemId).content }
+                    .also { focusedDetails = itemId to it }
+
+        /**
+         * The episode at [index] with its media sources: as listed when it has them, else read (or the read running
+         * for it awaited) and put in the list
+         */
+        private suspend fun withSources(
+            index: Int,
+            item: BaseItem,
+        ): BaseItem {
+            if (item.data.mediaSources != null) return item
+            val eps = state.value.episodes as? EpisodeList.Success
+            val listed = eps?.episodes?.getOrNull(index)?.takeIf { it.id == item.id }
+            if (eps != null && listed != null) {
+                if (listed.data.mediaSources != null) return listed
+                eps.episodes.refreshItem(index, item.id) { detailsOf(item.id).await() }
+                _state.update { it.copy(episodes = eps) }
+                eps.episodes
+                    .getOrNull(index)
+                    ?.takeIf { it.id == item.id }
+                    ?.let { return it }
+            }
+            return BaseItem(detailsOf(item.id).await())
+        }
+
+        /**
+         * Run [block] with the episode at [index] with its media sources, for a menu or dialog that shows them: the
+         * list comes without them, and the read for the focused episode may still be running
+         */
+        fun withEpisodeSources(
+            index: Int,
+            item: BaseItem,
+            block: (BaseItem) -> Unit,
+        ) {
+            if (item.data.mediaSources != null) {
+                block(item)
+                return
+            }
+            viewModelScope.launch(ExceptionHandler()) {
+                val full =
+                    try {
+                        withContext(PekeDispatchers.IO) { withSources(index, item) }
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Could not read the media sources of %s", item.id)
+                        item
+                    }
+                withContext(PekeDispatchers.Main) { block(full) }
+            }
+        }
+
+        /**
+         * The season's episodes come without media sources. With [readSourcesAt], an episode without them is read again
+         * at that list index once the focus has settled on it, for the track and version choices shown.
+         */
         fun lookUpChosenTracks(
             itemId: UUID,
             item: BaseItem,
+            readSourcesAt: Int? = null,
         ) {
             chosenStreamsJob?.cancel()
             chosenStreamsJob =
                 viewModelScope.launchIO {
+                    val withSources =
+                        if (readSourcesAt != null && item.data.mediaSources == null) {
+                            delay(250)
+                            withSources(readSourcesAt, item)
+                        } else {
+                            item
+                        }
                     val result =
                         itemPlaybackRepository.getSelectedTracks(
                             itemId,
-                            item,
+                            withSources,
                             userPreferencesService.getCurrent(),
                         )
                     _state.update { it.copy(chosenStreams = result) }
@@ -557,10 +678,11 @@ class SeriesViewModel
                     peopleInEpisodeCache
                         .get(item.id) {
                             viewModelScope.async(PekeDispatchers.IO) {
+                                // The same read as the focused episode's media sources
                                 val list =
-                                    api.userLibraryApi
-                                        .getItem(item.id)
-                                        .content.people
+                                    detailsOf(item.id)
+                                        .await()
+                                        .people
                                         ?.map { Person.fromDto(context, it, api) }
                                         .orEmpty()
 

@@ -44,6 +44,8 @@ import dev.aldoborrero.peke.util.GetStudiosRequestHandler
 import dev.aldoborrero.peke.util.HomeRowLoadingState
 import dev.aldoborrero.peke.util.HomeRowLoadingState.Success
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
@@ -222,9 +224,10 @@ class HomeSettingsService
          */
         suspend fun loadCurrentSettings(userId: UUID) {
             Timber.v("Getting setting for %s", userId)
-            profileHomeSettings(userId)?.let {
+            var libraries: List<Library>? = null
+            profileHomeSettings(userId) { libraries = it }?.let {
                 Timber.v("Using the profile's fixed home settings")
-                updateCurrent(userId, it)
+                updateCurrent(userId, it, libraries)
                 return
             }
             // User local then server/remote otherwise create a default
@@ -249,10 +252,7 @@ class HomeSettingsService
                 if (settings != null) {
                     Timber.v("Found settings")
                     // Resolve
-                    val resolvedRows =
-                        settings.rows.mapIndexed { index, config ->
-                            resolve(index, config)
-                        }
+                    val resolvedRows = resolveAll(settings.rows)
                     HomePageResolvedSettings(userId, resolvedRows)
                 } else {
                     createDefault(userId)
@@ -264,11 +264,14 @@ class HomeSettingsService
         /**
          * The [ProfilePolicy]'s fixed home, if [userId] is the current user and the policy has one for them
          */
-        private suspend fun profileHomeSettings(userId: UUID): HomePageSettings? {
+        private suspend fun profileHomeSettings(
+            userId: UUID,
+            onLibraries: (List<Library>) -> Unit,
+        ): HomePageSettings? {
             val user = serverRepository.currentUser?.takeIf { it.id == userId } ?: return null
             return profilePolicy.homeSettings(user) {
                 val tvAccess = serverRepository.currentUserDto?.takeIf { it.id == userId }?.tvAccess ?: false
-                navDrawerService.getAllUserLibraries(user.id, tvAccess)
+                navDrawerService.getAllUserLibraries(user.id, tvAccess).also(onLibraries)
             }
         }
 
@@ -278,12 +281,10 @@ class HomeSettingsService
         suspend fun updateCurrent(
             userId: UUID,
             settings: HomePageSettings,
+            libraries: List<Library>? = null,
         ) {
-            val resolvedRows =
-                settings.rows.mapIndexed { index, config ->
-                    resolve(index, config)
-                }
-            val resolvedSettings = HomePageResolvedSettings(userId, resolvedRows)
+            val resolvedRows = resolveAll(settings.rows)
+            val resolvedSettings = HomePageResolvedSettings(userId, resolvedRows, libraries)
             currentSettings.update { resolvedSettings }
         }
 
@@ -328,7 +329,7 @@ class HomeSettingsService
                     ),
                 )
             val rowConfig = continueWatchingRow + includedIds
-            return HomePageResolvedSettings(userId, rowConfig)
+            return HomePageResolvedSettings(userId, rowConfig, libraries)
         }
 
         /**
@@ -451,15 +452,62 @@ class HomeSettingsService
         }
 
         /**
+         * Resolves every row, reading the names of their parents in one request instead of one per row
+         */
+        private suspend fun resolveAll(rows: List<HomeRowConfig>): List<HomeRowConfigDisplay> {
+            val parentIds =
+                rows
+                    .mapNotNull {
+                        when (it) {
+                            is HomeRowConfig.ByParent -> it.parentId
+                            is HomeRowConfig.Genres -> it.parentId
+                            is HomeRowConfig.Studios -> it.parentId
+                            is HomeRowConfig.RecentlyAdded -> it.parentId
+                            is HomeRowConfig.RecentlyReleased -> it.parentId
+                            is HomeRowConfig.Suggestions -> it.parentId
+                            else -> null
+                        }
+                    }.distinct()
+            val names =
+                if (parentIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    try {
+                        GetItemsRequestHandler
+                            .execute(
+                                api,
+                                GetItemsRequest(
+                                    userId = serverRepository.currentUser?.id,
+                                    ids = parentIds,
+                                    enableImages = false,
+                                    enableUserData = false,
+                                    enableTotalRecordCount = false,
+                                ),
+                            ).content.items
+                            .mapNotNull { item -> item.name?.let { item.id to it } }
+                            .toMap()
+                    } catch (ex: Exception) {
+                        // Each row asks for its own name instead
+                        Timber.w(ex, "Could not get the names of the home rows")
+                        emptyMap()
+                    }
+                }
+            return rows.mapIndexed { index, config -> resolve(index, config, names) }
+        }
+
+        /**
          * Converts a [HomeRowConfig] into [HomeRowConfigDisplay] for UI purposes
+         *
+         * @param names names already read for the rows' parents, by item id; others are read from the server
          */
         suspend fun resolve(
             id: Int,
             config: HomeRowConfig,
+            names: Map<UUID, String> = emptyMap(),
         ): HomeRowConfigDisplay =
             when (config) {
                 is HomeRowConfig.ByParent -> {
-                    val name = getItemName(null, config.parentId)
+                    val name = getItemName(null, config.parentId, names)
                     HomeRowConfigDisplay(
                         id,
                         name,
@@ -484,7 +532,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.Genres -> {
-                    val title = getItemName(R.string.genres_in, config.parentId)
+                    val title = getItemName(R.string.genres_in, config.parentId, names)
                     HomeRowConfigDisplay(
                         id,
                         title,
@@ -493,7 +541,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.Studios -> {
-                    val title = getItemName(R.string.studios_in, config.parentId)
+                    val title = getItemName(R.string.studios_in, config.parentId, names)
                     HomeRowConfigDisplay(
                         id,
                         title,
@@ -514,7 +562,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.RecentlyAdded -> {
-                    val title = getItemName(R.string.recently_added_in, config.parentId)
+                    val title = getItemName(R.string.recently_added_in, config.parentId, names)
                     HomeRowConfigDisplay(
                         id,
                         title,
@@ -523,7 +571,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.RecentlyReleased -> {
-                    val title = getItemName(R.string.recently_released_in, config.parentId)
+                    val title = getItemName(R.string.recently_released_in, config.parentId, names)
                     HomeRowConfigDisplay(
                         id,
                         title,
@@ -565,7 +613,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.Suggestions -> {
-                    val title = getItemName(R.string.suggestions_for, config.parentId)
+                    val title = getItemName(R.string.suggestions_for, config.parentId, names)
                     HomeRowConfigDisplay(
                         id = id,
                         title = title,
@@ -577,21 +625,23 @@ class HomeSettingsService
         private suspend fun getItemName(
             @StringRes stringRes: Int?,
             itemId: UUID,
+            names: Map<UUID, String>,
             default: StringProvider = StringStringProvider(""),
         ): StringProvider =
             try {
-                api.userLibraryApi
-                    .getItem(
-                        userId = serverRepository.currentUser?.id,
-                        itemId = itemId,
-                    ).content.name
-                    ?.let {
-                        if (stringRes == null) {
-                            StringStringProvider(it)
-                        } else {
-                            ResArgStringProvider(stringRes, it)
-                        }
-                    } ?: default
+                (
+                    names[itemId] ?: api.userLibraryApi
+                        .getItem(
+                            userId = serverRepository.currentUser?.id,
+                            itemId = itemId,
+                        ).content.name
+                )?.let {
+                    if (stringRes == null) {
+                        StringStringProvider(it)
+                    } else {
+                        ResArgStringProvider(stringRes, it)
+                    }
+                } ?: default
             } catch (ex: Exception) {
                 Timber.e(ex, "Could not get name for %s", itemId)
                 ResStringProvider(R.string.unknown)
@@ -650,22 +700,29 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.ContinueWatchingCombined -> {
-                    val resume =
-                        latestNextUpService.getResume(
-                            userDto.id,
-                            limit,
-                            true,
-                            row.viewOptions.useSeries,
-                        )
-                    val nextUp =
-                        latestNextUpService.getNextUp(
-                            userDto.id,
-                            limit,
-                            prefs.enableRewatchingNextUp,
-                            false,
-                            prefs.maxDaysNextUp,
-                            row.viewOptions.useSeries,
-                        )
+                    // Resume and next up in parallel
+                    val (resume, nextUp) =
+                        coroutineScope {
+                            val resume =
+                                async {
+                                    latestNextUpService.getResume(
+                                        userDto.id,
+                                        limit,
+                                        true,
+                                        row.viewOptions.useSeries,
+                                    )
+                                }
+                            val nextUp =
+                                latestNextUpService.getNextUp(
+                                    userDto.id,
+                                    limit,
+                                    prefs.enableRewatchingNextUp,
+                                    false,
+                                    prefs.maxDaysNextUp,
+                                    row.viewOptions.useSeries,
+                                )
+                            resume.await() to nextUp
+                        }
                     val combined = latestNextUpService.buildCombined(resume, nextUp)
 
                     Success(
@@ -849,6 +906,8 @@ class HomeSettingsService
                             recursive = true,
                             maxPremiereDate = LocalDateTime.now(),
                             isUnaired = false,
+                            imageTypeLimit = 1,
+                            enableTotalRecordCount = usePaging,
                         )
                     if (usePaging) {
                         ApiRequestPager(
@@ -912,11 +971,14 @@ class HomeSettingsService
                             limit = limit,
                             fields = library.itemFields,
                             excludeItemTypes = KidsItemTypes.EXCLUDED,
+                            imageTypeLimit = 1,
+                            // The pager needs the total; a plain row only its items
+                            enableTotalRecordCount = usePaging,
                         )
 
-                    // Not using getItemName because we want to throw the 404
+                    // A library's name is already known; for other parents not using getItemName because we want to throw the 404
                     val title =
-                        api.userLibraryApi
+                        library?.name?.let { StringStringProvider(it) } ?: api.userLibraryApi
                             .getItem(
                                 userId = serverRepository.currentUser?.id,
                                 itemId = row.parentId,
@@ -1055,8 +1117,9 @@ class HomeSettingsService
                                         useSeriesForPrimary = row.viewOptions.useSeries,
                                     ).init()
                                 } else {
+                                    // The row shows no total, so the server isn't asked to count
                                     GetItemsRequestHandler
-                                        .execute(api, request)
+                                        .execute(api, request.copy(enableTotalRecordCount = false, imageTypeLimit = 1))
                                         .toBaseItems(row.viewOptions.useSeries)
                                 }
                             }
@@ -1244,7 +1307,16 @@ data class HomeRowConfigDisplay(
 data class HomePageResolvedSettings(
     val userId: UUID,
     val rows: List<HomeRowConfigDisplay>,
+    /**
+     * The libraries read to build these settings, if any, so the home's first load of them doesn't read them again.
+     * Not part of equality: a rebuild with the same rows is the same home.
+     */
+    val libraries: List<Library>? = null,
 ) {
+    override fun equals(other: Any?): Boolean = other is HomePageResolvedSettings && userId == other.userId && rows == other.rows
+
+    override fun hashCode(): Int = 31 * userId.hashCode() + rows.hashCode()
+
     companion object {
         val EMPTY = HomePageResolvedSettings(UUID.randomUUID(), emptyList())
     }

@@ -199,6 +199,8 @@ class KidsAllowanceService
                         }
                         if (!poll || pluginStatus != KidsServerStatus.AVAILABLE) return@collectLatest
                         while (true) {
+                            // A refresh asked for before this fetch starts is answered by it
+                            while (refreshRequests.tryReceive().isSuccess) Unit
                             fetch(rowId)
                             val limits = KidsLimits.of(_snapshot.value?.status, _refusal.value)
                             withTimeoutOrNull(interval(limits)) { refreshRequests.receive() }

@@ -37,6 +37,7 @@ import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
+import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.services.hilt.IoDispatcher
@@ -136,7 +137,14 @@ class KidsOnTvViewModel
             val api = jellyfin.createApi(baseUrl = setUp.server.url)
             return KidsOnTvState(
                 server = setUp.server,
-                kids = setUp.kids.map { PickerKid(it, api.imageApi.getUserImageUrl(it.id), needsGrownUp(it)) },
+                kids =
+                    setUp.kids.map {
+                        PickerKid(
+                            it,
+                            api.imageApi.getUserImageUrl(it.id, maxHeight = ImageUrlService.userImageMaxHeight),
+                            needsGrownUp(it),
+                        )
+                    },
                 removing = removing,
             )
         }

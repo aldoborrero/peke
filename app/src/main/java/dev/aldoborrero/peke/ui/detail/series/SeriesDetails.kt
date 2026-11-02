@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -160,10 +161,14 @@ fun SeriesDetails(
             )
         }
 
+    // The cast row is hidden where people are (kids), and then they aren't read
+    val showPeople = LocalInterfaceCustomization.current.allows(RestrictedFeature.PEOPLE)
+    LaunchedEffect(showPeople) { viewModel.setPeopleShown(showPeople) }
+
     LifecycleResumeEffect(destination.itemId) {
         viewModel.refresh()
 
-        onPauseOrDispose {}
+        onPauseOrDispose { viewModel.onLeft() }
     }
 
     when (val st = state.series) {

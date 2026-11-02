@@ -103,6 +103,9 @@
                 android:name="autoStoreLocales"
                 android:value="false" />
         </service>
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
     </application>
 
 </manifest>

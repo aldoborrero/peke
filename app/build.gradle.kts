@@ -16,6 +16,7 @@ plugins {
     alias(libs.plugins.protobuf)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias(libs.plugins.aboutLibraries)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 val isCI = providers.environmentVariable("CI").orElse("false").map { it.toBoolean() }
@@ -34,10 +35,16 @@ val mpvModuleExists =
 val extensionsRepoActive =
     providers.provider { project.hasProperty("WholphinExtensionsUsername") }
 
-// Peke releases always ship MPV and the FFmpeg and AV1 decoders (direct play first), so a release build without them fails
+// Peke releases always ship MPV and the FFmpeg and AV1 decoders (direct play first), so a release build without them fails.
+// The benchmark build type and the baseline profile tasks are not releases: without the extensions they build with the MPV
+// stub and no FFmpeg/AV1 decoders.
 val isBuildingRelease =
     providers.provider {
-        gradle.startParameter.taskNames.any { it.lowercase().contains("release") }
+        gradle.startParameter.taskNames.any {
+            val task = it.lowercase()
+            // Collecting the baseline profile and benchmarking build release variants that are never shipped
+            task.contains("release") && listOf("baselineprofile", "benchmark", "nonminified").none { task.contains(it) }
+        }
     }
 if (isBuildingRelease.get()) {
     val missing =
@@ -101,6 +108,12 @@ configure<ApplicationExtension> {
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
         buildConfigField("boolean", "UPDATING_ENABLED", "true")
+        // Compose diagnostic stack traces slow down every composition; enable with -Ppeke.composeDiagnostics=true
+        buildConfigField(
+            "boolean",
+            "COMPOSE_DIAGNOSTICS",
+            providers.gradleProperty("peke.composeDiagnostics").orElse("false").get(),
+        )
         manifestPlaceholders["leanback"] = false
     }
 
@@ -151,6 +164,14 @@ configure<ApplicationExtension> {
             isShrinkResources = false
             isDebuggable = true
             applicationIdSuffix = ".debug"
+        }
+
+        // Release-like build for profiling and baseline profiles: minified, not debuggable, debug-signed
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            isDebuggable = false
         }
     }
     compileOptions {
@@ -216,6 +237,13 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// The profile is collected by hand on a device (see baselineprofile/) and committed under src/main, so every build type
+// ships it
+baselineProfile {
+    mergeIntoMain = true
+    automaticGenerationDuringBuild = false
+}
+
 protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:${libs.protobuf.kotlin.lite.get().version}"
@@ -263,6 +291,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)

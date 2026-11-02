@@ -16,6 +16,7 @@ import coil3.request.allowHardware
 import coil3.request.bitmapConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.kids.KidsModeService
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.BackdropStyle
 import dev.aldoborrero.peke.util.PekeDispatchers
@@ -44,6 +45,7 @@ class BackdropService
         @param:ApplicationContext private val context: Context,
         private val imageUrlService: ImageUrlService,
         private val preferences: DataStore<AppPreferences>,
+        private val kidsModeService: KidsModeService,
     ) {
         private val extractedColorCache = LruCache<String, ExtractedColors>(50)
 
@@ -71,6 +73,8 @@ class BackdropService
             itemId: String,
             imageUrl: String?,
         ) = withContext(PekeDispatchers.IO) {
+            // Kid pages draw no backdrop (ApplicationContent), so skip the download and the palette
+            if (kidsModeService.isActive) return@withContext
             if (backdropFlow.firstOrNull()?.imageUrl != imageUrl || imageUrl == null) {
                 _backdropFlow.update {
                     it.copy(

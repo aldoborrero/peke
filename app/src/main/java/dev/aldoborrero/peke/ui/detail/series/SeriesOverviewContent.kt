@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -271,9 +270,6 @@ fun SeriesOverviewContent(
                         ) {
                             itemsIndexed(eps.episodes) { episodeIndex, episode ->
                                 val interactionSource = remember { MutableInteractionSource() }
-                                if (interactionSource.collectIsFocusedAsState().value) {
-                                    onFocusEpisode.invoke(episodeIndex)
-                                }
                                 BannerCard(
                                     name = episode?.name,
                                     item = episode,
@@ -320,6 +316,7 @@ fun SeriesOverviewContent(
                                                     }
                                             }.onFocusChanged {
                                                 if (it.isFocused) {
+                                                    onFocusEpisode.invoke(episodeIndex)
                                                     scope.launch {
                                                         bringIntoViewRequester.bringIntoView()
                                                     }

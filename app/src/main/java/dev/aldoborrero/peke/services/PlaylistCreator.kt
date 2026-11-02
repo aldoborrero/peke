@@ -5,11 +5,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.BaseItem
+import dev.aldoborrero.peke.data.model.EpisodesContinuation
 import dev.aldoborrero.peke.data.model.GetItemsFilter
 import dev.aldoborrero.peke.data.model.Playlist
 import dev.aldoborrero.peke.data.model.PlaylistInfo
 import dev.aldoborrero.peke.data.model.PlaylistItem
 import dev.aldoborrero.peke.ui.DetailItemFields
+import dev.aldoborrero.peke.ui.PlaylistItemFields
 import dev.aldoborrero.peke.ui.components.baseItemKinds
 import dev.aldoborrero.peke.ui.data.SortAndDirection
 import dev.aldoborrero.peke.ui.gt
@@ -61,24 +63,65 @@ class PlaylistCreator
             seasonId: UUID? = null,
             shuffled: Boolean = false,
         ): Playlist {
+            // In order, the queue holds a window of episodes and goes on with continueEpisodes as it plays
+            val limit = if (shuffled) Playlist.MAX_SIZE else Playlist.EPISODES_WINDOW
             val request =
                 GetEpisodesRequest(
                     seriesId = seriesId,
                     seasonId = seasonId,
-                    fields = DetailItemFields,
+                    // The player reads an episode's details (media sources, chapters, trickplay) when it plays it
+                    fields = PlaylistItemFields,
                     startItemId = episodeId,
                     sortBy = if (shuffled) ItemSortBy.RANDOM else null,
-                    limit = Playlist.MAX_SIZE,
+                    limit = limit,
                 )
-            val episodes =
-                GetEpisodesRequestHandler
-                    .execute(api, request)
-                    .content.items
-                    .convertAndAddParts(false)
+            val dtos = GetEpisodesRequestHandler.execute(api, request).content.items
+            val episodes = dtos.convertAndAddParts(false)
             val startIndex =
                 episodeId?.let { episodes.indexOfFirstOrNull { it.id == episodeId } } ?: 0
-            return Playlist(episodes.subList(startIndex, episodes.size))
+            return Playlist(
+                episodes.subList(startIndex, episodes.size),
+                continuation = if (shuffled) null else continuationAfter(seriesId, seasonId, dtos, limit),
+            )
         }
+
+        /**
+         * The next window of an in-order queue of episodes. A window of only missing (virtual) episodes adds nothing,
+         * so the one after it is read then, until one adds episodes or the series ends.
+         */
+        suspend fun continueEpisodes(continuation: EpisodesContinuation): Playlist {
+            var next: EpisodesContinuation? = continuation
+            while (next != null) {
+                val window = episodesAfter(next)
+                if (window.items.isNotEmpty() || window.continuation == null) return window
+                next = window.continuation
+            }
+            return Playlist(emptyList())
+        }
+
+        private suspend fun episodesAfter(continuation: EpisodesContinuation): Playlist {
+            val limit = Playlist.EPISODES_WINDOW + 1
+            val request =
+                GetEpisodesRequest(
+                    seriesId = continuation.seriesId,
+                    seasonId = continuation.seasonId,
+                    fields = PlaylistItemFields,
+                    startItemId = continuation.afterEpisodeId,
+                    limit = limit,
+                )
+            val dtos = GetEpisodesRequestHandler.execute(api, request).content.items
+            return Playlist(
+                dtos.filter { it.id != continuation.afterEpisodeId }.convertAndAddParts(false),
+                continuation = continuationAfter(continuation.seriesId, continuation.seasonId, dtos, limit),
+            )
+        }
+
+        private fun continuationAfter(
+            seriesId: UUID,
+            seasonId: UUID?,
+            dtos: List<BaseItemDto>,
+            limit: Int,
+        ) = dtos.lastOrNull()?.takeIf { dtos.size >= limit }?.let { EpisodesContinuation(seriesId, seasonId, it.id) }
 
         /**
          * Create from a server playlist ID

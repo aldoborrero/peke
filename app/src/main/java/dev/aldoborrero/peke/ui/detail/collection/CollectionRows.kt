@@ -98,7 +98,7 @@ fun CollectionRows(
                 }
             HomePageContent(
                 homeRows = homeRows,
-                position = position,
+                position = { position },
                 onFocusPosition = { newPosition ->
                     position = newPosition
                     onFocusPosition.invoke(newPosition)
