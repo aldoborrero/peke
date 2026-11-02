@@ -9,8 +9,10 @@ this file win.
 
 - Build, test and lint only through the Nix devshell: `nix develop -c ./gradlew …`,
   `nix develop -c pre-commit run --files …`. The devshell has adb, the `android` CLI, apkanalyzer,
-  r8, retrace, lint, ktlint, detekt, perfetto, `trace_processor_shell`, python3 with protobuf, jq,
-  bundletool and scrcpy.
+  r8, retrace, lint, ktlint, detekt, perfetto, `trace_processor_shell`, python3 with protobuf and
+  fontTools, rsvg-convert, jq, bundletool and scrcpy.
+- Repo scripts live in `bin/`, on `PATH` through direnv (`.envrc`'s `PATH_add bin`) and running on the
+  devshell's tools: `peke-logo` regenerates the logo set, banners and app icon (`design/tools/README.md`).
 - Format with `nix fmt` (treefmt: nixfmt, deadnix, ktlint, actionlint; config in
   `nix/formatter.nix`). `nix flake check` fails on unformatted files.
 - Never install tools with `curl | bash`, pip, npm or npx, `android sdk install` or `android update`.
