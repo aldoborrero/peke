@@ -100,6 +100,39 @@ val KidsCardKind.focusRoom: FocusRoom
     get() = FocusRoom.of(cardSize, KidsMinCardGap)
 
 /**
+ * What a keep watching card says of an episode, so cards of the same series tell apart
+ *
+ * @param season shown only past the first: the row's items don't say how many seasons a series has
+ */
+data class KeepWatchingEpisode(
+    val season: Int?,
+    val number: Int?,
+    val name: String?,
+    val series: String?,
+)
+
+/**
+ * The episode a keep watching card resumes; null for films and anything else that isn't an episode
+ */
+fun keepWatchingEpisode(item: BaseItemDto): KeepWatchingEpisode? =
+    if (item.type == BaseItemKind.EPISODE) {
+        KeepWatchingEpisode(
+            season = item.parentIndexNumber?.takeIf { it > 1 && item.indexNumber != null },
+            number = item.indexNumber,
+            name = item.name?.takeIf { it.isNotBlank() },
+            series = item.seriesName,
+        )
+    } else {
+        null
+    }
+
+/**
+ * Whether a keep watching card shows [item]'s own picture, the frame Jellyfin takes from an episode, rather than its
+ * series' thumb or backdrop
+ */
+fun showsEpisodePicture(item: BaseItemDto): Boolean = item.type == BaseItemKind.EPISODE && item.imageTags?.get(ImageType.PRIMARY) != null
+
+/**
  * The channel whose picture a Watch live card shows, and the picture's tag when Jellyfin has one
  */
 data class ChannelPicture(

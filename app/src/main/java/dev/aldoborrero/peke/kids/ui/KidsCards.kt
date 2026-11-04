@@ -66,6 +66,8 @@ import java.util.UUID
  *
  * @param played draws the watched badge in the top right corner
  * @param playPercent draws the progress inside the card's bottom edge when between 0 and 100
+ * @param subtitle a smaller second line under the title, in "text, secondary"; an empty one keeps its room
+ * @param description what TalkBack reads for the picture, the title unless that says less than the card
  */
 @Composable
 fun KidsPictureCard(
@@ -84,6 +86,8 @@ fun KidsPictureCard(
     playPercent: Double = 0.0,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     useSeriesForPrimary: Boolean? = null,
+    subtitle: String? = null,
+    description: String? = title,
 ) {
     val imageUrlService = LocalImageUrlService.current
     val fillHeight = with(LocalDensity.current) { height.roundToPx() }
@@ -110,7 +114,7 @@ fun KidsPictureCard(
             interactionSource = interactionSource,
             modifier = Modifier.size(width, height).onFocusChanged { hasFocus = it.isFocused },
         ) {
-            KidsCardPicture(imageUrl = imageUrl, title = title, id = item?.id)
+            KidsCardPicture(imageUrl = imageUrl, title = title, id = item?.id, description = description)
             if (played && (playPercent <= 0 || playPercent >= 100)) {
                 KidsWatchedBadge(Modifier.align(Alignment.TopEnd).padding(10.cpx))
             }
@@ -124,7 +128,7 @@ fun KidsPictureCard(
                 )
             }
         }
-        KidsPictureCardTitle(title = title, size = titleSize, width = width, focused = { hasFocus })
+        KidsPictureCardTitle(title = title, subtitle = subtitle, size = titleSize, width = width, focused = { hasFocus })
     }
 }
 
@@ -134,6 +138,7 @@ fun KidsPictureCard(
 @Composable
 private fun KidsPictureCardTitle(
     title: String?,
+    subtitle: String?,
     size: Int,
     width: Dp,
     focused: () -> Boolean,
@@ -144,12 +149,21 @@ private fun KidsPictureCardTitle(
         animationSpec = tween(PekeFocus.ANIMATION_MILLIS),
         label = "card growth",
     )
-    KidsCardTitle(
-        title = title,
-        focused = hasFocus,
-        size = size,
-        modifier = Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 },
-    )
+    Column(Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 }) {
+        KidsCardTitle(title = title, focused = hasFocus, size = size)
+        if (subtitle != null) {
+            // DESIGN's supporting line
+            Text(
+                text = subtitle,
+                fontSize = 18.csp,
+                fontWeight = FontWeight.W800,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }
 
 /**
@@ -190,12 +204,13 @@ fun BoxScope.KidsCardPicture(
     imageUrl: String?,
     title: String?,
     id: UUID?,
+    description: String? = title,
 ) {
     var imageError by remember(imageUrl) { mutableStateOf(false) }
     if (imageUrl != null && !imageError) {
         AsyncImage(
             model = imageUrl,
-            contentDescription = title,
+            contentDescription = description,
             contentScale = ContentScale.Crop,
             onError = { imageError = true },
             modifier = Modifier.fillMaxSize(),

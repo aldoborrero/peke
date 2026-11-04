@@ -3,18 +3,22 @@ package dev.aldoborrero.peke.kids
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.kids.home.ChannelPicture
 import dev.aldoborrero.peke.kids.home.HomeTimeLeft
+import dev.aldoborrero.peke.kids.home.KeepWatchingEpisode
 import dev.aldoborrero.peke.kids.home.KidsCardKind
 import dev.aldoborrero.peke.kids.home.cardSize
 import dev.aldoborrero.peke.kids.home.channelPicture
 import dev.aldoborrero.peke.kids.home.focusRoom
 import dev.aldoborrero.peke.kids.home.homeTimeLeft
+import dev.aldoborrero.peke.kids.home.keepWatchingEpisode
 import dev.aldoborrero.peke.kids.home.kidsCardKind
+import dev.aldoborrero.peke.kids.home.showsEpisodePicture
 import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -117,5 +121,43 @@ class KidsHomeLayoutTest {
         assertEquals(ChannelPicture(channel, null), channelPicture(tv.copy(imageTags = null)))
 
         assertNull(channelPicture(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.PROGRAM)))
+    }
+
+    @Test
+    fun `a keep watching episode says its number, its season past the first, its name and its series`() {
+        val episode =
+            BaseItemDto(
+                id = UUID.randomUUID(),
+                type = BaseItemKind.EPISODE,
+                name = "The party",
+                seriesName = "Curious George",
+                indexNumber = 6,
+                parentIndexNumber = 1,
+            )
+        assertEquals(KeepWatchingEpisode(null, 6, "The party", "Curious George"), keepWatchingEpisode(episode))
+        assertEquals(
+            KeepWatchingEpisode(2, 6, "The party", "Curious George"),
+            keepWatchingEpisode(episode.copy(parentIndexNumber = 2)),
+        )
+        // No season without a number, and a blank name is no name
+        assertEquals(
+            KeepWatchingEpisode(null, null, null, "Curious George"),
+            keepWatchingEpisode(episode.copy(parentIndexNumber = 2, indexNumber = null, name = " ")),
+        )
+        assertNull(keepWatchingEpisode(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE, name = "Film")))
+    }
+
+    @Test
+    fun `a keep watching episode shows its own picture when it has one, its series' otherwise`() {
+        val episode =
+            BaseItemDto(
+                id = UUID.randomUUID(),
+                type = BaseItemKind.EPISODE,
+                imageTags = mapOf(ImageType.PRIMARY to "frame"),
+            )
+        assertTrue(showsEpisodePicture(episode))
+        assertFalse(showsEpisodePicture(episode.copy(imageTags = null)))
+        assertFalse(showsEpisodePicture(episode.copy(imageTags = mapOf(ImageType.THUMB to "thumb"))))
+        assertFalse(showsEpisodePicture(episode.copy(type = BaseItemKind.MOVIE)))
     }
 }
