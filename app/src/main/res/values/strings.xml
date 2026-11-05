@@ -1168,6 +1168,9 @@
     <string name="playback_fast_forward">Fast forward</string>
     <string name="playback_stop">Stop</string>
     <string name="kids_in_a_row">Episode %1$d of %2$d in a row</string>
+    <!-- 013: keep watching episodes -->
+    <string name="kids_episode_short">Ep. %1$d</string>
+    <string name="kids_season_episode_short">S%1$d · Ep. %2$d</string>
     <!-- 008 Phase 4: live TV -->
     <string name="kids_next_programme">Next: %1$s</string>
     <!-- 008 Phase 5: search, voice, favourites, library -->

@@ -180,6 +180,32 @@ fun KidsTimeLeftPill(
 }
 
 /**
+ * A keep watching episode's title: "Ep. 6 · The party", with the season past the first ("S2 · Ep. 6 · …"), or the
+ * series when it has neither number nor name
+ */
+@Composable
+private fun keepWatchingTitle(episode: KeepWatchingEpisode): String? {
+    val number =
+        episode.number?.let { number ->
+            episode.season?.let { stringResource(R.string.kids_season_episode_short, it, number) }
+                ?: stringResource(R.string.kids_episode_short, number)
+        }
+    return listOfNotNull(number, episode.name).joinToString(" · ").ifEmpty { episode.series }
+}
+
+/**
+ * What TalkBack reads for a keep watching episode, in full words: "Curious George, Season 2, Episode 6, The party"
+ */
+@Composable
+private fun keepWatchingDescription(episode: KeepWatchingEpisode): String =
+    listOfNotNull(
+        episode.series,
+        episode.season?.let { stringResource(R.string.season_number, it) },
+        episode.number?.let { stringResource(R.string.kids_episode_number, it) },
+        episode.name,
+    ).joinToString(", ")
+
+/**
  * A kids home card of [kind] (HomeRailPekeTV), at its [cardSize]: wide for keep watching, a channel card for live, a
  * poster otherwise
  */
@@ -194,16 +220,24 @@ fun KidsHomeCard(
     val size = kind.cardSize
     when (kind) {
         KidsCardKind.WIDE -> {
+            val episode = remember(item) { item?.let { keepWatchingEpisode(it.data) } }
+            // An episode's own frame; the series' thumb or backdrop when it has none
+            val ownPicture = remember(item) { item != null && showsEpisodePicture(item.data) }
+            val title = episode?.let { keepWatchingTitle(it) } ?: item?.title
             KidsPictureCard(
                 item = item,
-                title = item?.title,
-                imageType = ImageType.THUMB,
+                title = title,
+                imageType = if (ownPicture) ImageType.PRIMARY else ImageType.THUMB,
                 width = size.width,
                 height = size.height,
                 corner = 24.cpx,
                 onClick = onClick,
                 onLongClick = onLongClick,
                 playPercent = item?.data?.userData?.playedPercentage ?: 0.0,
+                useSeriesForPrimary = if (ownPicture) false else null,
+                // Every keep watching card keeps the series' line, so the row is as tall with films or loading
+                subtitle = episode?.series.orEmpty(),
+                description = episode?.let { keepWatchingDescription(it) } ?: title,
                 modifier = modifier,
             )
         }

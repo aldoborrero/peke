@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.kids.home
 
+import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomePageSettings
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
@@ -45,7 +46,7 @@ object KidsHomeRows {
                 .flatMap { entry ->
                     when (entry.section) {
                         KidsHomeSection.KEEP_WATCHING -> {
-                            listOf(HomeRowConfig.ContinueWatchingCombined())
+                            listOf(HomeRowConfig.ContinueWatchingCombined(onePerSeries = true))
                         }
 
                         KidsHomeSection.PICKED -> {
@@ -89,5 +90,26 @@ object KidsHomeRows {
                 rows
             }
         return HomePageSettings(rows = withLiveTv, version = SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
+    }
+
+    /**
+     * Keep watching with one card per series: its episode played last (the user data's lastPlayedDate, then the
+     * furthest along), where the series first shows in [items]; films and anything without a series stay as they are
+     */
+    fun onePerSeries(items: List<BaseItem>): List<BaseItem> {
+        val latest =
+            items
+                .filter { it.data.seriesId != null }
+                .groupBy { it.data.seriesId }
+                .mapValues { (_, episodes) ->
+                    episodes.maxWith(
+                        compareBy({ it.data.userData?.lastPlayedDate }, { it.data.userData?.playedPercentage ?: 0.0 }),
+                    )
+                }.toMutableMap()
+        // The series' first place takes its latest episode, and its other places drop out
+        return items.mapNotNull { item ->
+            val seriesId = item.data.seriesId
+            if (seriesId == null) item else latest.remove(seriesId)
+        }
     }
 }
