@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -131,49 +132,75 @@ fun ApplicationContent(
         // Peke is for kids: until it is known that the user is a kid nothing is shown, and anyone else goes back to the
         // launch rule
         val unanswered by viewModel.unanswered.collectAsState()
-        val route = kidPagesRoute(LocalKidsMode.current, unanswered)
-        NavDisplay(
+        KidPages(
             backStack = navigationManager.backStack,
             onBack = { navigationManager.goBack() },
-            entryDecorators =
-                listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-            entryProvider = { key ->
-                key as Destination
-                val contentKey = "${key}_${server?.id}_${user?.id}"
-                NavEntry(key, contentKey = contentKey) {
-                    if (route == KidPagesRoute.WAIT) {
-                        LoadingPage(Modifier.fillMaxSize())
-                    } else if (route == KidPagesRoute.LAUNCH_RULE) {
-                        LaunchedEffect(Unit) { viewModel.toKidsSide() }
-                        LoadingPage(Modifier.fillMaxSize())
-                    } else if (key.fullScreen) {
-                        DestinationContent(
-                            destination = key,
-                            preferences = preferences,
-                            onClearBackdrop = viewModel::clearBackdrop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else if (user != null && server != null) {
-                        NavDrawer(
-                            destination = key,
-                            preferences = preferences,
-                            user = user,
-                            server = server,
-                            drawerState = drawerState,
-                            navDrawerListState = navDrawerListState,
-                            onClearBackdrop = viewModel::clearBackdrop,
-                            modifier = Modifier.fillMaxSize(),
-                            timeLeftBand = timeLeftBand,
-                        )
-                    } else {
-                        ErrorMessage("Trying to go to $key without a user logged in", null)
-                    }
-                }
-            },
-        )
+            route = kidPagesRoute(LocalKidsMode.current, unanswered),
+            contentKey = { key -> "${key}_${server?.id}_${user?.id}" },
+            onLaunchRule = viewModel::toKidsSide,
+        ) { key ->
+            if (key.fullScreen) {
+                DestinationContent(
+                    destination = key,
+                    preferences = preferences,
+                    onClearBackdrop = viewModel::clearBackdrop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (user != null && server != null) {
+                NavDrawer(
+                    destination = key,
+                    preferences = preferences,
+                    user = user,
+                    server = server,
+                    drawerState = drawerState,
+                    navDrawerListState = navDrawerListState,
+                    onClearBackdrop = viewModel::clearBackdrop,
+                    modifier = Modifier.fillMaxSize(),
+                    timeLeftBand = timeLeftBand,
+                )
+            } else {
+                ErrorMessage("Trying to go to $key without a user logged in", null)
+            }
+        }
         KidsTimerEffects(band = timeLeftBand)
     }
+}
+
+/**
+ * The kids side's [backStack], each page drawn by [page] once [route] says the user is a kid: until then the loading
+ * page, and for anyone else the launch rule ([onLaunchRule])
+ */
+@Composable
+internal fun KidPages(
+    backStack: List<Destination>,
+    onBack: () -> Unit,
+    route: KidPagesRoute,
+    contentKey: (Destination) -> Any,
+    onLaunchRule: () -> Unit,
+    page: @Composable (Destination) -> Unit,
+) {
+    // Read in each page, not captured: NavDisplay keeps an entry for as long as the back stack holds it, so a page
+    // made while waiting, as right after setup, would wait for good
+    val currentRoute by rememberUpdatedState(route)
+    NavDisplay(
+        backStack = backStack,
+        onBack = onBack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
+        entryProvider = { key ->
+            NavEntry(key, contentKey = contentKey(key)) {
+                if (currentRoute == KidPagesRoute.WAIT) {
+                    LoadingPage(Modifier.fillMaxSize())
+                } else if (currentRoute == KidPagesRoute.LAUNCH_RULE) {
+                    LaunchedEffect(Unit) { onLaunchRule() }
+                    LoadingPage(Modifier.fillMaxSize())
+                } else {
+                    page(key)
+                }
+            }
+        },
+    )
 }
