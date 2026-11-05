@@ -15,6 +15,7 @@ import dev.aldoborrero.peke.data.model.ServerUserConfig
 import dev.aldoborrero.peke.data.model.createGenreDestination
 import dev.aldoborrero.peke.data.model.createStudioDestination
 import dev.aldoborrero.peke.kids.KidsItemTypes
+import dev.aldoborrero.peke.kids.home.KidsHomeRows
 import dev.aldoborrero.peke.preferences.DefaultUserConfiguration
 import dev.aldoborrero.peke.preferences.HomePagePreferences
 import dev.aldoborrero.peke.ui.AspectRatio
@@ -723,7 +724,11 @@ class HomeSettingsService
                                 )
                             resume.await() to nextUp
                         }
-                    val combined = latestNextUpService.buildCombined(resume, nextUp)
+                    // A short row after one per series stays short: no more requests
+                    val combined =
+                        latestNextUpService.buildCombined(resume, nextUp).let {
+                            if (row.onePerSeries) KidsHomeRows.onePerSeries(it) else it
+                        }
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),

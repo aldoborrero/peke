@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.kids
 
+import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomeRowConfig
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.data.KidsHomeSection
@@ -7,12 +8,16 @@ import dev.aldoborrero.peke.kids.data.KidsHomeSectionEntry
 import dev.aldoborrero.peke.kids.home.KidsHomeRows
 import dev.aldoborrero.peke.services.viewOptionsForCollectionType
 import dev.aldoborrero.peke.ui.main.settings.Library
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.UserItemDataDto
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
 import java.util.UUID
 
 class KidsHomeRowsTest {
@@ -88,5 +93,61 @@ class KidsHomeRowsTest {
         val rows = KidsHomeRows.build(KidProfile(userId = 1), listOf(cartoons)).rows
         val cartoonsRow = rows.filterIsInstance<HomeRowConfig.ByParent>().single()
         assertEquals(viewOptionsForCollectionType(CollectionType.TVSHOWS), cartoonsRow.viewOptions)
+    }
+
+    @Test
+    fun `the kids keep watching row asks for one card per series`() {
+        val row = KidsHomeRows.build(KidProfile(userId = 1), listOf(cartoons)).rows[0]
+        assertTrue((row as HomeRowConfig.ContinueWatchingCombined).onePerSeries)
+        assertFalse(HomeRowConfig.ContinueWatchingCombined().onePerSeries)
+    }
+
+    @Test
+    fun `keep watching keeps each series' last played episode where the series first shows`() {
+        val george = UUID.randomUUID()
+        val peppa = UUID.randomUUID()
+        val now = LocalDateTime.of(2026, 11, 4, 18, 0)
+
+        fun item(
+            name: String,
+            series: UUID?,
+            played: LocalDateTime? = null,
+            percent: Double? = null,
+        ) = BaseItem(
+            BaseItemDto(
+                id = UUID.randomUUID(),
+                name = name,
+                type = if (series == null) BaseItemKind.MOVIE else BaseItemKind.EPISODE,
+                seriesId = series,
+                userData =
+                    UserItemDataDto(
+                        playbackPositionTicks = 0L,
+                        playCount = 0,
+                        isFavorite = false,
+                        lastPlayedDate = played,
+                        playedPercentage = percent,
+                        played = false,
+                        key = "",
+                        itemId = UUID.randomUUID(),
+                    ),
+            ),
+        )
+        val items =
+            listOf(
+                item("George 5, next up", george),
+                item("Film", null, now.minusHours(1)),
+                item("Peppa 2, half", peppa, now.minusDays(1), 50.0),
+                item("George 4, yesterday", george, now.minusDays(1), 30.0),
+                item("George 6, an hour ago", george, now.minusHours(1), 10.0),
+                item("Peppa 3, same time, further along", peppa, now.minusDays(1), 80.0),
+                item("Another film", null),
+            )
+        assertEquals(
+            listOf("George 6, an hour ago", "Film", "Peppa 3, same time, further along", "Another film"),
+            KidsHomeRows.onePerSeries(items).map { it.name },
+        )
+        // Nothing to drop: the row stays as it came
+        val films = listOf(item("Film", null), item("Another film", null))
+        assertEquals(films, KidsHomeRows.onePerSeries(films))
     }
 }

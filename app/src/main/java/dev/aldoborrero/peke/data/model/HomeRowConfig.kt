@@ -45,11 +45,14 @@ sealed interface HomeRowConfig {
 
     /**
      * Combined [ContinueWatching] and [NextUp]
+     *
+     * @param onePerSeries keeps only each series' latest episode, as the kids home does
      */
     @Serializable
     @SerialName("ContinueWatchingCombined")
     data class ContinueWatchingCombined(
         override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+        val onePerSeries: Boolean = false,
     ) : HomeRowConfig {
         override fun updateViewOptions(viewOptions: HomeRowViewOptions): ContinueWatchingCombined = this.copy(viewOptions = viewOptions)
     }
