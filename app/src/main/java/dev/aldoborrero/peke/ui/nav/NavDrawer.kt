@@ -3,7 +3,7 @@ package dev.aldoborrero.peke.ui.nav
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.focusGroup
@@ -30,12 +30,15 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -106,6 +109,7 @@ import dev.aldoborrero.peke.ui.util.RestrictedFeature
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
@@ -278,6 +282,42 @@ internal fun backOpensNavDrawer(
     destination: Destination,
 ): Boolean = drawerValue == DrawerValue.Closed && destination is Destination.Home
 
+/**
+ * Back opens the drawer where [backOpensNavDrawer] says, then [onOpened]. Its own scope reads the drawer's state, so
+ * opening and closing the drawer recomposes this alone, not the page around it
+ */
+@Composable
+private fun DrawerBackHandler(
+    drawerState: DrawerState,
+    destination: Destination,
+    enabled: Boolean,
+    onOpened: () -> Unit,
+) {
+    BackHandler(enabled = enabled && backOpensNavDrawer(drawerState.currentValue, destination)) {
+        drawerState.setValue(DrawerValue.Open)
+        onOpened()
+    }
+}
+
+/**
+ * The page's opacity behind the sidebar: 35% while it is open, animated as `animateFloatAsState` would. The drawer's
+ * state is read in an effect, not in composition, and the value only where it is drawn, so opening and closing the
+ * drawer doesn't recompose the page
+ */
+@Composable
+internal fun rememberPageAlpha(drawerState: DrawerState): State<Float> {
+    val alpha =
+        remember(drawerState) {
+            Animatable(Snapshot.withoutReadObservation { pageAlpha(drawerState.isOpen) }, visibilityThreshold = .01f)
+        }
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.isOpen }.collectLatest { alpha.animateTo(pageAlpha(it)) }
+    }
+    return alpha.asState()
+}
+
+private fun pageAlpha(drawerOpen: Boolean) = if (drawerOpen) .35f else 1f
+
 private const val HOME_INDEX = -1
 private const val SEARCH_INDEX = -2
 private const val NOW_PLAYING_INDEX = -3
@@ -325,10 +365,7 @@ fun NavDrawer(
     val activeEntry = viewModel.navigationManager.backStack.lastOrNull() == destination
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
-    BackHandler(enabled = activeEntry && backOpensNavDrawer(drawerState.currentValue, destination)) {
-        drawerState.setValue(DrawerValue.Open)
-        focusRequester.tryRequestFocus()
-    }
+    DrawerBackHandler(drawerState, destination, enabled = activeEntry) { focusRequester.tryRequestFocus() }
     val serviceState by viewModel.serviceState.collectAsState()
     val drawerItems = if (showLibraries) serviceState.items else customization.navDrawerItems
     val state by viewModel.state.collectAsState()
@@ -336,7 +373,7 @@ fun NavDrawer(
     val selectedIndex = state.selectedIndex
 
     // The open sidebar covers the page, which fades behind it (HomeDrawerPekeTV)
-    val contentAlpha = animateFloatAsState(if (drawerState.isOpen) .35f else 1f, label = "page behind the drawer")
+    val contentAlpha = rememberPageAlpha(drawerState)
     val pageBackground = MaterialTheme.colorScheme.background
 
     ModalNavigationDrawer(
