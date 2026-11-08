@@ -38,12 +38,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -336,7 +336,8 @@ fun NavDrawer(
     val selectedIndex = state.selectedIndex
 
     // The open sidebar covers the page, which fades behind it (HomeDrawerPekeTV)
-    val contentAlpha by animateFloatAsState(if (drawerState.isOpen) .35f else 1f, label = "page behind the drawer")
+    val contentAlpha = animateFloatAsState(if (drawerState.isOpen) .35f else 1f, label = "page behind the drawer")
+    val pageBackground = MaterialTheme.colorScheme.background
 
     ModalNavigationDrawer(
         modifier = modifier,
@@ -545,7 +546,7 @@ fun NavDrawer(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = contentAlpha }
+                        .dimmedTo(pageBackground) { contentAlpha.value }
                         // Nothing scrolls under the time-left label: the page starts below it at the top, or ends above it at the bottom
                         .padding(top = timeLeftBand?.top ?: 0.dp, bottom = timeLeftBand?.bottom ?: 0.dp)
                         .padding(start = DrawerRailWidth + if (kidsHome) 0.dp else 8.dp, end = if (kidsHome) 0.dp else 16.dp),
@@ -778,3 +779,18 @@ fun navItemColor(
 val DrawerState.isOpen: Boolean get() = this.currentValue.isOpen
 
 val DrawerValue.isOpen: Boolean get() = this == DrawerValue.Open
+
+/**
+ * Fades what this draws to [alpha] over [background], the page behind it, as `graphicsLayer { alpha }` would: by drawing
+ * [background] over it at the remaining opacity, which gives the same pixels on an opaque [background] without an
+ * offscreen layer the size of the screen on every frame of the sidebar opening and closing
+ */
+internal fun Modifier.dimmedTo(
+    background: Color,
+    alpha: () -> Float,
+): Modifier =
+    drawWithContent {
+        drawContent()
+        val veil = 1f - alpha()
+        if (veil > 0f) drawRect(background, alpha = veil.coerceAtMost(1f))
+    }
