@@ -48,11 +48,16 @@ import javax.inject.Inject
 
 sealed interface GateStage {
     /**
+     * The code entry
+     *
      * @param type null while loading
+     * @param attempt changes on every refusal, which clears the entry
+     * @param refusal why the last code was refused, shown on the entry until a key is typed (spec 019)
      */
     data class Passcode(
         val type: ParentLockType? = null,
         val attempt: Int = 0,
+        val refusal: GateRefusal? = null,
     ) : GateStage
 
     /**
@@ -73,14 +78,6 @@ sealed interface GateStage {
      * No kid's token works and no verifier is cached, so no code can be checked: only recovery with an administrator
      */
     data object RecoveryOnly : GateStage
-
-    /**
-     * A wrong code: try again, or recover it with an administrator
-     */
-    data class WrongCode(
-        val type: ParentLockType,
-        val attempt: Int,
-    ) : GateStage
 
     /**
      * Signing in as a server administrator, with a user name and password or with Quick Connect
@@ -338,18 +335,19 @@ class KidsParentGateViewModel
          *
          * @param onDone called when the gate should close
          * @param onPassed called instead of opening the menu when the code is right, before [onDone]
-         * @param onRefused called when the code was not accepted
+         * @param onRefused called when the code was not accepted, which [GateStage.Passcode.refusal] also says
          */
         fun submit(
             input: String,
             onDone: () -> Unit,
             onPassed: (() -> Unit)? = null,
-            onRefused: (GateRefusal) -> Unit,
+            onRefused: (GateRefusal) -> Unit = {},
         ) {
             val current = _stage.value as? GateStage.Passcode ?: return
             if (current.type == null) return
             if (input.isEmpty()) {
-                signInReturn = current
+                // Back from the recovery returns to an entry without the last refusal
+                signInReturn = current.copy(refusal = null)
                 _stage.value = GateStage.AdminSignIn(recovery = true)
                 return
             }
@@ -376,10 +374,9 @@ class KidsParentGateViewModel
                         if (withKid) timeLimits.allowanceService.check()
                         _stage.value = GateStage.Menu
                     }
-                } else if (refusal == GateRefusal.Wrong) {
-                    _stage.value = GateStage.WrongCode(current.type, current.attempt + 1)
                 } else {
-                    _stage.value = current.copy(attempt = current.attempt + 1)
+                    // The entry says why, on the page, and starts empty again (spec 019 FR-003, FR-004)
+                    _stage.value = current.copy(attempt = current.attempt + 1, refusal = refusal)
                     onRefused.invoke(refusal)
                 }
             }
@@ -555,21 +552,12 @@ class KidsParentGateViewModel
         }
 
         /**
-         * After a wrong code, type it again
-         */
-        fun retryCode() {
-            val wrong = _stage.value as? GateStage.WrongCode ?: return
-            _stage.value = GateStage.Passcode(wrong.type, wrong.attempt)
-        }
-
-        /**
          * Forgot the code? (spec 004 FR-017): a server administrator signs in, then sets a new code
          */
         fun forgotCode() {
             val current = _stage.value
             signInReturn =
                 when (current) {
-                    is GateStage.WrongCode -> GateStage.Passcode(current.type, current.attempt)
                     is GateStage.NoCode, GateStage.RecoveryOnly -> current
                     else -> null
                 }

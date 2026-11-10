@@ -880,7 +880,6 @@
     <string name="kids_mode">Kids mode</string>
     <string name="kids_mode_summary">A simpler, parent-controlled experience for children</string>
     <string name="kids_grown_ups">Grown-ups</string>
-    <string name="kids_gate_passcode">Enter the parent code</string>
     <string name="kids_gate_wrong_passcode">Wrong code</string>
     <string name="kids_add_time">Add time</string>
     <plurals name="kids_minutes_option">
@@ -936,7 +935,6 @@
         <item quantity="one">Too many tries. Wait %1$d second</item>
         <item quantity="other">Too many tries. Wait %1$d seconds</item>
     </plurals>
-    <string name="kids_gate_cannot_check">Can\'t check the code without the server right now</string>
     <string name="kids_gate_no_code">No parent code is set yet. Set one in the Jellyfin dashboard\'s Kids page, or here as a server administrator.</string>
     <string name="kids_gate_no_code_offline">Can\'t reach the server to check the parent code. Try again in a moment.</string>
     <plurals name="kids_minutes_left_today">
@@ -1184,4 +1182,9 @@
     <string name="update_new_version">New version %1$s</string>
     <string name="update_whats_new">What\'s new</string>
     <string name="update_later">Later</string>
+    <string name="kids_gate_title">Grown-ups only</string>
+    <string name="kids_gate_hint_remote">Enter the parent code with the remote\'s arrows or number buttons.</string>
+    <string name="kids_gate_hint_numeric">Enter the parent code with the remote\'s number buttons.</string>
+    <string name="kids_gate_back_to">Back to %1$s</string>
+    <string name="kids_gate_back">Back</string>
 </resources>

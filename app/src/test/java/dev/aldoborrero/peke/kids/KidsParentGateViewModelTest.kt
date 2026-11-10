@@ -30,6 +30,7 @@ import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.kids.timer.TodayChange
+import dev.aldoborrero.peke.kids.ui.GateRefusal
 import dev.aldoborrero.peke.kids.ui.GateStage
 import dev.aldoborrero.peke.kids.ui.KidsParentGateViewModel
 import dev.aldoborrero.peke.services.MusicService
@@ -365,6 +366,45 @@ class KidsParentGateViewModelTest {
             coVerify(exactly = 0) { parentLockService.verify(any()) }
             assertTrue(vm.backFromSignIn())
             assertEquals(GateStage.Passcode(ParentLockType.NUMERIC), vm.stage.value)
+        }
+
+    @Test
+    fun `a refused code stays on the entry, cleared, and says why`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.stage.first { it is GateStage.Passcode && it.type != null }
+            val outcomes =
+                listOf(
+                    VerifyOutcome.Wrong to GateRefusal.Wrong,
+                    VerifyOutcome.Throttled(30) to GateRefusal.Wait(30),
+                    VerifyOutcome.CannotCheck to GateRefusal.CannotCheck,
+                )
+            outcomes.forEachIndexed { i, (outcome, refusal) ->
+                coEvery { parentLockService.verify(any()) } returns outcome
+                var refused: GateRefusal? = null
+
+                vm.submit("9999", onDone = { error("closed") }) { refused = it }
+
+                // spec 019: no dialog and no toast, the page shows the refusal; a new attempt clears the entry
+                assertEquals(GateStage.Passcode(ParentLockType.NUMERIC, attempt = i + 1, refusal = refusal), vm.stage.value)
+                assertEquals(refusal, refused)
+            }
+        }
+
+    @Test
+    fun `OK with no code after a wrong one opens Forgot the code, and Back returns to a clean entry`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.stage.first { it is GateStage.Passcode && it.type != null }
+            coEvery { parentLockService.verify(any()) } returns VerifyOutcome.Wrong
+            vm.submit("9999", onDone = {})
+
+            vm.submit("", onDone = {})
+
+            assertEquals(GateStage.AdminSignIn(recovery = true), vm.stage.value)
+            coVerify(exactly = 1) { parentLockService.verify(any()) }
+            assertTrue(vm.backFromSignIn())
+            assertEquals(GateStage.Passcode(ParentLockType.NUMERIC, attempt = 1), vm.stage.value)
         }
 
     @Test

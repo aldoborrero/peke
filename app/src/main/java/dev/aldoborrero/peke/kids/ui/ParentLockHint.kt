@@ -1,21 +1,15 @@
 package dev.aldoborrero.peke.kids.ui
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.nativeKeyCode
@@ -30,45 +24,6 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.gate.ParentLockKeys
 import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.setup.PinArrowRow
-import dev.aldoborrero.peke.kids.setup.PinEntryCreate
-import dev.aldoborrero.peke.ui.components.BasicDialog
-import dev.aldoborrero.peke.ui.tryRequestFocus
-
-/**
- * Parent code entry, using the same entry as setting a code
- *
- * @param type which keys are accepted and what hint is shown
- * @param attempt change it to clear the entry, e.g. after a wrong passcode
- * @param forgotHint show "Forgot it? Press OK with no code" under the entry, for the parent gate (F-G1)
- */
-@Composable
-fun KidsPasscodeDialog(
-    @StringRes title: Int,
-    type: ParentLockType,
-    attempt: Int,
-    onDismissRequest: () -> Unit,
-    onConfirm: (String) -> Unit,
-    forgotHint: Boolean = false,
-) {
-    BasicDialog(onDismissRequest = onDismissRequest) {
-        key(title, type, attempt) {
-            val focusRequester = remember { FocusRequester() }
-            LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
-            PinEntryCreate(
-                title = title,
-                onTextChange = {},
-                onConfirm = onConfirm,
-                symbolFor = parentLockSymbol(type),
-                hint = { ParentLockHint(type, it) },
-                footer = if (forgotHint) R.string.kids_gate_forgot_hint else null,
-                modifier =
-                    Modifier
-                        .padding(16.dp)
-                        .focusRequester(focusRequester),
-            )
-        }
-    }
-}
 
 /**
  * Which keys make up a code of [type], for [dev.aldoborrero.peke.kids.setup.PinEntryCreate]
@@ -88,7 +43,7 @@ fun ParentLockHint(
             Text(
                 text = stringResource(R.string.pin_digits_hint),
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.W800,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = modifier,
             )
@@ -112,7 +67,7 @@ fun ParentLockHint(
  * Shows a remote button that can be part of the code
  */
 @Composable
-private fun ExtraKeyHint(extra: ParentLockKeys.Extra) {
+internal fun ExtraKeyHint(extra: ParentLockKeys.Extra) {
     val color = MaterialTheme.colorScheme.onSurface
     val buttonColor =
         when (extra) {
@@ -157,7 +112,7 @@ private fun ExtraKeyHint(extra: ParentLockKeys.Extra) {
                         else -> "i"
                     },
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.W800,
                 color = color,
             )
         }

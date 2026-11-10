@@ -294,6 +294,12 @@ Decided while testing the app:
   dashboard's address for changing it. Marking or unmarking kids is done in the dashboard only.
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
+- **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the
+  household's code uses: the D-pad cross with OK for remote arrows, a number pad with OK for number buttons. The entry
+  is the only thing focused, since the arrows type the code; "Back to {Kid}" ("Back" without a kid) is a label for
+  the Back key, never a button, and Back always leaves. Errors stay on the page (S5): a wrong code empties the entry
+  and shows the dots and "Wrong code" in primary; too many tries and can't reach the server are pills; each goes at
+  the next key. Changing the parent code asks for the current one on the same page, without "Forgot it?".
 - **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
   can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
 - **Opening videos:** items in "Continue watching" play straight away, resuming. Everywhere else a kid gets the
