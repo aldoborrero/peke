@@ -727,8 +727,8 @@
     <string name="kids_live_tv_none">No hay canales elegidos, así que no hay TV en directo. Elige canales en la página del plugin Kids del panel.</string>
     <string name="kids_lock_numeric">Código numérico</string>
     <string name="kids_lock_numeric_summary">Un código de al menos 4 cifras</string>
-    <string name="kids_lock_remote">Código con los botones del mando</string>
-    <string name="kids_lock_remote_summary">Al menos 4 pulsaciones de las flechas, los números u otros botones de tu mando</string>
+    <string name="kids_lock_remote">Código con las flechas</string>
+    <string name="kids_lock_remote_summary">Al menos 4 pulsaciones de las flechas del mando</string>
     <plurals name="kids_minutes_left">
         <item quantity="one">Queda %1$d minuto</item>
         <item quantity="many">Quedan %1$d minutos</item>
@@ -1004,7 +1004,7 @@
     <string name="update_whats_new">Novedades</string>
     <string name="update_later">Más tarde</string>
     <string name="kids_gate_title">Solo para adultos</string>
-    <string name="kids_gate_hint_remote">Escribe el código de padres con las flechas o las teclas de números del mando.</string>
+    <string name="kids_gate_hint_remote">Escribe el código de padres con las flechas del mando.</string>
     <string name="kids_gate_hint_numeric">Escribe el código de padres con las teclas de números del mando.</string>
     <string name="kids_gate_back_to">Volver con %1$s</string>
     <string name="kids_gate_back">Atrás</string>

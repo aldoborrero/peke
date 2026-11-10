@@ -10,7 +10,7 @@ enum class ParentLockType {
     NUMERIC,
 
     /**
-     * A sequence of remote buttons: D-pad, digits and any extra buttons the remote has
+     * A sequence of the four remote arrows, nothing else
      */
     REMOTE,
 }

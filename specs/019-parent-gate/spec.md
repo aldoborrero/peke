@@ -24,8 +24,7 @@ Design defaults taken without asking the owner, as the goal asked (recommended o
   grown-up screens have no mascot. The page uses Peke's grown-ups outline icon in "text, secondary".
 - **D3. The right side follows the code type.** With remote arrows it is board 7's D-pad cross with OK in the middle.
   With number buttons it is a number pad drawn the same way: 1 to 9 in three rows, then 0 and OK, the keys in surface
-  colour and OK in primary. The extra remote keys a household code may use (colour, media and channel keys) show as a
-  small row under the cross, as today.
+  colour and OK in primary. Nothing else is drawn: a code has no other keys (D11).
 - **D4. "Back to {Kid}" is a label for the Back key, not a button.** With remote arrows the arrows type the code, so
   focus can't travel to a button. For one behaviour with both types, the pill is never focusable: it shows the Back
   icon and "Back to {Kid}" (just "Back" without a kid, e.g. from the picker) and tells the grown-up which key leaves.
@@ -39,8 +38,8 @@ Design defaults taken without asking the owner, as the goal asked (recommended o
   dots, as on S5. The text for "can't reach" is S5's, which the app already has: "Can't reach the server to check the
   parent code. Try again in a moment." A pill stays until the next key is typed.
 - **D7. Words.** "Grown-ups only" for the title and "parent code" in the hint, never the board's "household code" or
-  "passcode" (DESIGN "Words"). The hint follows the type: "Enter the parent code with the remote's arrows or number
-  buttons." or "Enter the parent code with the remote's number buttons."
+  "passcode" (DESIGN "Words"). The hint follows the type: "Enter the parent code with the remote's arrows." or "Enter
+  the parent code with the remote's number buttons."
 - **D8. Codes longer than four.** The page shows four dots, more as the code grows, up to eight; past eight the dots
   stay full.
 - **D9. Changing the parent code uses the new page** for its first step, "Enter the current parent code": same dots,
@@ -49,6 +48,10 @@ Design defaults taken without asking the owner, as the goal asked (recommended o
 - **D10. A little less height than the board.** The page keeps the board's 64 px at the sides but uses 40 px above
   and below and 24 px between the left column's parts (board: 28). In Spanish, with a three-line error pill, the
   board's spacing doesn't fit 720 px and the Back pill was squeezed.
+- **D11. A parent code is one kind of key.** The owner's choice, after D3: an arrows code is only the four arrows (U, D,
+  L, R) and a number code only digits. No colour, media, channel or Info keys, and no digits in an arrows code, so the
+  page draws the cross or the pad and nothing else, and the arrows hint names only the arrows. Setting a code (setup,
+  changing it) accepts only that kind. The Kids plugin keeps accepting the wider set, of which this is a subset.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -168,7 +171,7 @@ say so.
 ## Assumptions
 
 - The throttle's seconds are shown as the server gave them, without a countdown, as today.
-- The extra-key row of the remote type stays as it is today (Wholphin icons); replacing it is out of scope.
+- There is no extra-key row: an arrows code is only arrows (D11).
 - The toasts after a recovered code is saved, in the parent menu and after Undo are not part of the code entry and
   stay; the menu waits for 007 phase 6.
 - Screenshots behind the gate are the owner's: the page is checked with previews and Robolectric.

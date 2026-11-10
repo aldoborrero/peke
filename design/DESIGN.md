@@ -295,7 +295,8 @@ Decided while testing the app:
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the
-  household's code uses: the D-pad cross with OK for remote arrows, a number pad with OK for number buttons. The entry
+  household's code uses: the D-pad cross with OK for remote arrows, a number pad with OK for number buttons. A code
+  is one kind of key, only the four arrows or only digits, so nothing else is drawn (D11). The entry
   is the only thing focused, since the arrows type the code; "Back to {Kid}" ("Back" without a kid) is a label for
   the Back key, never a button, and Back always leaves. Errors stay on the page (S5): a wrong code empties the entry
   and shows the dots and "Wrong code" in primary; too many tries and can't reach the server are pills; each goes at

@@ -119,7 +119,10 @@ fun PinEntryCreate(
 }
 
 @Composable
-fun PinArrowRow(modifier: Modifier = Modifier) {
+fun PinArrowRow(
+    modifier: Modifier = Modifier,
+    withDigits: Boolean = true,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -135,13 +138,16 @@ fun PinArrowRow(modifier: Modifier = Modifier) {
                 fontFamily = FontAwesome,
             )
         }
-        // The digits count too, in words rather than Wholphin's "[0–9]", which read as a placeholder
-        Text(
-            text = stringResource(R.string.pin_arrows_digits_hint),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
+        // The profile PIN's digits count too, in words rather than Wholphin's "[0–9]", which read as a placeholder;
+        // an arrows parent code has no digits
+        if (withDigits) {
+            Text(
+                text = stringResource(R.string.pin_arrows_digits_hint),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 

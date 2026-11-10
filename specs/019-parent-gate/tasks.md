@@ -32,3 +32,12 @@
 
 - [X] T009 DESIGN "Behaviour": the gate page, its errors and the Back pill (`design/DESIGN.md`)
 - [X] T010 `nix fmt`, pre-commit on changed files, unit tests, debug build
+
+## Phase 5: Follow-up — one kind of key per code (D11)
+
+- [X] T011 `ParentLockKeys`: arrows codes are `UDLR` only; drop `Extra` and `availableExtras()`; `PasscodeHasher.isValid`
+  takes the type (`kids/gate/`)
+- [X] T012 No extra-key row under the cross; `ParentLockHint` shows only the arrows for `REMOTE`; `ExtraKeyHint` goes
+  (`ParentCodePage.kt`, `ParentLockHint.kt`, `PinArrowRow(withDigits)`)
+- [X] T013 Strings: the arrows hint and the setup choice name only the arrows (en, es)
+- [X] T014 [P] Tests: `ParentLockTest`, `PasscodeHasherTest`, `ParentLockHintTest`, `ParentCodePageTest`

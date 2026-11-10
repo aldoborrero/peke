@@ -332,12 +332,10 @@ private fun BackPill(label: String) {
 }
 
 /**
- * Board 7's D-pad cross with OK in the middle, for codes typed with the arrows; under it, the other keys this remote
- * has that a code may use
+ * Board 7's D-pad cross with OK in the middle, for codes typed with the arrows: the only keys such a code has (D11)
  */
 @Composable
 private fun DpadCross() {
-    val extras = remember { ParentLockKeys.availableExtras() }
     Column(
         verticalArrangement = Arrangement.spacedBy(18.cpx),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -360,14 +358,6 @@ private fun DpadCross() {
             GapCell()
             KeyTile(height = 110) { Chevron(180f) }
             GapCell()
-        }
-        if (extras.isNotEmpty()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.cpx),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                extras.forEach { ExtraKeyHint(it) }
-            }
         }
     }
 }

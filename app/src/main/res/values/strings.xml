@@ -911,8 +911,8 @@
     <string name="kids_change_passcode">Change the parent code</string>
     <string name="kids_lock_numeric">Number code</string>
     <string name="kids_lock_numeric_summary">A code of at least 4 digits</string>
-    <string name="kids_lock_remote">Remote buttons code</string>
-    <string name="kids_lock_remote_summary">At least 4 presses of the arrows, numbers or other buttons your remote has</string>
+    <string name="kids_lock_remote">Arrows code</string>
+    <string name="kids_lock_remote_summary">At least 4 presses of the remote\'s arrows</string>
     <string name="kids_timer_bar">Timer bar</string>
     <string-array name="kids_timer_bar_positions">
         <item>@string/kids_timer_bar_top</item>
@@ -1183,7 +1183,7 @@
     <string name="update_whats_new">What\'s new</string>
     <string name="update_later">Later</string>
     <string name="kids_gate_title">Grown-ups only</string>
-    <string name="kids_gate_hint_remote">Enter the parent code with the remote\'s arrows or number buttons.</string>
+    <string name="kids_gate_hint_remote">Enter the parent code with the remote\'s arrows.</string>
     <string name="kids_gate_hint_numeric">Enter the parent code with the remote\'s number buttons.</string>
     <string name="kids_gate_back_to">Back to %1$s</string>
     <string name="kids_gate_back">Back</string>

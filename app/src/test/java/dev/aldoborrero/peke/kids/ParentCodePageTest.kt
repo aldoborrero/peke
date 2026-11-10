@@ -77,7 +77,7 @@ class ParentCodePageTest {
     fun `the arrows type shows the cross, the hint, empty dots and Back to the kid`() {
         show(ParentLockType.REMOTE)
         rule.onNodeWithText("Grown-ups only").assertExists()
-        rule.onNodeWithText("Enter the parent code with the remote's arrows or number buttons.").assertExists()
+        rule.onNodeWithText("Enter the parent code with the remote's arrows.").assertExists()
         rule.onNodeWithText("Forgot it? Press OK with no code").assertExists()
         rule.onNodeWithText("Back to Lucy").assertExists()
         rule.onNodeWithTag(ParentCodePageTags.CROSS).assertExists()
@@ -94,13 +94,13 @@ class ParentCodePageTest {
     }
 
     @Test
-    fun `typed keys fill the dots, arrows included with the arrows type, and OK sends them`() {
+    fun `the arrows type fills a dot per arrow, ignores digits, and OK sends the code`() {
         show(ParentLockType.REMOTE)
-        press(listOf(Key.DirectionUp, Key.Two))
+        press(listOf(Key.DirectionUp, Key.Two, Key.DirectionLeft))
         dots(ParentCodePageTags.DOT_FILLED).assertCountEquals(2)
         dots(ParentCodePageTags.DOT_EMPTY).assertCountEquals(2)
         press(listOf(Key.DirectionCenter))
-        assertEquals(listOf("U2"), confirmed)
+        assertEquals(listOf("UL"), confirmed)
     }
 
     @Test
