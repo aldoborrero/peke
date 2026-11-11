@@ -1,12 +1,10 @@
 package dev.aldoborrero.peke.kids.ui
 
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -60,6 +58,7 @@ class ParentCodeChangeViewModel
     @Inject
     constructor(
         private val parentLockService: ParentLockService,
+        val notices: GrownUpNotices,
     ) : ViewModel() {
         private val _step = MutableStateFlow<CodeChangeStep>(CodeChangeStep.Loading)
         val step: StateFlow<CodeChangeStep> = _step
@@ -104,7 +103,6 @@ fun ParentCodeChange(
     onDismissRequest: () -> Unit,
     viewModel: ParentCodeChangeViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     val step by viewModel.step.collectAsState()
     when (val s = step) {
         CodeChangeStep.Loading, CodeChangeStep.Saving -> {}
@@ -138,9 +136,12 @@ fun ParentCodeChange(
 
         is CodeChangeStep.Done -> {
             LaunchedEffect(s) {
-                val text =
-                    s.seconds?.let { context.resources.getQuantityString(s.message, it, it) } ?: context.getString(s.message)
-                Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                // A pill on Settings, not a toast (spec 021 D11)
+                val problem = s.message != R.string.kids_gate_code_changed
+                viewModel.notices.post(
+                    s.seconds?.let { GrownUpNotice(plural = s.message, quantity = it, problem = problem) }
+                        ?: GrownUpNotice(s.message, problem = problem),
+                )
                 onDismissRequest()
             }
         }

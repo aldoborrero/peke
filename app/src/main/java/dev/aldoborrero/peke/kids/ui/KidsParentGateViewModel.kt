@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.gate.AdminCheck
 import dev.aldoborrero.peke.kids.gate.GrownUpSessions
 import dev.aldoborrero.peke.kids.gate.LockChange
@@ -32,12 +33,16 @@ import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
+import dev.aldoborrero.peke.ui.theme.PekeAvatar
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -154,6 +159,7 @@ sealed interface GateRefusal {
     data object CannotCheck : GateRefusal
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class KidsParentGateViewModel
     @Inject
@@ -169,6 +175,8 @@ class KidsParentGateViewModel
         private val serverRepository: ServerRepository,
         private val musicService: MusicService,
         private val addTimeAmount: AddTimeAmount,
+        val notices: GrownUpNotices,
+        private val kidAvatars: KidAvatars,
         @param:DefaultCoroutineScope private val appScope: CoroutineScope,
     ) : ViewModel() {
         private val _stage = MutableStateFlow<GateStage>(GateStage.Passcode())
@@ -190,6 +198,16 @@ class KidsParentGateViewModel
          * The kid whose session is open, for the menu's header
          */
         val current: StateFlow<CurrentUser?> = serverRepository.current
+
+        /**
+         * The current kid's avatar from the plugin, for the menu's header
+         */
+        val avatar: StateFlow<PekeAvatar?> =
+            serverRepository.current
+                .flatMapLatest { current ->
+                    val user = current?.user ?: return@flatMapLatest flowOf(null)
+                    kidAvatars.observe(user.serverId).map { it[user.rowId] }
+                }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
         /**
          * Whether this TV has another kid to switch to

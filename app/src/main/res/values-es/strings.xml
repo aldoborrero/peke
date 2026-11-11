@@ -1008,4 +1008,26 @@
     <string name="kids_gate_hint_numeric">Escribe el código de padres con las teclas de números del mando.</string>
     <string name="kids_gate_back_to">Volver con %1$s</string>
     <string name="kids_gate_back">Atrás</string>
+    <!-- Spec 021: las pantallas de adultos -->
+    <string name="kids_menu_title">Menú de adultos</string>
+    <string name="kids_menu_of">Menú de adultos · %1$s</string>
+    <string name="kids_menu_add_time_line">Minutos extra para hoy</string>
+    <string name="kids_menu_switch_kid_line">Elegir quién ve</string>
+    <string name="kids_menu_rules_line">El tiempo al día y lo que se pone en el panel</string>
+    <string name="kids_menu_settings_line">Código de padres, esta tele, reproducción</string>
+    <string name="kids_add_time_server">El tiempo extra se cuenta en el servidor, así que vale en todas las teles.</string>
+    <string name="kids_rules_on_server">Se guardan en el servidor, así que todas las teles las siguen</string>
+    <string name="kids_rules_daily_line">Se cuenta en el servidor, en todos los dispositivos</string>
+    <string name="kids_rules_daily_unsaved">OK guarda · Atrás lo deja como estaba</string>
+    <string name="peke_settings_section_playback">Reproducción</string>
+    <string name="peke_settings_household_intro">El código de padres es el mismo en todas las teles de este servidor.</string>
+    <string name="peke_settings_this_tv_intro">Lo que muestra esta tele, y cómo, para todos sus niños.</string>
+    <string name="peke_settings_playback_intro">Peke reproduce los archivos tal cual siempre que puede, para que el servidor no tenga que convertirlos.</string>
+    <string name="peke_settings_advanced_intro">Para cuando algo no funciona como debería.</string>
+    <string name="peke_settings_about_intro">Peke for Jellyfin es un fork de Wholphin, con licencia GPLv2.</string>
+    <string name="peke_settings_reset_intro">La única forma de salir del modo niños: cierra la sesión de todos los niños y empieza la configuración de nuevo.</string>
+    <string name="peke_set_up_title">Configurar esta tele</string>
+    <string name="peke_set_up_line">Prepara esta tele para los niños. Los adultos ven con otra app de Jellyfin.</string>
+    <string name="peke_set_up_plugin">Plugin Kids %1$s</string>
+    <string name="peke_set_up_plugin_ready">Plugin Kids listo</string>
 </resources>

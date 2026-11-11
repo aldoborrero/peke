@@ -1,32 +1,37 @@
 package dev.aldoborrero.peke.kids.ui
 
-import android.widget.Toast
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.gate.LockChange
 import dev.aldoborrero.peke.kids.gate.PasscodeHasher
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
+import dev.aldoborrero.peke.kids.setup.KidAvatar
 import dev.aldoborrero.peke.kids.timer.AddTimeAvailability
 import dev.aldoborrero.peke.kids.timer.AddTimePreview
 import dev.aldoborrero.peke.kids.timer.TodayChange
-import dev.aldoborrero.peke.ui.components.BasicDialog
+import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.components.DialogItem
-import dev.aldoborrero.peke.ui.components.DialogItemEntry
 import dev.aldoborrero.peke.ui.components.DialogItemText
 import dev.aldoborrero.peke.ui.components.DialogPopup
 import dev.aldoborrero.peke.ui.preferences.SetPinFlow
+import dev.aldoborrero.peke.ui.theme.cpx
 
 /**
  * The single way to grown-up control: the household parent code, then a menu for grown-ups (`contracts/tv-flows.md`,
@@ -63,6 +68,7 @@ fun KidsParentGate(
     val plugin by viewModel.pluginService.current.collectAsState()
     val current by viewModel.current.collectAsState()
     val canSwitchKid by viewModel.canSwitchKid.collectAsState()
+    val notice by viewModel.notices.current.collectAsState()
     val kidName = current?.user?.name
     // The menu's pages need the grant, so choosing one closes the gate without ending it; anything else that closes
     // the menu ends it
@@ -97,13 +103,14 @@ fun KidsParentGate(
                     currentPin = null,
                     onAddPin = { code ->
                         viewModel.setRecoveredCode(code) { result ->
-                            val message =
+                            // A pill on the menu, or on Settings without a kid (spec 021 D11)
+                            viewModel.notices.post(
                                 when (result) {
-                                    LockChange.Done -> R.string.kids_gate_code_changed
-                                    LockChange.Unreachable -> R.string.kids_cant_reach_server
-                                    else -> R.string.kids_save_failed
-                                }
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                    LockChange.Done -> GrownUpNotice(R.string.kids_gate_code_changed)
+                                    LockChange.Unreachable -> GrownUpNotice(R.string.kids_cant_reach_server, problem = true)
+                                    else -> GrownUpNotice(R.string.kids_save_failed, problem = true)
+                                },
+                            )
                         }
                     },
                     onRemovePin = {},
@@ -222,97 +229,94 @@ fun KidsParentGate(
                     val left = it.inWholeMinutes.toInt().coerceAtLeast(1)
                     pluralStringResource(R.plurals.kids_minutes_left_sitting, left, left)
                 }
-            val pluginTitle = stringResource(pluginGoneTitle(plugin.outdated))
-            val pluginSummary = stringResource(pluginGoneSummary(plugin.outdated))
-            val reason =
+            val pluginGone =
+                if (plugin.status == KidsServerStatus.GONE) {
+                    stringResource(pluginGoneTitle(plugin.outdated)) to stringResource(pluginGoneSummary(plugin.outdated))
+                } else {
+                    null
+                }
+            val addTime =
                 when (availability) {
                     AddTimeAvailability.Available -> {
-                        null
+                        MenuAddTime.Available
                     }
 
                     is AddTimeAvailability.OnBreak -> {
-                        availability.endsAt?.let { stringResource(R.string.kids_add_time_on_break, formatClock(context, it)) }
-                            ?: stringResource(R.string.kids_add_time_on_break_unknown)
+                        val reason =
+                            availability.endsAt?.let { stringResource(R.string.kids_add_time_on_break, formatClock(context, it)) }
+                                ?: stringResource(R.string.kids_add_time_on_break_unknown)
+                        if (availability.canEnd) MenuAddTime.KeepWatching(reason) else MenuAddTime.Unavailable(reason)
                     }
 
                     AddTimeAvailability.Bedtime -> {
-                        stringResource(R.string.kids_add_time_bedtime_now)
+                        MenuAddTime.Unavailable(stringResource(R.string.kids_add_time_bedtime_now))
                     }
 
                     AddTimeAvailability.Unlimited -> {
-                        stringResource(R.string.kids_add_time_unlimited, kidName.orEmpty())
+                        MenuAddTime.Unavailable(stringResource(R.string.kids_add_time_unlimited, kidName.orEmpty()))
                     }
 
                     AddTimeAvailability.Offline -> {
-                        stringResource(R.string.kids_add_time_offline)
+                        MenuAddTime.Unavailable(stringResource(R.string.kids_add_time_offline))
                     }
                 }
-            val keepWatching = stringResource(R.string.kids_keep_watching)
-            val items =
-                buildList<DialogItemEntry> {
-                    // The status lines are text that focus skips: D-pad moves only between the actions
-                    if (plugin.status == KidsServerStatus.GONE) {
-                        add(DialogItemText(pluginTitle, listOf(pluginSummary)))
-                    }
-                    val status = listOfNotNull(todayLeft, sittingLeft)
-                    if (kidName != null) {
-                        add(DialogItemText(kidName, status))
-                    } else {
-                        status.forEach { add(DialogItemText(it)) }
-                    }
-                    add(DialogItem.divider())
-                    // A fixed order: an action that can't be used becomes a line that says why, in its place (F-M4)
-                    if (reason == null) {
-                        add(DialogItem(stringResource(R.string.kids_add_time)) { viewModel.openAddTime() })
-                    } else {
-                        add(DialogItemText(reason))
-                        if (availability is AddTimeAvailability.OnBreak && availability.canEnd) {
-                            add(
-                                DialogItem(keepWatching) {
-                                    viewModel.keepWatching { result ->
-                                        if (result == TodayChange.DONE) {
-                                            onDismissRequest()
-                                        } else {
-                                            val message =
-                                                if (result ==
-                                                    TodayChange.UNREACHABLE
-                                                ) {
-                                                    R.string.kids_cant_reach_server
-                                                } else {
-                                                    R.string.kids_save_failed
-                                                }
-                                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                        }
+            val avatar by viewModel.avatar.collectAsState()
+            val imageUrl = current?.user?.id?.let { LocalImageUrlService.current.getUserImageUrl(it) }
+            // Back leaves the menu without a page to open, and ends the grant
+            GrownUpWindow(onBack = leaveMenu) {
+                GrownUpMenuPage(
+                    kidName = kidName,
+                    todayLeft = todayLeft,
+                    sittingLeft = sittingLeft,
+                    pluginGone = pluginGone,
+                    addTime = addTime,
+                    canSwitchKid = canSwitchKid,
+                    notice = notice,
+                    onNoticeShown = viewModel.notices::shown,
+                    onAddTime = viewModel::openAddTime,
+                    onKeepWatching = {
+                        viewModel.keepWatching { result ->
+                            if (result == TodayChange.DONE) {
+                                onDismissRequest()
+                            } else {
+                                val message =
+                                    if (result ==
+                                        TodayChange.UNREACHABLE
+                                    ) {
+                                        R.string.kids_cant_reach_server
+                                    } else {
+                                        R.string.kids_save_failed
                                     }
-                                },
-                            )
+                                viewModel.notices.post(GrownUpNotice(message, problem = true))
+                            }
                         }
-                    }
-                    if (canSwitchKid) {
-                        add(DialogItem(stringResource(R.string.peke_menu_switch_kid)) { leaveFor(viewModel::switchKid) })
-                    }
-                    add(
-                        DialogItem(
-                            kidName?.let { stringResource(R.string.kids_rules_of, it) } ?: stringResource(R.string.kids_rules),
-                        ) { leaveFor(viewModel::openRules) },
-                    )
-                    add(DialogItem(stringResource(R.string.peke_menu_settings)) { leaveFor(viewModel::openThisTv) })
-                }
-            DialogPopup(
-                showDialog = true,
-                title = stringResource(R.string.kids_grown_ups),
-                dialogItems = items,
-                // Back leaves the menu without a page to open, and ends the grant
-                onDismissRequest = leaveMenu,
-                dismissOnClick = false,
-                waitToLoad = false,
-            )
+                    },
+                    onSwitchKid = { leaveFor(viewModel::switchKid) },
+                    onRules = { leaveFor(viewModel::openRules) },
+                    onSettings = { leaveFor(viewModel::openThisTv) },
+                    avatar =
+                        current?.user?.let { user ->
+                            {
+                                KidAvatar(
+                                    id = user.id,
+                                    name = user.name,
+                                    imageUrl = imageUrl,
+                                    avatar = avatar,
+                                    alpha = 1f,
+                                    initialStyle = boardText(48, FontWeight.W900),
+                                    modifier = Modifier.size(112.cpx),
+                                )
+                            }
+                        },
+                )
+            }
         }
 
         is GateStage.AddTime -> {
             val preview = AddTimePreview.of(limits, s.minutes, viewModel.now(), viewModel.schedules)
-            BasicDialog(onDismissRequest = viewModel::backToMenu) {
-                AddTimeStepper(
+            // Back returns to the menu, with the grant still live
+            GrownUpWindow(onBack = viewModel::backToMenu) {
+                AddTimePage(
                     kidName = kidName,
                     index = s.index,
                     sending = s.sending,
@@ -325,12 +329,13 @@ fun KidsParentGate(
         }
 
         is GateStage.Added -> {
+            var undone by remember { mutableStateOf<TodayChange?>(null) }
             val done = {
                 viewModel.closeAdded()
                 onDismissRequest()
             }
-            BasicDialog(onDismissRequest = done) {
-                AddTimeAdded(
+            GrownUpWindow(onBack = done) {
+                AddTimeAddedPage(
                     kidName = kidName,
                     minutes = s.minutes,
                     until = s.until,
@@ -338,13 +343,9 @@ fun KidsParentGate(
                     undoSeconds = s.undoSeconds,
                     undoing = s.undoing,
                     undoError = s.undoError,
-                    onUndo = {
-                        viewModel.undoAddTime { result ->
-                            val message = if (result == TodayChange.ALREADY_UNDONE) R.string.kids_undo_already else R.string.kids_undo_done
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            onDismissRequest()
-                        }
-                    },
+                    undone = undone,
+                    // The page says it was taken back, then returns to the kid (spec 021 D6)
+                    onUndo = { viewModel.undoAddTime { undone = it } },
                     onDone = done,
                 )
             }
