@@ -1,9 +1,9 @@
 # Peke design system
 
 The look and behaviour of Peke for Jellyfin, as decided on the design canvas
-(<https://claude.ai/artifact/Qz7qEF5wga9NjR5ihsc1aq>, page "PekeTV palette"). It isn't implemented yet: the app still
-uses Wholphin's theme. The plan is a spec-kit feature that adds these themes to `ui/theme/`, bundles Nunito, and
-restyles the screens below.
+(<https://claude.ai/artifact/Qz7qEF5wga9NjR5ihsc1aq>, page "PekeTV palette"). The app draws it: the four themes and
+the focus treatment live in `ui/theme/`, Nunito is bundled, and the screens below follow their boards (specs 007, 008,
+019 and 021), with the differences their specs record.
 
 Values are in canvas pixels, drawn at 1280×720. A TV renders 1920×1080 at 960×540 dp, so **1 canvas px = 0.75 dp**
 (a 24 px radius is 18 dp, a 28 px title is 21 sp).
@@ -287,11 +287,25 @@ Decided while testing the app:
   straight away. Settings holds Household (change the parent code), This TV (Kids on this TV, voice search, the timer
   bar, screensaver, clock, language, subtitles), playback, Advanced, About with the license, and Reset this TV last.
   Leaving the menu ends the code's grant.
+- **Grown-up pages (8–12):** pages over the whole screen, never dialogs (spec 021). The parent menu is board 8: the
+  kid's avatar and name, their time left in a "time" pill, then the menu's items as big cards in its fixed order; Add
+  time that can't be used stays in its place as a card that says why and takes no focus. Grown-up pages have no
+  mascot, except the buddy in Settings' header without a kid (board 11). Their Back pills ("Back to {Kid}", "Back")
+  name the Back key and never take focus; Back always goes up one level: Add time, the menu, the kid. Messages that
+  were toasts ("Parent code changed", a failed "Keep watching now", Undo's result) are S5 pills on the page.
+- **Settings (12):** two columns: "Settings" and its sections on the left (Household, This TV, Playback, Advanced,
+  About, Reset this TV), the focused section's rows on the right, under a line about it. Right or OK enters the rows,
+  Left returns; Back from the rows returns to their section, Back from the sections leaves. Rows are board 12's: on
+  surface, 22 px corners, a switch 64 by 36 in "secondary" when on. From the picker the same page has board 11's
+  header: the buddy, "Set up this TV", what it's for and the Kids plugin's state.
 - **Add time:** a stepper (5, 10, 15, 20, 30, 45 min, 1 h, 1 h 30, 2 h; no wrap-around, the arrow at each end
   dimmed) that opens on the last amount given on this TV, with who gets it and "Can watch until 19:15". OK adds,
   Back returns to the menu; then "15 more minutes for Leo · until 19:15" with Undo for 10 seconds, and back to the kid.
+  Board 9's layout: one wide tile with ‹ amount ›, the forecast in a box under it.
 - **A kid's rules:** that kid only. Daily time is the one rule changed on the TV; the rest is text, with the
-  dashboard's address for changing it. Marking or unmarking kids is done in the dashboard only.
+  dashboard's address for changing it. Marking or unmarking kids is done in the dashboard only. Board 10's layout:
+  daily time is a stepper row (‹ 60 min ›; Left and Right change it, OK saves, Back leaves it as it was), the other
+  rules are rows of text, and what Jellyfin decides and the dashboard's address are on the right.
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the
