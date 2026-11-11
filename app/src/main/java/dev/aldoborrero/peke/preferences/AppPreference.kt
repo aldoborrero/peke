@@ -1281,10 +1281,9 @@ val advancedPreferences =
     }
 
 /**
- * Peke's settings, shown only to grown-ups in the grown-up shell, by level: the household (the parent code, the same on
- * every TV of the server), then this TV. Playback and the advanced settings open sub-screens ([pekePlaybackPreferences],
- * [pekeAdvancedPreferences]); Reset this TV comes last, on its own. The colour theme is left out until Peke has its own
- * themes.
+ * Peke's settings, shown only to grown-ups, by level: the household (the parent code, the same on every TV of the
+ * server), then this TV, About, and Reset this TV last, on its own. Playback ([pekePlaybackPreferences]) and the
+ * advanced settings ([pekeAdvancedPreferences]) are sections of their own ([PekeSettingsSection], spec 021 D8).
  */
 val pekePreferences =
     listOf(
@@ -1305,14 +1304,6 @@ val pekePreferences =
                     AppPreference.ShowClock,
                     AppPreference.UserInterfaceLanguage,
                     AppPreference.SubtitleStyle,
-                ),
-        ),
-        PreferenceGroup(
-            title = R.string.more,
-            preferences =
-                listOf(
-                    AppPreference.PekePlaybackSettings,
-                    AppPreference.PekeAdvancedSettings,
                 ),
         ),
         PreferenceGroup(
@@ -1540,4 +1531,21 @@ class AppSliderPreference<Pref>(
         summarizer?.invoke(value)
             ?: summary?.let { context.getString(it) }
             ?: value?.toString()
+}
+
+/**
+ * Settings as the two columns of board 12, in the order DESIGN lists them (spec 021 D8): each section shows its groups
+ * on its own, with a line about it
+ */
+enum class PekeSettingsSection(
+    @param:StringRes val title: Int,
+    @param:StringRes val intro: Int,
+    val groups: List<PreferenceGroup<AppPreferences>>,
+) {
+    HOUSEHOLD(R.string.peke_settings_household, R.string.peke_settings_household_intro, listOf(pekePreferences[0])),
+    THIS_TV(R.string.peke_settings_this_tv, R.string.peke_settings_this_tv_intro, listOf(pekePreferences[1])),
+    PLAYBACK(R.string.peke_settings_section_playback, R.string.peke_settings_playback_intro, pekePlaybackPreferences),
+    ADVANCED(R.string.peke_settings_advanced, R.string.peke_settings_advanced_intro, pekeAdvancedPreferences),
+    ABOUT(R.string.about, R.string.peke_settings_about_intro, listOf(pekePreferences[2])),
+    RESET(R.string.peke_menu_reset, R.string.peke_settings_reset_intro, listOf(pekePreferences[3])),
 }

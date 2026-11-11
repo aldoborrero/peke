@@ -27,6 +27,7 @@ import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.ui.components.LoadingPage
 import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.nav.DestinationPage
+import dev.aldoborrero.peke.ui.preferences.LocalSetUpThisTv
 import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import dev.aldoborrero.peke.ui.theme.LocalPekeFocusScale
 import kotlinx.coroutines.launch
@@ -153,22 +154,25 @@ fun SetupThisTvPage(
     val pages = remember { viewModel.openApart(Destination.Settings(PreferenceScreenOption.PEKE)) }
     DisposableEffect(Unit) { onDispose { viewModel.closeApart() } }
     BackHandler(enabled = pages.size <= 1) { viewModel.leaveApart() }
-    NavDisplay(
-        backStack = pages,
-        onBack = { if (pages.size > 1) pages.removeLastOrNull() else viewModel.leaveApart() },
-        entryDecorators =
-            listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-        entryProvider = { key ->
-            NavEntry(key) {
-                // Only grown-up pages, which this page's guard covers; a kid's page never shows here
-                if (key.isGrownUp()) DestinationPage(key, preferences, onClearBackdrop = {}, modifier = Modifier.fillMaxSize())
-            }
-        },
-        modifier = modifier,
-    )
+    // Settings here carries board 11's header (spec 021 D9)
+    CompositionLocalProvider(LocalSetUpThisTv provides true) {
+        NavDisplay(
+            backStack = pages,
+            onBack = { if (pages.size > 1) pages.removeLastOrNull() else viewModel.leaveApart() },
+            entryDecorators =
+                listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+            entryProvider = { key ->
+                NavEntry(key) {
+                    // Only grown-up pages, which this page's guard covers; a kid's page never shows here
+                    if (key.isGrownUp()) DestinationPage(key, preferences, onClearBackdrop = {}, modifier = Modifier.fillMaxSize())
+                }
+            },
+            modifier = modifier,
+        )
+    }
 }
 
 /**

@@ -37,6 +37,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -49,6 +50,7 @@ import coil3.imageLoader
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.ui.ParentCodeChange
+import dev.aldoborrero.peke.kids.ui.boardText
 import dev.aldoborrero.peke.preferences.AppPreference
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.AppSwitchPreference
@@ -56,6 +58,7 @@ import dev.aldoborrero.peke.preferences.ExoPlayerPreferences
 import dev.aldoborrero.peke.preferences.ExperimentalPreference
 import dev.aldoborrero.peke.preferences.HdrFormatPreferences
 import dev.aldoborrero.peke.preferences.MpvPreferences
+import dev.aldoborrero.peke.preferences.PekeSettingsSection
 import dev.aldoborrero.peke.preferences.PlayerBackend
 import dev.aldoborrero.peke.preferences.ScreensaverPreference
 import dev.aldoborrero.peke.preferences.SkipSegmentPreferences
@@ -80,6 +83,8 @@ import dev.aldoborrero.peke.ui.playOnClickSound
 import dev.aldoborrero.peke.ui.playSoundOnFocus
 import dev.aldoborrero.peke.ui.preferences.subtitle.SubtitleSettings
 import dev.aldoborrero.peke.ui.showToast
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.util.DataLoadingState
 import dev.aldoborrero.peke.util.ExceptionHandler
@@ -95,6 +100,8 @@ fun PreferencesContent(
     viewModel: PreferencesViewModel = hiltViewModel(),
     updateVM: UpdateViewModel = hiltViewModel(),
     onFocus: (Int, Int) -> Unit = { _, _ -> },
+    section: PekeSettingsSection? = null,
+    takeFocus: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -142,8 +149,9 @@ fun PreferencesContent(
             updateState.release?.version?.isGreaterThan(installedVersion) ?: false
         }
 
+    // A section of Peke's two-column Settings draws only its rows (spec 021 D8)
     val prefList =
-        when (preferenceScreenOption) {
+        section?.groups ?: when (preferenceScreenOption) {
             PreferenceScreenOption.BASIC -> basicPreferences
             PreferenceScreenOption.ADVANCED -> advancedPreferences
             PreferenceScreenOption.EXO_PLAYER -> ExoPlayerPreferences
@@ -201,31 +209,41 @@ fun PreferencesContent(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + slideInHorizontally { it / 2 },
-        exit = fadeOut() + slideOutHorizontally { it / 2 },
+        enter = if (section != null) fadeIn() else fadeIn() + slideInHorizontally { it / 2 },
+        exit = if (section != null) fadeOut() else fadeOut() + slideOutHorizontally { it / 2 },
         modifier = modifier,
     ) {
         LaunchedEffect(Unit) {
-            focusRequester.tryRequestFocus()
+            if (takeFocus) focusRequester.tryRequestFocus()
         }
         Column(
-            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
+            modifier = if (section != null) Modifier else Modifier.background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
         ) {
-            Text(
-                text = stringResource(screenTitle),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-            )
+            if (section != null) {
+                Text(
+                    text = stringResource(section.intro),
+                    style = boardText(18, FontWeight.W800),
+                    color = LocalPekeColors.current.textSecondary,
+                    modifier = Modifier.padding(start = 14.cpx, top = 8.cpx),
+                )
+            } else {
+                Text(
+                    text = stringResource(screenTitle),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                )
+            }
             LazyColumn(
                 state = state,
                 horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(0.dp),
-                contentPadding = PaddingValues(16.dp),
+                // Board 12's rows, apart, with room for the focus ring
+                verticalArrangement = Arrangement.spacedBy(if (section != null) 12.cpx else 0.dp),
+                contentPadding = if (section != null) PaddingValues(14.cpx) else PaddingValues(16.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 if (showUpdate) {
@@ -264,17 +282,20 @@ fun PreferencesContent(
                     }
                 }
                 prefList.forEachIndexed { groupIndex, group ->
-                    item {
-                        Text(
-                            text = stringResource(group.title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Start,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = 4.dp),
-                        )
+                    // A section with one group is named by the section already
+                    if (section == null || prefList.size > 1) {
+                        item {
+                            Text(
+                                text = stringResource(group.title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Start,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 4.dp),
+                            )
+                        }
                     }
                     val groupPreferences =
                         (
@@ -669,6 +690,11 @@ fun PreferencesPage(
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
         when (preferenceScreenOption) {
+            // Peke's own Settings: two columns over the whole screen (spec 021 D8)
+            PreferenceScreenOption.PEKE -> {
+                PekeSettingsPage(initialPreferences, Modifier.fillMaxSize())
+            }
+
             PreferenceScreenOption.BASIC,
             PreferenceScreenOption.ADVANCED,
             PreferenceScreenOption.EXO_PLAYER,
@@ -677,7 +703,6 @@ fun PreferencesPage(
             PreferenceScreenOption.SKIP_SEGMENTS,
             PreferenceScreenOption.EXPERIMENTAL,
             PreferenceScreenOption.HDR_FORMATS,
-            PreferenceScreenOption.PEKE,
             PreferenceScreenOption.PEKE_PLAYBACK,
             PreferenceScreenOption.PEKE_ADVANCED,
             -> {
