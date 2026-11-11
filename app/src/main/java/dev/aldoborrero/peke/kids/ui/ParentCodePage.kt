@@ -46,10 +46,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Icon
@@ -65,7 +64,6 @@ import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import dev.aldoborrero.peke.ui.theme.cpx
-import dev.aldoborrero.peke.ui.theme.csp
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
 /**
@@ -76,7 +74,7 @@ object ParentCodePageTags {
     const val DOT_FILLED = "parent-code-dot-filled"
     const val DOT_EMPTY = "parent-code-dot-empty"
     const val DOT_WRONG = "parent-code-dot-wrong"
-    const val BACK = "parent-code-back"
+    const val BACK = GrownUpTags.BACK
     const val CROSS = "parent-code-cross"
     const val PAD = "parent-code-pad"
 }
@@ -241,7 +239,7 @@ private fun ParentCodeContent(
                         color = colors.textSecondary,
                     )
                 }
-                BackPill(backLabel)
+                BackKeyPill(backLabel)
             }
             when (type) {
                 ParentLockType.REMOTE -> DpadCross()
@@ -250,15 +248,6 @@ private fun ParentCodeContent(
         }
     }
 }
-
-/**
- * A board size in Nunito, with the theme's line height of 1.25 (`ui/theme/Type.kt`)
- */
-@Composable
-private fun boardText(
-    px: Int,
-    weight: FontWeight,
-): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = px.csp, lineHeight = (px * 1.25f).cpx.value.sp, fontWeight = weight)
 
 private fun Key.isArrow() = this == Key.DirectionUp || this == Key.DirectionDown || this == Key.DirectionLeft || this == Key.DirectionRight
 
@@ -304,30 +293,6 @@ private fun GatePill(
     ) {
         Icon(painterResource(icon.outline), contentDescription = null, tint = tint, modifier = Modifier.size(48.cpx))
         content()
-    }
-}
-
-/**
- * Names the Back key; not a button, so it takes no focus (D4)
- */
-@Composable
-private fun BackPill(label: String) {
-    val colors = LocalPekeColors.current
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.cpx),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            Modifier
-                .testTag(ParentCodePageTags.BACK)
-                .background(colors.surface, CircleShape)
-                .padding(horizontal = 28.cpx, vertical = 12.cpx),
-    ) {
-        Icon(painterResource(PekeIcon.BACK.outline), contentDescription = null, tint = colors.text, modifier = Modifier.size(28.cpx))
-        Text(
-            text = label,
-            style = boardText(22, FontWeight.W800),
-            color = colors.text,
-        )
     }
 }
 
@@ -437,14 +402,19 @@ private fun Digit(text: String) {
 }
 
 /**
- * Board 7's chevron, "M6 15l6-6 6 6" on a 24 grid with a stroke of 3, pointing up, turned by [degrees]
+ * Board 7's chevron, "M6 15l6-6 6 6" on a 24 grid with a stroke of 3, pointing up, turned by [degrees]; also the
+ * steppers' arrows (spec 021)
  */
 @Composable
-private fun Chevron(degrees: Float) {
-    val color = LocalPekeColors.current.text
+fun Chevron(
+    degrees: Float,
+    modifier: Modifier = Modifier,
+    color: Color = LocalPekeColors.current.text,
+    side: Dp = 44.cpx,
+) {
     Canvas(
-        Modifier
-            .size(44.cpx)
+        modifier
+            .size(side)
             .rotate(degrees),
     ) {
         val u = size.width / 24f
