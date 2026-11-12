@@ -673,7 +673,9 @@ private fun ButtonPreview() {
 
 /**
  * How a transport button looks: Wholphin's small square button, or for kids the round buttons of PlayerPekeTV: play
- * and pause 76 px in primary, the others 62 px on the outline colour, both turning primary with Peke's focus
+ * and pause 76 px in primary with a 36 px icon, the others 62 px on the outline colour with a 26 px icon, both turning
+ * primary with Peke's focus. The big icon is proportionally larger (47% of its button against 42%) so play and pause
+ * don't look smaller than the buttons beside them.
  */
 @Immutable
 data class PlaybackButtonStyle(
@@ -702,8 +704,9 @@ fun playbackButtonStyle(large: Boolean): PlaybackButtonStyle {
     return if (large) {
         PlaybackButtonStyle(
             size = 76.cpx,
-            // A 28 px icon
-            padding = PaddingValues(24.cpx),
+            // A 36 px icon. The play triangle needs no nudge: its centroid already sits a quarter pixel right of the
+            // centre, and the glyph's own ring would go off centre in the circle if the icon moved
+            padding = PaddingValues(20.cpx),
             colors =
                 ClickableSurfaceDefaults.colors(
                     containerColor = colors.primary,
