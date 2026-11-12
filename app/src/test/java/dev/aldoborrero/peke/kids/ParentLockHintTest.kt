@@ -34,9 +34,9 @@ class ParentLockHintTest {
     }
 
     @Test
-    fun `a remote code shows the arrows or the number keys`() {
+    fun `a remote code shows only the arrows`() {
         show(ParentLockType.REMOTE)
-        rule.onNodeWithText("or the number keys").assertExists()
+        rule.onNodeWithText("or the number keys").assertDoesNotExist()
         rule.onNodeWithText("[", substring = true).assertDoesNotExist()
     }
 

@@ -63,7 +63,6 @@ fun KidsParentGate(
     val plugin by viewModel.pluginService.current.collectAsState()
     val current by viewModel.current.collectAsState()
     val canSwitchKid by viewModel.canSwitchKid.collectAsState()
-    val resources = context.resources
     val kidName = current?.user?.name
     // The menu's pages need the grant, so choosing one closes the gate without ending it; anything else that closes
     // the menu ends it
@@ -79,51 +78,16 @@ fun KidsParentGate(
     when (val s = stage) {
         is GateStage.Passcode -> {
             val type = s.type ?: return
-            KidsPasscodeDialog(
-                title = R.string.kids_gate_passcode,
+            // The page says why a code was refused (spec 019); recovery is OK with no code, which the page says too
+            ParentCodePage(
+                title = R.string.kids_gate_title,
                 type = type,
                 attempt = s.attempt,
+                refusal = s.refusal,
+                backLabel = gateBackLabel(kidName.takeIf { withKid }),
                 forgotHint = true,
                 onDismissRequest = onDismissRequest,
-                onConfirm = {
-                    viewModel.submit(it, onDone = onDismissRequest, onPassed = onPassed) { refusal ->
-                        val message =
-                            when (refusal) {
-                                GateRefusal.Wrong -> {
-                                    resources.getString(R.string.kids_gate_wrong_passcode)
-                                }
-
-                                is GateRefusal.Wait -> {
-                                    resources.getQuantityString(
-                                        R.plurals.kids_gate_wait,
-                                        refusal.seconds,
-                                        refusal.seconds,
-                                    )
-                                }
-
-                                GateRefusal.CannotCheck -> {
-                                    resources.getString(R.string.kids_gate_cannot_check)
-                                }
-                            }
-                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                    }
-                },
-            )
-        }
-
-        is GateStage.WrongCode -> {
-            // Try again comes first and is focused; recovery needs a server administrator
-            DialogPopup(
-                showDialog = true,
-                title = stringResource(R.string.kids_gate_wrong_passcode),
-                dialogItems =
-                    listOf(
-                        DialogItem(stringResource(R.string.peke_setup_try_again)) { viewModel.retryCode() },
-                        DialogItem(stringResource(R.string.kids_gate_forgot)) { viewModel.forgotCode() },
-                    ),
-                onDismissRequest = onDismissRequest,
-                dismissOnClick = false,
-                waitToLoad = false,
+                onConfirm = { viewModel.submit(it, onDone = onDismissRequest, onPassed = onPassed) },
             )
         }
 
@@ -387,6 +351,13 @@ fun KidsParentGate(
         }
     }
 }
+
+/**
+ * What the code page's Back pill says: "Back to {Kid}" inside a kid's session, else "Back" (spec 019 D4)
+ */
+@Composable
+fun gateBackLabel(kidName: String?): String =
+    kidName?.let { stringResource(R.string.kids_gate_back_to, it) } ?: stringResource(R.string.kids_gate_back)
 
 /**
  * Why kids mode no longer works with the server: its plugin is too old, or gone

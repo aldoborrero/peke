@@ -708,13 +708,11 @@
     <string name="kids_change_passcode">Cambiar el código de padres</string>
     <string name="kids_channel_not_available">Este canal no está disponible</string>
     <string name="kids_daily_allowance">Tiempo al día</string>
-    <string name="kids_gate_cannot_check">Ahora no se puede comprobar el código sin el servidor</string>
     <string name="kids_gate_code_changed">Código de padres cambiado</string>
     <string name="kids_gate_current_passcode">Escribe el código de padres actual</string>
     <string name="kids_gate_forgot">¿Has olvidado el código?</string>
     <string name="kids_gate_no_code">Todavía no hay código de padres. Ponlo en la página Kids del panel de Jellyfin, o aquí como administrador del servidor.</string>
     <string name="kids_gate_no_code_offline">No se puede conectar con el servidor para comprobar el código de padres. Vuelve a intentarlo en un momento.</string>
-    <string name="kids_gate_passcode">Escribe el código de padres</string>
     <string name="kids_gate_plugin_missing">Esta tele nunca guardó el código de padres, así que un administrador del servidor tiene que iniciar sesión para restablecer esta tele</string>
     <string name="kids_gate_recovery_only">Esta tele no puede comprobar ahora el código de padres: ningún niño de aquí puede conectar con el servidor y el código nunca se guardó en esta tele.</string>
     <string name="kids_gate_set_code_admin">Poner el código como administrador del servidor</string>
@@ -729,8 +727,8 @@
     <string name="kids_live_tv_none">No hay canales elegidos, así que no hay TV en directo. Elige canales en la página del plugin Kids del panel.</string>
     <string name="kids_lock_numeric">Código numérico</string>
     <string name="kids_lock_numeric_summary">Un código de al menos 4 cifras</string>
-    <string name="kids_lock_remote">Código con los botones del mando</string>
-    <string name="kids_lock_remote_summary">Al menos 4 pulsaciones de las flechas, los números u otros botones de tu mando</string>
+    <string name="kids_lock_remote">Código con las flechas</string>
+    <string name="kids_lock_remote_summary">Al menos 4 pulsaciones de las flechas del mando</string>
     <plurals name="kids_minutes_left">
         <item quantity="one">Queda %1$d minuto</item>
         <item quantity="many">Quedan %1$d minutos</item>
@@ -1005,4 +1003,9 @@
     <string name="update_new_version">Versión nueva %1$s</string>
     <string name="update_whats_new">Novedades</string>
     <string name="update_later">Más tarde</string>
+    <string name="kids_gate_title">Solo para adultos</string>
+    <string name="kids_gate_hint_remote">Escribe el código de padres con las flechas del mando.</string>
+    <string name="kids_gate_hint_numeric">Escribe el código de padres con las teclas de números del mando.</string>
+    <string name="kids_gate_back_to">Volver con %1$s</string>
+    <string name="kids_gate_back">Atrás</string>
 </resources>

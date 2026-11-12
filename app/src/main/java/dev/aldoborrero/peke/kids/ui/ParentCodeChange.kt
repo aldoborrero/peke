@@ -110,15 +110,13 @@ fun ParentCodeChange(
         CodeChangeStep.Loading, CodeChangeStep.Saving -> {}
 
         is CodeChangeStep.Current -> {
-            LaunchedEffect(s) {
-                if (s.wrong) {
-                    Toast.makeText(context, R.string.kids_gate_wrong_passcode, Toast.LENGTH_SHORT).show()
-                }
-            }
-            KidsPasscodeDialog(
+            // The gate's page, without "Forgot it?"; a wrong code shows on it (spec 019 D9)
+            ParentCodePage(
                 title = R.string.kids_gate_current_passcode,
                 type = s.type,
                 attempt = s.attempt,
+                refusal = GateRefusal.Wrong.takeIf { s.wrong },
+                backLabel = gateBackLabel(null),
                 onDismissRequest = onDismissRequest,
                 onConfirm = { if (it.isNotEmpty()) viewModel.current(it) },
             )

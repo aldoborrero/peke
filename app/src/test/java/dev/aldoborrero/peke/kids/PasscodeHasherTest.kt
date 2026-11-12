@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.kids
 
+import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.gate.PasscodeHasher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,11 +46,13 @@ class PasscodeHasherTest {
     }
 
     @Test
-    fun `validity requires at least four digits`() {
-        assertTrue(PasscodeHasher.isValid("0000"))
-        assertFalse(PasscodeHasher.isValid("123"))
-        assertFalse(PasscodeHasher.isValid("12a4"))
-        assertTrue(PasscodeHasher.isValid("UDL7"))
+    fun `validity requires at least four keys of the code's one kind`() {
+        assertTrue(PasscodeHasher.isValid("0000", ParentLockType.NUMERIC))
+        assertFalse(PasscodeHasher.isValid("123", ParentLockType.NUMERIC))
+        assertFalse(PasscodeHasher.isValid("12a4", ParentLockType.NUMERIC))
+        assertTrue(PasscodeHasher.isValid("UDLR", ParentLockType.REMOTE))
+        assertFalse(PasscodeHasher.isValid("UDL7", ParentLockType.REMOTE))
+        assertFalse(PasscodeHasher.isValid("UDL", ParentLockType.REMOTE))
         assertEquals(4, PasscodeHasher.MIN_LENGTH)
     }
 
