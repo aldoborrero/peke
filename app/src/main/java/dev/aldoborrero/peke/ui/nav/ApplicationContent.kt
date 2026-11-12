@@ -33,7 +33,6 @@ import dev.aldoborrero.peke.kids.LocalKidsMode
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.TvLauncher
 import dev.aldoborrero.peke.kids.ui.KidsTimerEffects
-import dev.aldoborrero.peke.kids.ui.TimeLeftBand
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -119,7 +118,6 @@ fun ApplicationContent(
     viewModel: ApplicationContentViewModel = hiltViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val timeLeftBand = remember { TimeLeftBand() }
     Box(
         modifier = modifier,
     ) {
@@ -161,13 +159,12 @@ fun ApplicationContent(
                     navDrawerListState = navDrawerListState,
                     onClearBackdrop = viewModel::clearBackdrop,
                     modifier = Modifier.fillMaxSize(),
-                    timeLeftBand = timeLeftBand,
                 )
             } else {
                 ErrorMessage("Trying to go to $key without a user logged in", null)
             }
         }
-        KidsTimerEffects(band = timeLeftBand)
+        KidsTimerEffects()
     }
 }
 
