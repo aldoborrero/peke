@@ -22,14 +22,14 @@ object PasscodeHasher {
      */
     fun isValid(
         passcode: String,
-        type: ParentLockType = ParentLockType.REMOTE,
+        type: ParentLockType,
     ): Boolean = passcode.length >= MIN_LENGTH && passcode.all { it in ParentLockKeys.alphabet(type) }
 
     fun hash(
         passcode: String,
         random: SecureRandom = SecureRandom(),
     ): String {
-        require(isValid(passcode)) { "Invalid passcode" }
+        require(ParentLockType.entries.any { isValid(passcode, it) }) { "Invalid passcode" }
         val salt = ByteArray(SALT_BYTES).also { random.nextBytes(it) }
         val hash = derive(passcode, salt, ITERATIONS)
         return listOf(PREFIX, ITERATIONS.toString(), salt.toHex(), hash.toHex())

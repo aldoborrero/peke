@@ -245,6 +245,9 @@ Both sets follow the same rules (`IconSpecTest` checks them on the SVGs):
   behind its body).
 - **The circle** is only for the player's transport buttons: play, pause and next episode. Back is a free shape, a
   fat U-turn arrow like the Back key on a remote; watched is a check on a rounded-square badge, a ticked box.
+- **Player buttons:** play/pause is a 76 px circle in primary with a 36 px icon (47%), the other transport buttons
+  62 px with a 26 px icon (42%), so the big one never reads smaller. The play triangle stays as drawn: its centroid
+  already sits just right of the centre.
 - **Ink:** in the outline set, icons with inner parts cover 22–28% of the 48 square (21–28% measured, back and
   watched about 25%). A single closed shape that already fills the live area can't reach that with a 3.5 stroke:
   favourites and picks sit at 17–19%, and the open bedtime and search at about 19%.
@@ -268,7 +271,8 @@ Decided while testing the app:
 - **Sidebar:** the kids' home keeps Wholphin's nav drawer. It holds the kid's avatar, Search (if allowed), Home,
   Favourites, Live TV (if the kid has channels) and Grown-ups at the bottom. Libraries never show for kids.
 - **Back:** on the home, the first Back opens the sidebar and a second Back quits the app, as in Wholphin. The parent
-  gate opens only on purpose: Grown-ups in the sidebar or on a stop screen. Inner screens go back step by step.
+  gate opens only on purpose: Grown-ups in the sidebar or on a stop screen. Inner screens go back step by step; with
+  the sidebar open there, Back first closes it and focus returns where it was on the page.
 - **Launch:** a set-up TV always opens on the kids' side, from what the TV stores, without waiting for the server.
   With one kid, their home opens (or their stop screen); with several, the kids picker ("Who's watching?") shows this
   TV's kids only, then Grown-ups, which is never focused first. A TV with no kids says so, with only Grown-ups. There
@@ -294,6 +298,13 @@ Decided while testing the app:
   dashboard's address for changing it. Marking or unmarking kids is done in the dashboard only.
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
+- **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the
+  household's code uses: the D-pad cross with OK for remote arrows, a number pad with OK for number buttons. A code
+  is one kind of key, only the four arrows or only digits, so nothing else is drawn (D11). The entry
+  is the only thing focused, since the arrows type the code; "Back to {Kid}" ("Back" without a kid) is a label for
+  the Back key, never a button, and Back always leaves. Errors stay on the page (S5): a wrong code empties the entry
+  and shows the dots and "Wrong code" in primary; too many tries and can't reach the server are pills; each goes at
+  the next key. Changing the parent code asks for the current one on the same page, without "Forgot it?".
 - **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
   can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
 - **Opening videos:** items in "Continue watching" play straight away, resuming. Everywhere else a kid gets the

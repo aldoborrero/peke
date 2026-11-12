@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -273,9 +274,9 @@ data class ServerNavDrawerItem(
 }
 
 /**
- * Whether Back opens the nav drawer: only on the home page with the drawer closed. With the drawer open the app leaves
- * Back to the system, which quits the app as in Wholphin. Back never opens the profile's gate; only its drawer entry
- * does.
+ * Whether Back opens the nav drawer: only on the home page with the drawer closed. With the drawer open on the home the
+ * app leaves Back to the system, which quits the app as in Wholphin (leaving is never gated). On other pages see
+ * [backClosesNavDrawer]. Back never opens the profile's gate; only its drawer entry does.
  */
 internal fun backOpensNavDrawer(
     drawerValue: DrawerValue,
@@ -283,20 +284,23 @@ internal fun backOpensNavDrawer(
 ): Boolean = drawerValue == DrawerValue.Closed && destination is Destination.Home
 
 /**
- * Back opens the drawer where [backOpensNavDrawer] says, then [onOpened]. Its own scope reads the drawer's state, so
- * opening and closing the drawer recomposes this alone, not the page around it
+ * Back opens the drawer where [backOpensNavDrawer] says, then [onOpened], and closes it where [backClosesNavDrawer]
+ * says, with [onClose]. Its own scope reads the drawer's state, so opening and closing the drawer recomposes this alone,
+ * not the page around it
  */
 @Composable
 private fun DrawerBackHandler(
     drawerState: DrawerState,
     destination: Destination,
     enabled: Boolean,
+    onClose: () -> Unit,
     onOpened: () -> Unit,
 ) {
     BackHandler(enabled = enabled && backOpensNavDrawer(drawerState.currentValue, destination)) {
         drawerState.setValue(DrawerValue.Open)
         onOpened()
     }
+    BackHandler(enabled = enabled && backClosesNavDrawer(drawerState.currentValue, destination), onBack = onClose)
 }
 
 /**
@@ -317,6 +321,16 @@ internal fun rememberPageAlpha(drawerState: DrawerState): State<Float> {
 }
 
 private fun pageAlpha(drawerOpen: Boolean) = if (drawerOpen) .35f else 1f
+
+/**
+ * Whether Back closes the nav drawer: on any page but the home while the drawer is open, giving focus back to the page
+ * (where it was, or the page's default) instead of going back a page behind the open drawer. The next Back goes back
+ * a page as usual.
+ */
+internal fun backClosesNavDrawer(
+    drawerValue: DrawerValue,
+    destination: Destination,
+): Boolean = drawerValue == DrawerValue.Open && destination !is Destination.Home
 
 private const val HOME_INDEX = -1
 private const val SEARCH_INDEX = -2
@@ -365,7 +379,15 @@ fun NavDrawer(
     val activeEntry = viewModel.navigationManager.backStack.lastOrNull() == destination
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
-    DrawerBackHandler(drawerState, destination, enabled = activeEntry) { focusRequester.tryRequestFocus() }
+    // Elsewhere Back with the drawer open closes it: focus goes back to the page, which closes the drawer. These come
+    // before the page, so the page's own Back handling (the gate, time's up) still wins where it applies
+    val pageFocus = remember { FocusRequester() }
+    DrawerBackHandler(
+        drawerState,
+        destination,
+        enabled = activeEntry,
+        onClose = { pageFocus.tryRequestFocus() },
+    ) { focusRequester.tryRequestFocus() }
     val serviceState by viewModel.serviceState.collectAsState()
     val drawerItems = if (showLibraries) serviceState.items else customization.navDrawerItems
     val state by viewModel.state.collectAsState()
@@ -576,18 +598,27 @@ fun NavDrawer(
         ) {
             // Drawer content: the open sidebar covers it, and it fades to 35% behind (HomeDrawerPekeTV)
             val kidsHome = destination is Destination.Home && LocalKidsMode.current.isActive
-            DestinationContent(
-                destination = destination,
-                preferences = preferences,
-                onClearBackdrop = onClearBackdrop,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .dimmedTo(pageBackground) { contentAlpha.value }
-                        // Nothing scrolls under the time-left label: the page starts below it at the top, or ends above it at the bottom
-                        .padding(top = timeLeftBand?.top ?: 0.dp, bottom = timeLeftBand?.bottom ?: 0.dp)
-                        .padding(start = DrawerRailWidth + if (kidsHome) 0.dp else 8.dp, end = if (kidsHome) 0.dp else 16.dp),
-            )
+            // Focus coming back to the page, as when Back closes the drawer, returns to where it was
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .focusRequester(pageFocus)
+                    .focusRestorer()
+                    .focusGroup(),
+            ) {
+                DestinationContent(
+                    destination = destination,
+                    preferences = preferences,
+                    onClearBackdrop = onClearBackdrop,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .dimmedTo(pageBackground) { contentAlpha.value }
+                            // Nothing scrolls under the time-left label: the page starts below it at the top, or ends above it at the bottom
+                            .padding(top = timeLeftBand?.top ?: 0.dp, bottom = timeLeftBand?.bottom ?: 0.dp)
+                            .padding(start = DrawerRailWidth + if (kidsHome) 0.dp else 8.dp, end = if (kidsHome) 0.dp else 16.dp),
+                )
+            }
             // The kids home and search show the clock in their own top row
             val ownClock = LocalKidsMode.current.isActive && (kidsHome || destination is Destination.Search)
             if (preferences.appPreferences.interfacePreferences.showClock && !ownClock) {
