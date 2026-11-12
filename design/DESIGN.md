@@ -321,10 +321,11 @@ Decided while testing the app:
   the next key. Changing the parent code asks for the current one on the same page, without "Forgot it?".
 - **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
   can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
-- **Time left:** while a video plays (the player, with its controls, paused or on Next Up) a bar in "time" runs along
-  the top or bottom edge with a pill of the minutes left, at the left, in the middle (the default) or at the right, as
-  set in This TV; "Hidden" removes it, and the home's pill with it. Browsing, details, search, grown-up pages and the
-  stop screens show no bar: the home keeps its pill, and warnings and stops work everywhere as before.
+- **Time left:** while a video plays (the player, with its controls or on Next Up) a bar in "time" runs along the
+  top or bottom edge with a pill of the minutes left, at the left, in the middle (the default) or at the right, as set
+  in This TV. Pausing hides it until the video plays again (the owner's decision, spec 022 D1); "Hidden" removes it,
+  and the home's pill with it. Browsing, details, search, grown-up pages and the stop screens show no bar: the home
+  keeps its pill, and warnings and stops work everywhere as before.
 - **Opening videos:** items in "Continue watching" play straight away, resuming. Everywhere else a kid gets the
   details page first: a series shows its seasons and episodes, a film shows Play.
 - **Details pages for kids:** no More button, delete, playlists, remote trailers (they open another app) or people

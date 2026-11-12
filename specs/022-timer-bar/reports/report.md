@@ -2,7 +2,9 @@
 
 ## What changed
 
-- The bar is drawn only on the playback page (`timeLeftBarShown`, `kids/ui/KidsTimerEffects.kt`). Home, details,
+- The bar is drawn only on the playback page, and not while the video is paused (`timeLeftBarShown`,
+  `kids/ui/KidsTimerEffects.kt`; the owner's decision, spec D1). Pause is the player's `playWhenReady`, followed
+  through a new `PlayerFactory.player` `StateFlow`; buffering doesn't hide the bar. Home, details,
   search, favourites, live guide, grown-up pages, the gate and the stop screens draw none; the home keeps its pill.
 - The sidebar pages no longer keep a band for the bar (`NavDrawer`, `ApplicationContent`). The band now lives in the
   timer UI and puts the player's time warning below the label (`maxOf(40 px, band + 14 dp)`, 64 dp with the normal
@@ -20,7 +22,8 @@
 
 ## Tests
 
-- `TimeLeftBarShownTest`: playback pages yes; 12 other pages no; hidden never.
+- `TimeLeftBarShownTest`: playback pages yes; 12 other pages no; hidden never; paused no; pausing and resuming a
+  (mocked) player hides and shows the bar, and its listener is removed.
 - `TimeLeftBarPlacementTest`: the label at 48 dp from the left, centred, 48 dp from the right, at the top and bottom.
 - `KidsTimerBarSettingTest`: TOP/BOTTOM/HIDDEN stored by earlier versions read the same, placement defaults to the
   middle, both are kept under their own keys.

@@ -25,3 +25,9 @@
 - [X] T009 DESIGN "Shape and space" and "Behaviour" (`design/DESIGN.md`)
 - [X] T010 `nix fmt`, pre-commit on changed files, unit tests, debug build
 - [X] T011 Report (`reports/report.md`)
+
+## Phase 5: Owner's decision on pause (D1)
+
+- [X] T012 Hide the bar while the video is paused (`services/PlayerFactory.kt`, `kids/ui/KidsTimerEffects.kt`)
+- [X] T013 [P] Tests: no bar while paused, pause and resume on a player (`TimeLeftBarShownTest.kt`)
+- [X] T014 Spec D1, DESIGN, plan and report
