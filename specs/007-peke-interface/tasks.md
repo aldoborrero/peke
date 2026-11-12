@@ -117,14 +117,13 @@ Paths are relative to `app/src/main/java/dev/aldoborrero/peke/` unless they star
 - [X] T054 [US5] Strings: none changed (the header reuses `app_name`)
 - [X] T055 [US5] [US6] Validation as T017, size measured and recorded; setup screenshots need a reset or the parent code, so the owner takes them
 
-## Phase 6: Grown-ups screens full-screen (US7, PR 6) ⛔ Blocked
+## Phase 6: Grown-ups screens full-screen (US7, PR 6)
 
-**Blocked** on the owner's review of the 006 grown-up flows. No task here starts until then; the review may change
-this phase.
+Unblocked by the owner on 2026-11-11 and done as its own feature, spec 021 (`specs/021-grown-up-screens/`).
 
-- [ ] T056 [US7] (blocked) Re-specify US7 after the owner's review of the 006 flows
-- [ ] T057 [US7] (blocked) Parent menu, Add time, a kid's rules, grown-up setup and Settings as full-screen pages per canvas 8–12 in `kids/ui/` and `ui/preferences/`
-- [ ] T058 [US7] (blocked) Validation as T017, size measured and recorded
+- [X] T056 [US7] Re-specified as spec 021, with 006's content and the boards' layout
+- [X] T057 [US7] Parent menu, Add time, a kid's rules, grown-up setup and Settings as full-screen pages per canvas 8–12 in `kids/ui/` and `ui/preferences/` (spec 021)
+- [X] T058 [US7] Validation in spec 021's report
 
 ## Dependencies & Execution Order
 

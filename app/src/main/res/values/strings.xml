@@ -1187,4 +1187,26 @@
     <string name="kids_gate_hint_numeric">Enter the parent code with the remote\'s number buttons.</string>
     <string name="kids_gate_back_to">Back to %1$s</string>
     <string name="kids_gate_back">Back</string>
+    <!-- Spec 021: the grown-up screens -->
+    <string name="kids_menu_title">Grown-up menu</string>
+    <string name="kids_menu_of">Grown-up menu · %1$s</string>
+    <string name="kids_menu_add_time_line">Extra minutes for today</string>
+    <string name="kids_menu_switch_kid_line">Pick who\'s watching</string>
+    <string name="kids_menu_rules_line">Daily time, and what the dashboard sets</string>
+    <string name="kids_menu_settings_line">Parent code, this TV, playback</string>
+    <string name="kids_add_time_server">Extra time is counted on the server, so it works on every TV.</string>
+    <string name="kids_rules_on_server">Saved on the server, so every TV follows them</string>
+    <string name="kids_rules_daily_line">Counted on the server across every device</string>
+    <string name="kids_rules_daily_unsaved">OK saves · Back leaves it as it was</string>
+    <string name="peke_settings_section_playback">Playback</string>
+    <string name="peke_settings_household_intro">The parent code is the same on every TV of this server.</string>
+    <string name="peke_settings_this_tv_intro">What this TV shows, and how, for every kid on it.</string>
+    <string name="peke_settings_playback_intro">Peke plays files directly when it can, so the server doesn\'t need to convert them.</string>
+    <string name="peke_settings_advanced_intro">For when something doesn\'t work as it should.</string>
+    <string name="peke_settings_about_intro">Peke for Jellyfin is a fork of Wholphin, under the GPLv2.</string>
+    <string name="peke_settings_reset_intro">The only way out of kids mode: it signs every kid out and starts setup again.</string>
+    <string name="peke_set_up_title">Set up this TV</string>
+    <string name="peke_set_up_line">Set up this TV for the kids. Grown-ups watch with another Jellyfin app.</string>
+    <string name="peke_set_up_plugin">Kids plugin %1$s</string>
+    <string name="peke_set_up_plugin_ready">Kids plugin ready</string>
 </resources>

@@ -2,9 +2,7 @@ package dev.aldoborrero.peke.preferences
 
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.ui.isGrownUp
-import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.preferences.PreferenceGroup
-import dev.aldoborrero.peke.ui.preferences.PreferenceScreenOption
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,25 +11,9 @@ class PekePreferencesTest {
     private fun PreferenceGroup<AppPreferences>.all() = preferences + conditionalPreferences.flatMap { it.preferences }
 
     /**
-     * Settings' own sub-screens, which its items open
+     * Everything Settings shows, in all its sections (spec 021 D8)
      */
-    private val subScreens =
-        mapOf(
-            PreferenceScreenOption.PEKE_PLAYBACK to pekePlaybackPreferences,
-            PreferenceScreenOption.PEKE_ADVANCED to pekeAdvancedPreferences,
-        )
-
-    private val opened =
-        pekePreferences
-            .flatMap { it.all() }
-            .mapNotNull { ((it as? AppDestinationPreference)?.destination as? Destination.Settings)?.screen }
-            .filter { it in subScreens }
-
-    /**
-     * Everything Settings shows, also in the sub-screens it opens
-     */
-    private val shown =
-        pekePreferences.flatMap { it.all() } + opened.flatMap { screen -> subScreens.getValue(screen).flatMap { it.all() } }
+    private val shown = PekeSettingsSection.entries.flatMap { section -> section.groups.flatMap { it.all() } }
 
     @Test
     fun grownUpsGetThePlaybackSwitchesAndSetupSettings() {
@@ -153,12 +135,11 @@ class PekePreferencesTest {
     }
 
     @Test
-    fun settingsAreGroupedWithPlaybackAndAdvancedOnSubScreens() {
+    fun settingsAreGroupedInDesignsSections() {
         assertEquals(
             listOf(
                 R.string.peke_settings_household,
                 R.string.peke_settings_this_tv,
-                R.string.more,
                 R.string.about,
                 R.string.peke_this_tv_start_over,
             ),
@@ -180,15 +161,19 @@ class PekePreferencesTest {
             ),
             pekePreferences[1].all(),
         )
+        // Board 12's sections, in DESIGN's order: Playback and Advanced are sections now, not sub-screens
         assertEquals(
-            listOf(AppPreference.PekePlaybackSettings, AppPreference.PekeAdvancedSettings),
-            pekePreferences[2].all(),
+            listOf(
+                listOf(pekePreferences[0]),
+                listOf(pekePreferences[1]),
+                pekePlaybackPreferences,
+                pekeAdvancedPreferences,
+                listOf(pekePreferences[2]),
+                listOf(pekePreferences[3]),
+            ),
+            PekeSettingsSection.entries.map { it.groups },
         )
-        assertEquals(listOf(PreferenceScreenOption.PEKE_PLAYBACK, PreferenceScreenOption.PEKE_ADVANCED), opened)
-        // The sub-screens are settings pages, behind the parent gate like Settings
-        listOf(AppPreference.PekePlaybackSettings, AppPreference.PekeAdvancedSettings).forEach {
-            assertTrue(it.destination.isGrownUp())
-        }
+        assertEquals(PekeSettingsSection.RESET, PekeSettingsSection.entries.last())
         // Playback and player: the playback group, then the backend with its Exo or MPV settings
         assertEquals(listOf(R.string.playback, R.string.player_backend), pekePlaybackPreferences.map { it.title })
         assertEquals(3, pekePlaybackPreferences.last().conditionalPreferences.size)

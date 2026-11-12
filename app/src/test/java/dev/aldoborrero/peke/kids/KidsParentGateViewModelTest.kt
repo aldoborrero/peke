@@ -32,6 +32,7 @@ import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.kids.timer.TodayChange
 import dev.aldoborrero.peke.kids.ui.GateRefusal
 import dev.aldoborrero.peke.kids.ui.GateStage
+import dev.aldoborrero.peke.kids.ui.GrownUpNotices
 import dev.aldoborrero.peke.kids.ui.KidsParentGateViewModel
 import dev.aldoborrero.peke.services.MusicService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -139,6 +140,8 @@ class KidsParentGateViewModelTest {
             serverRepository,
             mockk<MusicService>(relaxed = true),
             addTimeAmount,
+            GrownUpNotices(),
+            mockk<KidAvatars>(relaxed = true),
             CoroutineScope(dispatcher),
         ).also { it.now = { NOW } }
 

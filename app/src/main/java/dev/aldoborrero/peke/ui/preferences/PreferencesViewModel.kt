@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.aldoborrero.peke.data.ServerRepository
+import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
+import dev.aldoborrero.peke.kids.ui.GrownUpNotices
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
 import dev.aldoborrero.peke.preferences.updateSubtitlePreferences
@@ -47,7 +49,14 @@ class PreferencesViewModel
         val voiceSearchSetting: VoiceSearchSetting,
         val timerBarSetting: KidsTimerBarSetting,
         private val setupNavigationManager: SetupNavigationManager,
+        val notices: GrownUpNotices,
+        kidsPluginService: KidsPluginService,
     ) : ViewModel() {
+        /**
+         * The Kids plugin on the current server, for the pill of Settings without a kid (spec 021 D9)
+         */
+        val plugin = kidsPluginService.current
+
         /**
          * Reset this TV, after a confirmation, whose Cancel returns to the kid when Settings is among their pages, and
          * otherwise to the picker

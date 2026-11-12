@@ -1,6 +1,7 @@
 package dev.aldoborrero.peke.ui.preferences
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -12,18 +13,18 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
-import androidx.tv.material3.contentColorFor
+import dev.aldoborrero.peke.kids.ui.GrownUpRowShape
 import dev.aldoborrero.peke.preferences.AppSliderPreference
 import dev.aldoborrero.peke.ui.components.SliderBar
+import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.PekeFocus
+import dev.aldoborrero.peke.ui.theme.cpx
 
 @Composable
 fun SliderPreference(
@@ -38,13 +39,9 @@ fun SliderPreference(
     additionalSummary: @Composable (ColumnScope.() -> Unit)? = null,
 ) {
     val focused = interactionSource.collectIsFocusedAsState().value
-    val background =
-        if (focused) {
-            MaterialTheme.colorScheme.inverseSurface
-        } else {
-            Color.Unspecified
-        }
-    val contentColor = contentColorFor(background)
+    // Board 12's row, with the grown-up focus border and ring while the slider has focus (spec 021 D10)
+    val colors = LocalPekeColors.current
+    val contentColor = colors.text
 
     Column(
         verticalArrangement = Arrangement.SpaceEvenly,
@@ -52,8 +49,16 @@ fun SliderPreference(
             modifier
                 .defaultMinSize(minHeight = 72.dp)
                 .fillMaxWidth()
-                .background(background, shape = RoundedCornerShape(8.dp))
-                .padding(PaddingValues(horizontal = 16.dp, vertical = 12.dp)),
+                .background(colors.surface, GrownUpRowShape)
+                .let {
+                    if (focused) {
+                        it
+                            .border(PekeFocus.BorderWidth + PekeFocus.RingWidth, colors.primary, GrownUpRowShape)
+                            .border(PekeFocus.BorderWidth, colors.focusBorder, GrownUpRowShape)
+                    } else {
+                        it
+                    }
+                }.padding(PaddingValues(horizontal = 20.cpx, vertical = 14.cpx)),
     ) {
         PreferenceTitle(title, color = contentColor, modifier = Modifier.padding(bottom = 8.dp))
 
