@@ -779,6 +779,10 @@
     <string name="kids_timer_bar">Barra de tiempo</string>
     <string name="kids_timer_bar_bottom">Abajo</string>
     <string name="kids_timer_bar_top">Arriba</string>
+    <string name="kids_timer_placement">Tiempo en la barra</string>
+    <string name="kids_timer_placement_start">A la izquierda</string>
+    <string name="kids_timer_placement_center">En el centro</string>
+    <string name="kids_timer_placement_end">A la derecha</string>
     <string name="kids_times_up">¡Se acabó el tiempo!</string>
     <string name="kids_oops_title">Vaya, algo ha salido mal</string>
     <string name="kids_empty">Aún no hay nada aquí</string>

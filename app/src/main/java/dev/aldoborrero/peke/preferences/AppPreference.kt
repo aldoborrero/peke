@@ -758,6 +758,15 @@ sealed interface AppPreference<Pref, T> {
             )
 
         /**
+         * Settings › This TV: where the time left sits along the timer bar (spec 022), kept by
+         * [dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting]
+         */
+        val KidsTimerPlacement =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.kids_timer_placement,
+            )
+
+        /**
          * Reset this TV, after a confirmation (spec FR-015): the parent menu's way out of kids mode, at the end of
          * Settings
          */
@@ -1299,6 +1308,7 @@ val pekePreferences =
                     AppPreference.KidsOnThisTv,
                     AppPreference.KidsVoiceSearch,
                     AppPreference.KidsTimerBar,
+                    AppPreference.KidsTimerPlacement,
                     AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
                     AppPreference.ShowClock,

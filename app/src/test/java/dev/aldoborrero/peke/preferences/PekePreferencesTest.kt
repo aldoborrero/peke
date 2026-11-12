@@ -145,7 +145,7 @@ class PekePreferencesTest {
             ),
             pekePreferences.map { it.title },
         )
-        // The household's parent code, then this TV, with its kids, the timer bar (spec 006 FR-019) and the theme (spec 007)
+        // The household's parent code, then this TV, with its kids, the timer bar (spec 006 FR-019) and where its time sits (spec 022) and the theme (spec 007)
         assertEquals(listOf(AppPreference.ChangeParentCode), pekePreferences.first().all())
         assertEquals(
             listOf(
@@ -153,6 +153,7 @@ class PekePreferencesTest {
                 AppPreference.KidsOnThisTv,
                 AppPreference.KidsVoiceSearch,
                 AppPreference.KidsTimerBar,
+                AppPreference.KidsTimerPlacement,
                 AppPreference.ThemeColors,
                 AppPreference.ScreensaverSettings,
                 AppPreference.ShowClock,

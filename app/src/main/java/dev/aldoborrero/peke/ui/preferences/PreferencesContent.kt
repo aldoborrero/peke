@@ -49,6 +49,7 @@ import coil3.SingletonImageLoader
 import coil3.imageLoader
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
+import dev.aldoborrero.peke.kids.timer.KidsTimerLabelPlacement
 import dev.aldoborrero.peke.kids.ui.ParentCodeChange
 import dev.aldoborrero.peke.kids.ui.boardText
 import dev.aldoborrero.peke.preferences.AppPreference
@@ -492,6 +493,16 @@ fun PreferencesContent(
                                         possibleValues = values,
                                         selectedIndex = position.ordinal,
                                         onValueChange = { viewModel.setTimerBarPosition(KidsTimerBarPosition.entries[it]) },
+                                        interactionSource = interactionSource,
+                                        modifier = focusModifier,
+                                    )
+                                }
+
+                                AppPreference.KidsTimerPlacement -> {
+                                    val placement by viewModel.timerBarSetting.placement.collectAsState(KidsTimerLabelPlacement.CENTER)
+                                    TimerPlacementPreference(
+                                        placement = placement,
+                                        onChange = viewModel::setTimerPlacement,
                                         interactionSource = interactionSource,
                                         modifier = focusModifier,
                                     )
