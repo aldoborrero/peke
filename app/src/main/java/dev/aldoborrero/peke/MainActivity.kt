@@ -11,7 +11,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
@@ -251,13 +250,14 @@ class MainActivity : AppCompatActivity() {
         viewModel.appStart(intent)
         setContent {
             MaterialTheme(colorScheme = tvColorScheme(PekeTvPalette)) {
-                // The page colour is DESIGN's background; tv-material's Surface would paint the surface colour
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-                ) {
-                    val userPreferences by userPreferencesService.flow.collectAsState(null)
-                    if (userPreferences == null) {
+                val userPreferences by userPreferencesService.flow.collectAsState(null)
+                if (userPreferences == null) {
+                    // The page colour is DESIGN's background; tv-material's Surface would paint the surface colour.
+                    // Only here: MainContent paints its own, and one fill of the whole screen per frame is enough
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                    ) {
                         // Show loading page if it is taking a while to get app preferences
                         var showLoading by remember { mutableStateOf(false) }
                         LaunchedEffect(Unit) {
@@ -266,47 +266,42 @@ class MainActivity : AppCompatActivity() {
                             showLoading = true
                         }
                         if (showLoading) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .background(PekeTvPalette.background),
-                            ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
                                 LoadingPage(buddy = true)
                             }
                         }
-                    } else {
-                        userPreferences?.let { userPreferences ->
-                            val appPreferences = userPreferences.appPreferences
-                            CoilConfig(
-                                prefs = appPreferences,
-                                okHttpClient = okHttpClient,
-                                debugLogging = false,
-                                enableCache = true,
-                            )
-                            LaunchedEffect(appPreferences.debugLogging) {
-                                DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
-                            }
-                            val kidsModeState by kidsModeService.state.collectAsState()
-                            val kidsLiveTv by kidsLiveTvService.available.collectAsState()
-                            CompositionLocalProvider(
-                                LocalImageUrlService provides imageUrlService,
-                                LocalKidsMode provides kidsModeState,
-                                LocalKidsLiveTv provides kidsLiveTv,
+                    }
+                } else {
+                    userPreferences?.let { userPreferences ->
+                        val appPreferences = userPreferences.appPreferences
+                        CoilConfig(
+                            prefs = appPreferences,
+                            okHttpClient = okHttpClient,
+                            debugLogging = false,
+                            enableCache = true,
+                        )
+                        LaunchedEffect(appPreferences.debugLogging) {
+                            DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
+                        }
+                        val kidsModeState by kidsModeService.state.collectAsState()
+                        val kidsLiveTv by kidsLiveTvService.available.collectAsState()
+                        CompositionLocalProvider(
+                            LocalImageUrlService provides imageUrlService,
+                            LocalKidsMode provides kidsModeState,
+                            LocalKidsLiveTv provides kidsLiveTv,
+                        ) {
+                            PekeTheme(
+                                appThemeColors = appPreferences.interfacePreferences.appThemeColors,
                             ) {
-                                PekeTheme(
-                                    appThemeColors = appPreferences.interfacePreferences.appThemeColors,
-                                ) {
-                                    ProvideLocalClock {
-                                        MainContent(
-                                            backStack = setupNavigationManager.backStack,
-                                            navigationManager = navigationManager,
-                                            userPreferences = userPreferences,
-                                            backdropService = backdropService,
-                                            screensaverService = screensaverService,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                    }
+                                ProvideLocalClock {
+                                    MainContent(
+                                        backStack = setupNavigationManager.backStack,
+                                        navigationManager = navigationManager,
+                                        userPreferences = userPreferences,
+                                        backdropService = backdropService,
+                                        screensaverService = screensaverService,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
                                 }
                             }
                         }
@@ -314,6 +309,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        // Compose paints the whole window with the page colour on every frame: the window's own background under it
+        // would be one more fill of the screen per frame. The starting window still takes the theme's
+        window.setBackgroundDrawable(null)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

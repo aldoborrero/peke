@@ -54,10 +54,9 @@ fun MainContent(
     modifier: Modifier = Modifier,
 ) {
     val preferences by rememberUpdatedState(userPreferences)
+    // The Surface's own colour is the only fill of the page: a background under it would paint the screen twice
     Surface(
-        modifier =
-            modifier
-                .background(MaterialTheme.colorScheme.background),
+        modifier = modifier,
         shape = RectangleShape,
         // DESIGN's background, not tv-material's default surface: cards and chips on surface stand out from the page
         colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.background),

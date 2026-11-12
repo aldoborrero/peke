@@ -1,5 +1,10 @@
 package dev.aldoborrero.peke.ui.nav
 
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -190,6 +195,8 @@ internal fun KidPages(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
+        transitionSpec = { kidPagesTransition() },
+        popTransitionSpec = { kidPagesTransition() },
         entryProvider = { key ->
             NavEntry(key, contentKey = contentKey(key)) {
                 if (currentRoute == KidPagesRoute.WAIT) {
@@ -204,3 +211,11 @@ internal fun KidPages(
         },
     )
 }
+
+/**
+ * How long one kid page fades into the next. Nav3's own crossfade takes 700 ms, which keeps both pages composed and
+ * drawn through offscreen layers for most of a second on a TV box; a short fade still says "a new page" without that
+ */
+internal const val KID_PAGES_FADE_MILLIS = 150
+
+private fun kidPagesTransition(): ContentTransform = fadeIn(tween(KID_PAGES_FADE_MILLIS)) togetherWith fadeOut(tween(KID_PAGES_FADE_MILLIS))

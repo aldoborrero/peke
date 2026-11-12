@@ -28,6 +28,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -107,14 +108,18 @@ fun KidsPictureCard(
         verticalArrangement = Arrangement.spacedBy(maxOf(TitleGap, PekeFocus.clearance(height))),
         modifier = modifier.width(width),
     ) {
+        // The picture or its tile covers the whole card: the surface colour only shows while the picture loads, so it
+        // is drawn then and not under every picture on every frame
+        val loadingColor = MaterialTheme.colorScheme.surface
         KidsCardSurface(
             onClick = onClick,
             onLongClick = onLongClick,
             shape = shape,
             interactionSource = interactionSource,
+            containerColor = Color.Transparent,
             modifier = Modifier.size(width, height).onFocusChanged { hasFocus = it.isFocused },
         ) {
-            KidsCardPicture(imageUrl = imageUrl, title = title, id = item?.id, description = description)
+            KidsCardPicture(imageUrl = imageUrl, title = title, id = item?.id, description = description, loadingColor = loadingColor)
             if (played && (playPercent <= 0 || playPercent >= 100)) {
                 KidsWatchedBadge(Modifier.align(Alignment.TopEnd).padding(10.cpx))
             }
@@ -198,6 +203,8 @@ fun KidsCardSurface(
 
 /**
  * The picture of a card, or its title on a theme-coloured tile when there is none or it can't load
+ *
+ * @param loadingColor fills the card while the picture loads, for a card that draws no colour under it
  */
 @Composable
 fun BoxScope.KidsCardPicture(
@@ -205,13 +212,16 @@ fun BoxScope.KidsCardPicture(
     title: String?,
     id: UUID?,
     description: String? = title,
+    loadingColor: Color? = null,
 ) {
     var imageError by remember(imageUrl) { mutableStateOf(false) }
     if (imageUrl != null && !imageError) {
+        val placeholder = remember(loadingColor) { loadingColor?.let { ColorPainter(it) } }
         AsyncImage(
             model = imageUrl,
             contentDescription = description,
             contentScale = ContentScale.Crop,
+            placeholder = placeholder,
             onError = { imageError = true },
             modifier = Modifier.fillMaxSize(),
         )
