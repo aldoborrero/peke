@@ -50,7 +50,14 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.cpx
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import javax.inject.Inject
@@ -68,6 +75,12 @@ class KidsTimerEffectsViewModel
         val navigationManager: NavigationManager,
         private val playerFactory: PlayerFactory,
     ) : ViewModel() {
+        /**
+         * Whether the video is paused, false without a player (spec 022 D1)
+         */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val paused: Flow<Boolean> = playerFactory.player.flatMapLatest { it?.pausedFlow() ?: flowOf(false) }
+
         fun showTimesUp() {
             val top = navigationManager.backStack.lastOrNull()
             if (top !is Destination.KidsTimesUp) {
@@ -131,13 +144,35 @@ class KidsTimerEffectsViewModel
     }
 
 /**
- * Whether the time-left bar is drawn over [top]: only on the playback page (spec 022), with its controls, Next Up or
- * paused, and never when the bar is hidden. The kids home keeps the time left in its header; other pages show none.
+ * Whether the time-left bar is drawn over [top]: only on the playback page while the video plays (spec 022), with its
+ * controls or Next Up, and never while [paused] or when the bar is hidden. The kids home keeps the time left in its
+ * header; other pages show none.
  */
 internal fun timeLeftBarShown(
     top: Destination?,
     position: KidsTimerBarPosition,
-): Boolean = position != KidsTimerBarPosition.HIDDEN && (top is Destination.Playback || top is Destination.PlaybackList)
+    paused: Boolean,
+): Boolean = position != KidsTimerBarPosition.HIDDEN && !paused && (top is Destination.Playback || top is Destination.PlaybackList)
+
+/**
+ * Whether this player is paused: the kid or the remote paused it. Buffering isn't a pause, so the bar doesn't flicker
+ * while a video loads. Collected on the main thread, as a player's listeners are.
+ */
+internal fun Player.pausedFlow(): Flow<Boolean> =
+    callbackFlow {
+        val listener =
+            object : Player.Listener {
+                override fun onPlayWhenReadyChanged(
+                    playWhenReady: Boolean,
+                    reason: Int,
+                ) {
+                    trySend(!playWhenReady)
+                }
+            }
+        trySend(!playWhenReady)
+        addListener(listener)
+        awaitClose { removeListener(listener) }
+    }.distinctUntilChanged()
 
 /**
  * App-wide kids timer UI: the remaining-time bar while playing, warnings and switching to the time's up screen
@@ -169,6 +204,7 @@ private fun KidsTimerEffectsContent(
     val nearEnd by remember { derivedStateOf { limitsState.value.nearEnd } }
     val barPosition by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
     val placement by viewModel.timerBarSetting.placement.collectAsState(KidsTimerLabelPlacement.CENTER)
+    val paused by viewModel.paused.collectAsState(false)
     // The room the bar takes, for the player's warning to sit below it
     val band = remember { TimeLeftBand() }
     var warning by remember { mutableStateOf<Duration?>(null) }
@@ -218,7 +254,7 @@ private fun KidsTimerEffectsContent(
 
     Box(modifier = modifier.fillMaxSize()) {
         val minutes = shownMinutes
-        if (minutes != null && timeLeftBarShown(top, barPosition)) {
+        if (minutes != null && timeLeftBarShown(top, barPosition, paused)) {
             TimeLeftBar(
                 fraction = {
                     val limits = limitsState.value
