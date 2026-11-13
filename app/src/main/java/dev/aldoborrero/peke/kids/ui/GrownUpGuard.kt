@@ -40,7 +40,18 @@ class GrownUpGuardViewModel
         private val parentLockService: ParentLockService,
         private val navigationManager: NavigationManager,
         private val tvLauncher: TvLauncher,
+        private val menuReturn: GrownUpMenuReturn,
     ) : ViewModel() {
+        /**
+         * The menu item Back on [destination] returns to, when the parent menu opened it (spec 025)
+         */
+        fun menuItem(destination: Destination): GrownUpMenuItem? = menuReturn.itemFor(destination)
+
+        /**
+         * The menu shown again over [destination] closed: the page goes too
+         */
+        fun closeMenuPage(destination: Destination) = menuReturn.close(destination)
+
         /**
          * Whether the page may show: a parent grant was live when it last showed, or the gate passed since. Lives as long
          * as the page, and not across the app being killed.
@@ -114,11 +125,13 @@ fun Destination.isGrownUp(): Boolean =
  * grown-up is on the page doesn't throw them out until then.
  *
  * @param inKidPages whether the page is one of the kid's pages, which Back leaves, or a setup page outside them
+ * @param destination the page, in the kid's pages: when the parent menu opened it, Back shows the menu again (spec 025)
  */
 @Composable
 fun GrownUpGuard(
     inKidPages: Boolean,
     modifier: Modifier = Modifier,
+    destination: Destination? = null,
     viewModel: GrownUpGuardViewModel = hiltViewModel(),
     content: @Composable () -> Unit,
 ) {
@@ -128,7 +141,21 @@ fun GrownUpGuard(
     }
     if (viewModel.allowed) {
         // Grown-up pages keep the focus border and ring, without the kids' scale-up (design/DESIGN.md, Focus)
-        CompositionLocalProvider(LocalPekeFocusScale provides false, LocalGrownUpPage provides true, content = content)
+        CompositionLocalProvider(LocalPekeFocusScale provides false, LocalGrownUpPage provides true) {
+            BackToMenu(
+                item = destination?.let(viewModel::menuItem),
+                onMenuClosed = { destination?.let(viewModel::closeMenuPage) },
+                // Its own view model: the page's gates (a grant that ran out on the rules) keep theirs
+                menu = { item, onDismissRequest ->
+                    KidsParentGate(
+                        onDismissRequest = onDismissRequest,
+                        returnTo = item,
+                        viewModel = hiltViewModel(key = MENU_RETURN_GATE),
+                    )
+                },
+                content = content,
+            )
+        }
     } else {
         LoadingPage(modifier)
         KidsParentGate(
@@ -174,6 +201,8 @@ fun SetupThisTvPage(
         )
     }
 }
+
+private const val MENU_RETURN_GATE = "menu-return-gate"
 
 /**
  * True inside a grown-up page ([GrownUpGuard]): errors there keep their details, which kids never see

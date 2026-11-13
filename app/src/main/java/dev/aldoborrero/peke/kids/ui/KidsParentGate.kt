@@ -43,16 +43,20 @@ import dev.aldoborrero.peke.ui.theme.cpx
  * and the code opens Settings straight away
  * @param onPassed where to go once the code is right, instead of the menu, such as a kid picked while another is
  * stopped
+ * @param returnTo Back on a page the menu opened: the menu shows again, focused on this item, without the code while
+ * the grant is live (spec 025)
  */
 @Composable
 fun KidsParentGate(
     onDismissRequest: () -> Unit,
     withKid: Boolean = true,
     onPassed: (() -> Unit)? = null,
+    returnTo: GrownUpMenuItem? = null,
     viewModel: KidsParentGateViewModel = hiltViewModel(),
 ) {
     viewModel.withKid = withKid
     DisposableEffect(Unit) { onDispose { viewModel.reset() } }
+    LaunchedEffect(Unit) { if (returnTo != null) viewModel.returnToMenu() }
     // The app went to the background since the gate opened: it closes, so the kid who comes back finds neither the
     // menu nor a code being set
     val epoch by viewModel.epoch.collectAsState()
@@ -270,6 +274,7 @@ fun KidsParentGate(
                     pluginGone = pluginGone,
                     addTime = addTime,
                     canSwitchKid = canSwitchKid,
+                    focus = returnTo,
                     notice = notice,
                     onNoticeShown = viewModel.notices::shown,
                     onAddTime = viewModel::openAddTime,

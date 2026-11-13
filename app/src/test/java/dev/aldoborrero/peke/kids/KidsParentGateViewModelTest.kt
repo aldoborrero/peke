@@ -32,6 +32,7 @@ import dev.aldoborrero.peke.kids.timer.KnownKidsStatus
 import dev.aldoborrero.peke.kids.timer.TodayChange
 import dev.aldoborrero.peke.kids.ui.GateRefusal
 import dev.aldoborrero.peke.kids.ui.GateStage
+import dev.aldoborrero.peke.kids.ui.GrownUpMenuReturn
 import dev.aldoborrero.peke.kids.ui.GrownUpNotices
 import dev.aldoborrero.peke.kids.ui.KidsParentGateViewModel
 import dev.aldoborrero.peke.services.MusicService
@@ -132,7 +133,7 @@ class KidsParentGateViewModelTest {
             timeLimits,
             mockk<KidsPluginService>(relaxed = true),
             parentLockService,
-            navigationManager,
+            GrownUpMenuReturn(navigationManager),
             setupNavigationManager,
             sessions,
             grownUpSessions,
@@ -600,5 +601,74 @@ class KidsParentGateViewModelTest {
             vm.withKid = false
             vm.openThisTv()
             verify { setupNavigationManager.navigateTo(SetupDestination.ThisTv) }
+        }
+
+    @Test
+    fun `the rules and Settings open from the menu so Back can return to it`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.openMenu()
+
+            vm.openRules()
+            vm.openThisTv()
+
+            verify { navigationManager.navigateTo(Destination.KidRules) }
+            verify { navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.PEKE)) }
+            verify(exactly = 0) { parentLockService.forgetGrants() }
+        }
+
+    @Test
+    fun `Back from a page the menu opened shows the menu again while the grant is live`() =
+        runTest(dispatcher) {
+            every { parentLockService.hasLiveGrant() } returns true
+            val vm = viewModel()
+
+            vm.returnToMenu()
+
+            assertEquals(GateStage.Menu, vm.stage.value)
+            coVerify(exactly = 0) { parentLockService.verify(any()) }
+            verify(exactly = 0) { parentLockService.forgetGrants() }
+
+            // Back on the menu then leaves to the kid, and the grant ends
+            vm.leaveMenu()
+            verify(exactly = 1) { parentLockService.forgetGrants() }
+        }
+
+    @Test
+    fun `the lock read late doesn't replace the menu shown again`() =
+        runTest(dispatcher) {
+            every { parentLockService.hasLiveGrant() } returns true
+            val lock = CompletableDeferred<LockState>()
+            coEvery { parentLockService.lockState() } coAnswers { lock.await() }
+            val vm = viewModel()
+
+            vm.returnToMenu()
+            lock.complete(LockState.Code(ParentLockType.NUMERIC))
+
+            assertEquals(GateStage.Menu, vm.stage.value)
+        }
+
+    @Test
+    fun `Back from a page the menu opened after the grant ran out asks for the code, then shows the menu`() =
+        runTest(dispatcher) {
+            every { parentLockService.hasLiveGrant() } returns false
+            val vm = viewModel()
+
+            vm.returnToMenu()
+
+            assertTrue(vm.stage.value is GateStage.Passcode)
+            vm.openMenu()
+        }
+
+    @Test
+    fun `Settings from the picker still opens outside the kid's pages`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.withKid = false
+            vm.openMenu()
+            vm.openThisTv()
+
+            verify { setupNavigationManager.navigateTo(SetupDestination.ThisTv) }
+            verify(exactly = 0) { navigationManager.navigateTo(any()) }
         }
 }

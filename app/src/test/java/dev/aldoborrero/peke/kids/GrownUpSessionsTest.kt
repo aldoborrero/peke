@@ -57,7 +57,8 @@ class GrownUpSessionsTest {
     @Test
     fun `a grown-up page left open asks for the code again when it shows`() =
         runTest(dispatcher) {
-            val guard = GrownUpGuardViewModel(parentLockService, mockk(relaxed = true), mockk<TvLauncher>(relaxed = true))
+            val guard =
+                GrownUpGuardViewModel(parentLockService, mockk(relaxed = true), mockk<TvLauncher>(relaxed = true), mockk(relaxed = true))
             assertTrue(guard.allowed)
 
             sessions.end().join()
