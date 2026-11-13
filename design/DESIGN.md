@@ -86,10 +86,10 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 - **Screen padding:** Google's overscan-safe area, at least 64 px (48 dp) from the left and right edges and 36 px
   (27 dp) from the top and bottom, for whatever must stay on screen: titles, buttons, the clock and the player's
   controls; the boards' 40–56 px top and bottom already meet it. Rows that scroll sideways may run to the edge. Text
-  pills are at least their height, taller rather than cut when the TV's text is larger. The time-left bar and its
-  label keep a band of their own at the top or bottom edge: the kids home holds the time left in its header, and every
-  other page in the sidebar starts below the band (or ends above it), so the label never covers a title or the search
-  box, scrolled or not.
+  pills are at least their height, taller rather than cut when the TV's text is larger. The time-left bar shows only on
+  the player (spec 022), along the top or bottom edge, and its label keeps at least 64 px from the side edges when it
+  sits at the left or right; the player's time warning sits below it. The kids home holds the time left in its header,
+  and no other page draws the bar, so nothing keeps room for it.
 - **Gaps:** 20–24 px between cards in a row, widened where a focused card's scale-up, border and ring need it to clear
   the next card with room to spare (about 25 px between posters and 32 px between wide cards); 26–28 px between rows,
   12–16 px inside lists. Every row and grid of cards leaves the same room at its ends and above its cards, so a
@@ -289,8 +289,8 @@ Decided while testing the app:
   says why not: a break, with "Keep watching now" when the plugin can end it; bedtime; no daily limit; offline),
   Switch kid (2+ kids), "{Kid}'s rules" and Settings, never the user list. From the picker the code opens Settings
   straight away. Settings holds Household (change the parent code), This TV (Kids on this TV, voice search, the timer
-  bar, screensaver, clock, language, subtitles), playback, Advanced, About with the license, and Reset this TV last.
-  Leaving the menu ends the code's grant.
+  bar and where its time sits, screensaver, clock, language, subtitles), playback, Advanced, About with the license,
+  and Reset this TV last. Leaving the menu ends the code's grant.
 - **Grown-up pages (8–12):** pages over the whole screen, never dialogs (spec 021). The parent menu is board 8: the
   kid's avatar and name, their time left in a "time" pill, then the menu's items as big cards in its fixed order; Add
   time that can't be used stays in its place as a card that says why and takes no focus. Grown-up pages have no
@@ -321,6 +321,11 @@ Decided while testing the app:
   the next key. Changing the parent code asks for the current one on the same page, without "Forgot it?".
 - **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
   can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
+- **Time left:** while a video plays (the player, with its controls or on Next Up) a bar in "time" runs along the
+  top or bottom edge with a pill of the minutes left, at the left, in the middle (the default) or at the right, as set
+  in This TV. Pausing hides it until the video plays again (the owner's decision, spec 022 D1); "Hidden" removes it,
+  and the home's pill with it. Browsing, details, search, grown-up pages and the stop screens show no bar: the home
+  keeps its pill, and warnings and stops work everywhere as before.
 - **Opening videos:** items in "Continue watching" play straight away, resuming. Everywhere else a kid gets the
   details page first: a series shows its seasons and episodes, a film shows Play.
 - **Details pages for kids:** no More button, delete, playlists, remote trailers (they open another app) or people

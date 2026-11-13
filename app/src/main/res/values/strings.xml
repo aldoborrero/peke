@@ -921,6 +921,15 @@
     </string-array>
     <string name="kids_timer_bar_top">At the top</string>
     <string name="kids_timer_bar_bottom">At the bottom</string>
+    <string name="kids_timer_placement">Timer on the bar</string>
+    <string-array name="kids_timer_placements">
+        <item>@string/kids_timer_placement_start</item>
+        <item>@string/kids_timer_placement_center</item>
+        <item>@string/kids_timer_placement_end</item>
+    </string-array>
+    <string name="kids_timer_placement_start">On the left</string>
+    <string name="kids_timer_placement_center">In the middle</string>
+    <string name="kids_timer_placement_end">On the right</string>
     <string name="kids_restrictions_warning">This account has no rating limit and allows unrated items, so the server isn\'t restricting what it can see.</string>
     <string name="kids_restriction_max_rating">Maximum parental rating score: %1$d</string>
     <string name="kids_restriction_no_max_rating">No maximum parental rating</string>

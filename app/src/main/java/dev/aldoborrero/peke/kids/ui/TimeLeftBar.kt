@@ -1,11 +1,13 @@
 package dev.aldoborrero.peke.kids.ui
 
+import android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
@@ -37,8 +40,12 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
+import dev.aldoborrero.peke.kids.timer.KidsTimerLabelPlacement
+import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
+import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.cpx
 import kotlin.time.Duration
 
 /**
@@ -47,9 +54,8 @@ import kotlin.time.Duration
 fun barMinutes(remaining: Duration): Int = ((remaining.inWholeSeconds + 59) / 60).toInt().coerceAtLeast(1)
 
 /**
- * The room the time-left bar and its label take along the top or bottom edge, 0 where they don't show. The pages in the
- * sidebar keep out of it, as the kids home keeps the time left in its header, so the label never covers a title or the
- * search box, scrolled or not.
+ * The room the time-left bar and its label take along the top or bottom edge, 0 where they don't show. On the player
+ * the time warning sits below it, so it never covers the label, wherever the label is along the bar.
  */
 @Stable
 class TimeLeftBand {
@@ -65,6 +71,7 @@ class TimeLeftBand {
  * @param fraction the part of the time left, read when the bar is drawn: it changes every second, the rest of the bar
  * only every minute ([barMinutes])
  * @param position top or bottom; the caller shows nothing for [KidsTimerBarPosition.HIDDEN]
+ * @param placement where the label sits along the bar; at the start or end it keeps DESIGN's overscan margin
  * @param band told the room the bar and label take, at the top or the bottom as [position], and 0 once they're gone
  */
 @Composable
@@ -74,6 +81,7 @@ fun TimeLeftBar(
     nearEnd: Boolean,
     position: KidsTimerBarPosition,
     modifier: Modifier = Modifier,
+    placement: KidsTimerLabelPlacement = KidsTimerLabelPlacement.CENTER,
     band: TimeLeftBand? = null,
 ) {
     val density = LocalDensity.current
@@ -115,9 +123,11 @@ fun TimeLeftBar(
             modifier =
                 Modifier
                     .padding(vertical = 8.dp)
+                    // The bar runs edge to edge; at either end the label stays where every TV shows it
+                    .padding(horizontal = if (placement == KidsTimerLabelPlacement.CENTER) 0.dp else 64.cpx)
+                    .semantics { contentDescription = description }
                     .background(colors.time, CircleShape)
-                    .padding(horizontal = if (nearEnd) 20.dp else 14.dp, vertical = if (nearEnd) 8.dp else 4.dp)
-                    .semantics { contentDescription = description },
+                    .padding(horizontal = if (nearEnd) 20.dp else 14.dp, vertical = if (nearEnd) 8.dp else 4.dp),
         ) {
             Icon(
                 painter = painterResource(PekeIcon.TIME_LEFT.outline),
@@ -134,7 +144,12 @@ fun TimeLeftBar(
         }
     }
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+        horizontalAlignment =
+            when (placement) {
+                KidsTimerLabelPlacement.START -> Alignment.Start
+                KidsTimerLabelPlacement.CENTER -> Alignment.CenterHorizontally
+                KidsTimerLabelPlacement.END -> Alignment.End
+            },
         modifier = modifier.fillMaxWidth().onSizeChanged { measured = with(density) { it.height.toDp() } },
     ) {
         if (position == KidsTimerBarPosition.BOTTOM) {
@@ -146,3 +161,53 @@ fun TimeLeftBar(
         }
     }
 }
+
+/**
+ * The bar in its three placements, at the top and the bottom of a small frame each, on the theme's background
+ */
+@Composable
+private fun TimeLeftBarPlacements(appThemeColors: AppThemeColors) {
+    PekeTheme(appThemeColors = appThemeColors) {
+        Column(Modifier.fillMaxSize().background(LocalPekeColors.current.background)) {
+            listOf(KidsTimerBarPosition.TOP, KidsTimerBarPosition.BOTTOM).forEach { position ->
+                KidsTimerLabelPlacement.entries.forEach { placement ->
+                    Box(Modifier.fillMaxWidth().weight(1f)) {
+                        TimeLeftBar(
+                            fraction = { .6f },
+                            minutes = 24,
+                            nearEnd = placement == KidsTimerLabelPlacement.END,
+                            position = position,
+                            placement = placement,
+                            modifier =
+                                Modifier.align(
+                                    if (position ==
+                                        KidsTimerBarPosition.BOTTOM
+                                    ) {
+                                        Alignment.BottomCenter
+                                    } else {
+                                        Alignment.TopCenter
+                                    },
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(device = "spec:width=960dp,height=540dp", uiMode = UI_MODE_TYPE_TELEVISION)
+@Composable
+private fun TimeLeftBarPekeTvPreview() = TimeLeftBarPlacements(AppThemeColors.PEKE_TV)
+
+@Preview(device = "spec:width=960dp,height=540dp", uiMode = UI_MODE_TYPE_TELEVISION, locale = "es")
+@Composable
+private fun TimeLeftBarMandarinaPreview() = TimeLeftBarPlacements(AppThemeColors.MANDARINA)
+
+@Preview(device = "spec:width=960dp,height=540dp", uiMode = UI_MODE_TYPE_TELEVISION)
+@Composable
+private fun TimeLeftBarCarameloPreview() = TimeLeftBarPlacements(AppThemeColors.CARAMELO)
+
+@Preview(device = "spec:width=960dp,height=540dp", uiMode = UI_MODE_TYPE_TELEVISION, locale = "es")
+@Composable
+private fun TimeLeftBarPapelPreview() = TimeLeftBarPlacements(AppThemeColors.PAPEL)

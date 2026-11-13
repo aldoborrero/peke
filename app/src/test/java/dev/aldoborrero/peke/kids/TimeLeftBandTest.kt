@@ -35,9 +35,9 @@ import org.robolectric.annotation.Config
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The time-left label never covers a page: the bar and label say how much room they take, and the pages in the sidebar
- * keep out of it as NavDrawer does, so a title or the search box scrolled up stops below the label (or above it at the
- * bottom), for the bar's normal and bigger near-the-end sizes
+ * The band says how much room the time-left bar and its label take, for what keeps clear of it (the player's time
+ * warning since spec 022): a page padded by it never runs under the label, for the bar's normal and bigger
+ * near-the-end sizes, at the top or the bottom, and it is 0 once the bar is gone
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-xhdpi")

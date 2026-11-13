@@ -41,6 +41,9 @@ import io.github.peerless2012.ass.media.factory.AssRenderersFactory
 import io.github.peerless2012.ass.media.kt.withAssMkvSupport
 import io.github.peerless2012.ass.media.parser.AssSubtitleParserFactory
 import io.github.peerless2012.ass.media.type.AssRenderType
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -61,6 +64,13 @@ class PlayerFactory
         @Volatile
         var currentPlayer: Player? = null
             private set
+
+        private val playerState = MutableStateFlow<Player?>(null)
+
+        /**
+         * [currentPlayer] as it changes, for the kids timer bar to follow pause (spec 022 D1)
+         */
+        val player: StateFlow<Player?> = playerState.asStateFlow()
 
         suspend fun createVideoPlayer(
             backend: PlayerBackend,
@@ -166,6 +176,7 @@ class PlayerFactory
                     }
                 }
             currentPlayer = newPlayer
+            playerState.value = newPlayer
             return PlayerCreation(newPlayer, assHandler, audioFocus)
         }
 

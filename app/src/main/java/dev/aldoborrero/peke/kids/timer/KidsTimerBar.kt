@@ -15,7 +15,16 @@ enum class KidsTimerBarPosition {
 }
 
 /**
- * Device-wide setting for the [KidsTimerBarPosition]
+ * Where the time-left label sits along the bar, in the layout's direction (start is the left in English and Spanish)
+ */
+enum class KidsTimerLabelPlacement {
+    START,
+    CENTER,
+    END,
+}
+
+/**
+ * Device-wide setting for the [KidsTimerBarPosition] and the [KidsTimerLabelPlacement]
  */
 @Singleton
 class KidsTimerBarSetting
@@ -25,9 +34,17 @@ class KidsTimerBarSetting
     ) {
         val position: Flow<KidsTimerBarPosition> = keyValueService.get(KEY, KidsTimerBarPosition.TOP)
 
+        /**
+         * Kept apart from [position], so a stored position reads as before; centred, as the label always was
+         */
+        val placement: Flow<KidsTimerLabelPlacement> = keyValueService.get(PLACEMENT_KEY, KidsTimerLabelPlacement.CENTER)
+
         suspend fun set(position: KidsTimerBarPosition) = keyValueService.save(KEY, position)
 
+        suspend fun setPlacement(placement: KidsTimerLabelPlacement) = keyValueService.save(PLACEMENT_KEY, placement)
+
         companion object {
-            private const val KEY = "kids_timer_bar"
+            internal const val KEY = "kids_timer_bar"
+            internal const val PLACEMENT_KEY = "kids_timer_label"
         }
     }

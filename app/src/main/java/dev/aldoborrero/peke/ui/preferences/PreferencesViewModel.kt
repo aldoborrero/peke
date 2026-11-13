@@ -9,6 +9,7 @@ import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
+import dev.aldoborrero.peke.kids.timer.KidsTimerLabelPlacement
 import dev.aldoborrero.peke.kids.ui.GrownUpNotices
 import dev.aldoborrero.peke.preferences.AppPreferences
 import dev.aldoborrero.peke.preferences.resetSubtitles
@@ -80,6 +81,10 @@ class PreferencesViewModel
 
         fun setTimerBarPosition(position: KidsTimerBarPosition) {
             viewModelScope.launch { timerBarSetting.set(position) }
+        }
+
+        fun setTimerPlacement(placement: KidsTimerLabelPlacement) {
+            viewModelScope.launch { timerBarSetting.setPlacement(placement) }
         }
 
         /**

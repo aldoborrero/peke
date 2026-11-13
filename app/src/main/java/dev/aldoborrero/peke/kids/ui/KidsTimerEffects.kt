@@ -42,6 +42,7 @@ import dev.aldoborrero.peke.kids.playback.KidsPlayerWarning
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
+import dev.aldoborrero.peke.kids.timer.KidsTimerLabelPlacement
 import dev.aldoborrero.peke.kids.timer.ResumePoint
 import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.PlayerFactory
@@ -49,7 +50,14 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.cpx
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import javax.inject.Inject
@@ -67,6 +75,12 @@ class KidsTimerEffectsViewModel
         val navigationManager: NavigationManager,
         private val playerFactory: PlayerFactory,
     ) : ViewModel() {
+        /**
+         * Whether the video is paused, false without a player (spec 022 D1)
+         */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val paused: Flow<Boolean> = playerFactory.player.flatMapLatest { it?.pausedFlow() ?: flowOf(false) }
+
         fun showTimesUp() {
             val top = navigationManager.backStack.lastOrNull()
             if (top !is Destination.KidsTimesUp) {
@@ -130,24 +144,49 @@ class KidsTimerEffectsViewModel
     }
 
 /**
- * App-wide kids timer UI: the remaining-time bar, warnings and switching to the time's up screen
- *
- * @param band where to say how much room the bar takes at the top or bottom, for the pages to keep clear of it
+ * Whether the time-left bar is drawn over [top]: only on the playback page while the video plays (spec 022), with its
+ * controls or Next Up, and never while [paused] or when the bar is hidden. The kids home keeps the time left in its
+ * header; other pages show none.
+ */
+internal fun timeLeftBarShown(
+    top: Destination?,
+    position: KidsTimerBarPosition,
+    paused: Boolean,
+): Boolean = position != KidsTimerBarPosition.HIDDEN && !paused && (top is Destination.Playback || top is Destination.PlaybackList)
+
+/**
+ * Whether this player is paused: the kid or the remote paused it. Buffering isn't a pause, so the bar doesn't flicker
+ * while a video loads. Collected on the main thread, as a player's listeners are.
+ */
+internal fun Player.pausedFlow(): Flow<Boolean> =
+    callbackFlow {
+        val listener =
+            object : Player.Listener {
+                override fun onPlayWhenReadyChanged(
+                    playWhenReady: Boolean,
+                    reason: Int,
+                ) {
+                    trySend(!playWhenReady)
+                }
+            }
+        trySend(!playWhenReady)
+        addListener(listener)
+        awaitClose { removeListener(listener) }
+    }.distinctUntilChanged()
+
+/**
+ * App-wide kids timer UI: the remaining-time bar while playing, warnings and switching to the time's up screen
  */
 @Composable
-fun KidsTimerEffects(
-    modifier: Modifier = Modifier,
-    band: TimeLeftBand? = null,
-) {
+fun KidsTimerEffects(modifier: Modifier = Modifier) {
     // Outside kids mode there is nothing to show, so no view model is created
     if (!LocalKidsMode.current.isActive) return
-    KidsTimerEffectsContent(modifier = modifier, band = band, viewModel = hiltViewModel())
+    KidsTimerEffectsContent(modifier = modifier, viewModel = hiltViewModel())
 }
 
 @Composable
 private fun KidsTimerEffectsContent(
     viewModel: KidsTimerEffectsViewModel,
-    band: TimeLeftBand?,
     modifier: Modifier = Modifier,
 ) {
     // The limits tick every second: only the bar's fill reads them as they are, when it is drawn; the rest of the
@@ -164,6 +203,10 @@ private fun KidsTimerEffectsContent(
     }
     val nearEnd by remember { derivedStateOf { limitsState.value.nearEnd } }
     val barPosition by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
+    val placement by viewModel.timerBarSetting.placement.collectAsState(KidsTimerLabelPlacement.CENTER)
+    val paused by viewModel.paused.collectAsState(false)
+    // The room the bar takes, for the player's warning to sit below it
+    val band = remember { TimeLeftBand() }
     var warning by remember { mutableStateOf<Duration?>(null) }
 
     // Runs again whenever the page on screen changes, so time added from the kid's rules on top of time's up still
@@ -210,10 +253,8 @@ private fun KidsTimerEffectsContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // The kids home shows the time left in its header instead (KidsHomeHeader)
-        val onHome = top is Destination.Home
         val minutes = shownMinutes
-        if (minutes != null && barPosition != KidsTimerBarPosition.HIDDEN && !onHome) {
+        if (minutes != null && timeLeftBarShown(top, barPosition, paused)) {
             TimeLeftBar(
                 fraction = {
                     val limits = limitsState.value
@@ -224,7 +265,7 @@ private fun KidsTimerEffectsContent(
                 minutes = minutes,
                 nearEnd = nearEnd,
                 position = barPosition,
-                // The pages in the sidebar keep out of the bar and its label
+                placement = placement,
                 band = band,
                 modifier = Modifier.align(if (barPosition == KidsTimerBarPosition.BOTTOM) Alignment.BottomCenter else Alignment.TopCenter),
             )
@@ -237,8 +278,8 @@ private fun KidsTimerEffectsContent(
             modifier =
                 Modifier
                     .align(Alignment.TopEnd)
-                    // Below the time left when it is at the top
-                    .padding(top = if (barPosition == KidsTimerBarPosition.TOP) 64.dp else 40.cpx, end = 56.cpx),
+                    // Below the time left when it is at the top, wherever its label is along the bar
+                    .padding(top = maxOf(40.cpx, band.top + 14.dp), end = 56.cpx),
         ) {
             KidsPlayerWarning(minutes = warning?.inWholeMinutes?.toInt() ?: 1)
         }
@@ -249,8 +290,8 @@ private fun KidsTimerEffectsContent(
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
-                    // Below the time left when it is at the top
-                    .padding(top = if (barPosition == KidsTimerBarPosition.TOP) 88.dp else 24.dp),
+                    // No bar off the player, so nothing to keep clear of
+                    .padding(top = 24.dp),
         ) {
             val minutes = warning?.inWholeMinutes?.toInt() ?: 1
             // In the time colour with its icon, like the time left
