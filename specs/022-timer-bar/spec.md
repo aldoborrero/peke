@@ -37,8 +37,8 @@ standing rule for kids-mode work):
 - **D5. Left and right keep the overscan margin.** At the start or end the label keeps DESIGN's 64 px (48 dp) from the
   edge, as the player's title and controls do; the bar itself still runs edge to edge.
 - **D6. One more row in This TV.** "Timer on the bar" right under "Timer bar", a choice of "On the left", "In the
-  middle", "On the right" ("Tiempo en la barra": "A la izquierda", "En el centro", "A la derecha"). It shows even when
-  the bar is hidden, like the other rows that only matter in some states.
+  middle", "On the right" ("Tiempo en la barra": "A la izquierda", "En el centro", "A la derecha"). It is left out while
+  "Timer bar" is "Hidden", where it would change nothing (the owner's answer).
 
 ## User stories
 

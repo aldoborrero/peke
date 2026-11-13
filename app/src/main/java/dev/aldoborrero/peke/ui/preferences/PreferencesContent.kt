@@ -117,6 +117,8 @@ fun PreferencesContent(
     val currentServer by viewModel.currentServer.collectAsState()
     var showVersionDialog by remember { mutableStateOf(false) }
     val kidsAvailable by viewModel.kidsAvailable.collectAsState()
+    // The placement row only matters while the bar shows (spec 022 D6)
+    val timerBarPosition by viewModel.timerBarSetting.position.collectAsState(KidsTimerBarPosition.TOP)
 
     var cacheUsage by remember { mutableStateOf(CacheUsage(0, 0, 0)) }
     var showLocaleChoiceDialog by remember { mutableStateOf(false) }
@@ -306,6 +308,7 @@ fun PreferencesContent(
                                     .map { it.preferences }
                                     .flatten()
                         ).filter { it != AppPreference.KidsMode || kidsAvailable }
+                            .filter { it != AppPreference.KidsTimerPlacement || timerBarPosition != KidsTimerBarPosition.HIDDEN }
                     groupPreferences.forEachIndexed { prefIndex, pref ->
                         pref as AppPreference<AppPreferences, Any>
                         val isFirst = groupIndex == 0 && prefIndex == 0 && !showUpdate
