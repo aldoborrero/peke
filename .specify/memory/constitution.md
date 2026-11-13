@@ -1,5 +1,9 @@
 <!--
 Sync Impact Report
+- Version change: 2.1.0 → 2.1.1 (2026-11-13). PATCH: Principle IV clarified. Back on the kids
+  home now asks "Leave Peke?" before quitting (spec 024); leaving stays ungated, the question asks
+  and doesn't lock. No principle added or removed; AGENTS.md and design/DESIGN.md "Behaviour"
+  follow the same wording.
 - Version change: 2.0.0 → 2.1.0 (2026-10-23). MINOR: Principle IV no longer gates leaving the
   app. The Home button leaves any Android TV app and can't be blocked, so Back on the kids home
   quits as in Wholphin; the gate covers every way to grown-up control instead, Peke opens no other
@@ -95,10 +99,10 @@ switching TVs or clients; only presentation exists on the device.
   to a non-kid profile or another user, extending or disabling time limits, enabling search,
   blocking or unblocking content, leaving kids mode.
 - Leaving the app is not gated. The remote's Home button leaves any Android TV app and cannot be
-  blocked, so Back on the kids home quits as in Wholphin. What MUST hold instead: Peke opens no
-  other app itself (no external links or remote trailers for kids), and relaunching Peke while
-  the TV is locked returns to the kid. Whatever lies outside Peke is the TV's job (for example a
-  Google TV kids profile).
+  blocked, so Back on the kids home asks "Leave Peke?" and quits on "Leave", with no parent code
+  (spec 024). What MUST hold instead: Peke opens no other app itself (no external links or remote
+  trailers for kids), and relaunching Peke while the TV is locked returns to the kid. Whatever lies
+  outside Peke is the TV's job (for example a Google TV kids profile).
 - A grown-up profile gets only the grown-up shell: kids settings, a short "This TV" settings group,
   the user list and the license screen. It MUST NOT reach browsing, playback or any other
   Wholphin screen.
@@ -192,4 +196,4 @@ This constitution takes precedence over other practices for Peke.
 - **Compliance:** every plan includes a Constitution Check, and every review verifies Principles
   III, IV and VII explicitly. Any deviation is justified in the plan's complexity tracking.
 
-**Version**: 2.1.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-23
+**Version**: 2.1.1 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-11-13

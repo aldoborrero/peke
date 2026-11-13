@@ -1194,6 +1194,10 @@
     <string name="kids_gate_title">Grown-ups only</string>
     <string name="kids_gate_hint_remote">Enter the parent code with the remote\'s arrows.</string>
     <string name="kids_gate_hint_numeric">Enter the parent code with the remote\'s number buttons.</string>
+    <!-- Spec 024: Back on the kids home asks before leaving -->
+    <string name="kids_leave_title">Leave Peke?</string>
+    <string name="kids_leave_keep_watching">Keep watching</string>
+    <string name="kids_leave_leave">Leave</string>
     <!-- Spec 021: the grown-up screens -->
     <string name="kids_menu_title">Grown-up menu</string>
     <string name="kids_menu_of">Grown-up menu · %1$s</string>

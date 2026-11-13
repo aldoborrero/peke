@@ -270,9 +270,10 @@ The canvas holds every screen and state the app has today; board names are in br
 Decided while testing the app:
 - **Sidebar:** the kids' home keeps Wholphin's nav drawer. It holds the kid's avatar, Search (if allowed), Home,
   Favourites, Live TV (if the kid has channels) and Grown-ups at the bottom. Libraries never show for kids.
-- **Back:** on the home, the first Back opens the sidebar and a second Back quits the app, as in Wholphin. The parent
-  gate opens only on purpose: Grown-ups in the sidebar or on a stop screen. Inner screens go back step by step; with
-  the sidebar open there, Back first closes it and focus returns where it was on the page.
+- **Back:** with the sidebar open, on any page, Back closes it and focus returns where it was on the page; Left opens
+  it, Back never does. On the home with the sidebar closed, Back asks "Leave Peke?" ("Keep watching" focused, and
+  "Leave"); Leave quits, Keep watching or Back stays. It asks, it doesn't lock: no parent code (spec 024). The parent
+  gate opens only on purpose: Grown-ups in the sidebar or on a stop screen. Inner screens go back step by step.
 - **Launch:** a set-up TV always opens on the kids' side, from what the TV stores, without waiting for the server.
   With one kid, their home opens (or their stop screen); with several, the kids picker ("Who's watching?") shows this
   TV's kids only, then Grown-ups, which is never focused first. A TV with no kids says so, with only Grown-ups. There
