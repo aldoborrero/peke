@@ -1006,8 +1006,6 @@
     <string name="kids_gate_title">Solo para adultos</string>
     <string name="kids_gate_hint_remote">Escribe el código de padres con las flechas del mando.</string>
     <string name="kids_gate_hint_numeric">Escribe el código de padres con las teclas de números del mando.</string>
-    <string name="kids_gate_back_to">Volver con %1$s</string>
-    <string name="kids_gate_back">Atrás</string>
     <!-- Spec 021: las pantallas de adultos -->
     <string name="kids_menu_title">Menú de adultos</string>
     <string name="kids_menu_of">Menú de adultos · %1$s</string>

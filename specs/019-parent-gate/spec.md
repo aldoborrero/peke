@@ -28,7 +28,8 @@ Design defaults taken without asking the owner, as the goal asked (recommended o
 - **D4. "Back to {Kid}" is a label for the Back key, not a button.** With remote arrows the arrows type the code, so
   focus can't travel to a button. For one behaviour with both types, the pill is never focusable: it shows the Back
   icon and "Back to {Kid}" (just "Back" without a kid, e.g. from the picker) and tells the grown-up which key leaves.
-  Back always leaves the gate, with any code type and with or without digits typed.
+  Back always leaves the gate, with any code type and with or without digits typed. *(Spec 023 removed the pill, so
+  FR-005 now only keeps Back leaving the gate.)*
 - **D5. A wrong code stays on the page.** The dots turn primary and "Wrong code" shows under them in primary; the
   entry is empty again, ready for the next try. The "Wrong code" dialog with Try again and "Forgot the code?" goes:
   the line "Forgot it? Press OK with no code" is always on the page, so recovery is still one press away, and trying

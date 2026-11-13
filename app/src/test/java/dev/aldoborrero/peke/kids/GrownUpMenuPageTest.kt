@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -130,10 +129,9 @@ class GrownUpMenuPageTest {
     }
 
     @Test
-    fun `the Back pill names the key without taking focus, and Back leaves`() {
+    fun `no pill names the Back key, and Back leaves`() {
         show()
-        rule.onNodeWithText("Back to Lucy").assertExists()
-        rule.onNodeWithTag(GrownUpTags.BACK).assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Focused))
+        rule.onNodeWithText("Back to Lucy").assertDoesNotExist()
         press(GrownUpMenuTags.ADD_TIME, listOf(Key.Back))
         assertEquals(1, backs)
         assertEquals(emptyList<String>(), clicks)
@@ -160,6 +158,6 @@ class GrownUpMenuPageTest {
         rule.onNodeWithText("Cambiar de niño").assertExists()
         rule.onNodeWithText("Las normas de Lucy").assertExists()
         rule.onNodeWithText("Ajustes").assertExists()
-        rule.onNodeWithText("Volver con Lucy").assertExists()
+        rule.onNodeWithText("Volver con Lucy").assertDoesNotExist()
     }
 }

@@ -90,7 +90,6 @@ fun KidsParentGate(
                 type = type,
                 attempt = s.attempt,
                 refusal = s.refusal,
-                backLabel = gateBackLabel(kidName.takeIf { withKid }),
                 forgotHint = true,
                 onDismissRequest = onDismissRequest,
                 onConfirm = { viewModel.submit(it, onDone = onDismissRequest, onPassed = onPassed) },
@@ -352,13 +351,6 @@ fun KidsParentGate(
         }
     }
 }
-
-/**
- * What the code page's Back pill says: "Back to {Kid}" inside a kid's session, else "Back" (spec 019 D4)
- */
-@Composable
-fun gateBackLabel(kidName: String?): String =
-    kidName?.let { stringResource(R.string.kids_gate_back_to, it) } ?: stringResource(R.string.kids_gate_back)
 
 /**
  * Why kids mode no longer works with the server: its plugin is too old, or gone

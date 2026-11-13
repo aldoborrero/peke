@@ -237,7 +237,6 @@ fun GrownUpMenuPage(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            BackKeyPill(gateBackLabel(kidName))
             Spacer(Modifier.weight(1f))
             GrownUpNoticePill(notice, onNoticeShown)
         }

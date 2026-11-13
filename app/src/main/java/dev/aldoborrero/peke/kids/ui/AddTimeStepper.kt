@@ -236,7 +236,6 @@ fun AddTimePage(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            BackKeyPill(stringResource(R.string.kids_gate_back))
             Spacer(Modifier.weight(1f))
             when {
                 sending -> {

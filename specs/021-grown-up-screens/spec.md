@@ -34,6 +34,7 @@ Design defaults taken without asking the owner (the owner's standing rule for ki
   plugin can end, the card is "Keep watching now", focusable, with the reason as its line.
 - **D4. Back pills name the Back key.** As on the gate (019 D4), "Back to {Kid}" on the menu and "Back" on Add time
   are labels, never focus stops. Back always goes up one level: Add time → the menu → the kid (and the grant ends).
+  *(Spec 023 removed the pills; Back is unchanged, and FR-003 keeps only that part.)*
 - **D5. Add time keeps 006's stepper** (5 min to 2 h, no wrap-around, the arrow at each end dimmed, opens on the last
   amount given on this TV). Drawn on board 9's terms: one wide focused tile with ‹ amount ›, then the forecast in a
   surface box with the time-left icon ("Can watch until 19:15" in "time"). The bedtime warning uses "time" and the

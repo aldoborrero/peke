@@ -67,14 +67,13 @@ import javax.inject.Singleton
 
 /*
  * The parts the grown-up pages share (canvas boards 8–12, S5; spec 021): the page window, the cards and rows on
- * surface, the Back pill and the S5 pills. Grown-up pages draw Peke's focus without the kids' scale-up.
+ * surface and the S5 pills. Grown-up pages draw Peke's focus without the kids' scale-up.
  */
 
 /**
  * Test tags of the grown-up pages
  */
 object GrownUpTags {
-    const val BACK = "grown-up-back"
     const val NOTICE = "grown-up-notice"
 }
 
@@ -128,34 +127,6 @@ fun GrownUpSurface(
         Box(
             modifier = modifier.fillMaxSize().background(LocalPekeColors.current.background),
             content = content,
-        )
-    }
-}
-
-/**
- * Names the Back key: not a button, so it takes no focus, and Back works from anywhere on the page (spec 019 D4,
- * spec 021 D4)
- */
-@Composable
-fun BackKeyPill(
-    label: String,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalPekeColors.current
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.cpx),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            modifier
-                .testTag(GrownUpTags.BACK)
-                .background(colors.surface, CircleShape)
-                .padding(horizontal = 28.cpx, vertical = 12.cpx),
-    ) {
-        Icon(painterResource(PekeIcon.BACK.outline), contentDescription = null, tint = colors.text, modifier = Modifier.size(28.cpx))
-        Text(
-            text = label,
-            style = boardText(22, FontWeight.W800),
-            color = colors.text,
         )
     }
 }

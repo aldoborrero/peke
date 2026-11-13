@@ -74,7 +74,6 @@ object ParentCodePageTags {
     const val DOT_FILLED = "parent-code-dot-filled"
     const val DOT_EMPTY = "parent-code-dot-empty"
     const val DOT_WRONG = "parent-code-dot-wrong"
-    const val BACK = GrownUpTags.BACK
     const val CROSS = "parent-code-cross"
     const val PAD = "parent-code-pad"
 }
@@ -87,12 +86,11 @@ private const val MAX_DOTS = 8
  * its own window over the screen that asked for it, so every caller keeps its result.
  *
  * The entry is the page's only focus target: with the remote type the arrows type the code, so nothing else could be
- * reached. Back always leaves, and the "Back to {Kid}" pill only says so (spec 019 D4).
+ * reached. Back always leaves (spec 019 D4); no pill names it (spec 023).
  *
  * @param title the line at the top: "Grown-ups only" in the gate
  * @param attempt change it to clear the entry, after a refusal
  * @param refusal why the last code was refused; shown until a key is typed
- * @param backLabel what the Back pill says: "Back to {Kid}", or "Back"
  * @param forgotHint show "Forgot it? Press OK with no code" (F-G1)
  * @param onConfirm OK, with what was typed; empty when nothing was
  */
@@ -102,7 +100,6 @@ fun ParentCodePage(
     type: ParentLockType,
     attempt: Int,
     refusal: GateRefusal?,
-    backLabel: String,
     onConfirm: (String) -> Unit,
     onDismissRequest: () -> Unit,
     forgotHint: Boolean = false,
@@ -116,7 +113,6 @@ fun ParentCodePage(
                 title = title,
                 type = type,
                 refusal = refusal,
-                backLabel = backLabel,
                 onConfirm = onConfirm,
                 onBack = onDismissRequest,
                 forgotHint = forgotHint,
@@ -130,7 +126,6 @@ private fun ParentCodeContent(
     @StringRes title: Int,
     type: ParentLockType,
     refusal: GateRefusal?,
-    backLabel: String,
     onConfirm: (String) -> Unit,
     onBack: () -> Unit,
     forgotHint: Boolean,
@@ -239,7 +234,6 @@ private fun ParentCodeContent(
                         color = colors.textSecondary,
                     )
                 }
-                BackKeyPill(backLabel)
             }
             when (type) {
                 ParentLockType.REMOTE -> DpadCross()
@@ -432,7 +426,7 @@ fun Chevron(
 @Composable
 private fun ParentCodePekeTvPreview() {
     PekeTheme(appThemeColors = AppThemeColors.PEKE_TV) {
-        ParentCodeContent(R.string.kids_gate_title, ParentLockType.REMOTE, null, "Back to Lucy", {}, {}, forgotHint = true)
+        ParentCodeContent(R.string.kids_gate_title, ParentLockType.REMOTE, null, {}, {}, forgotHint = true)
     }
 }
 
@@ -440,7 +434,7 @@ private fun ParentCodePekeTvPreview() {
 @Composable
 private fun ParentCodeCarameloWrongPreview() {
     PekeTheme(appThemeColors = AppThemeColors.CARAMELO) {
-        ParentCodeContent(R.string.kids_gate_title, ParentLockType.NUMERIC, GateRefusal.Wrong, "Back to Lucy", {}, {}, forgotHint = true)
+        ParentCodeContent(R.string.kids_gate_title, ParentLockType.NUMERIC, GateRefusal.Wrong, {}, {}, forgotHint = true)
     }
 }
 
@@ -448,7 +442,7 @@ private fun ParentCodeCarameloWrongPreview() {
 @Composable
 private fun ParentCodeMandarinaWaitPreview() {
     PekeTheme(appThemeColors = AppThemeColors.MANDARINA) {
-        ParentCodeContent(R.string.kids_gate_title, ParentLockType.REMOTE, GateRefusal.Wait(30), "Back", {}, {}, forgotHint = true)
+        ParentCodeContent(R.string.kids_gate_title, ParentLockType.REMOTE, GateRefusal.Wait(30), {}, {}, forgotHint = true)
     }
 }
 
@@ -460,7 +454,6 @@ private fun ParentCodePapelOfflinePreview() {
             R.string.kids_gate_title,
             ParentLockType.NUMERIC,
             GateRefusal.CannotCheck,
-            "Back to Lucy",
             {},
             {},
             forgotHint = true,
