@@ -22,7 +22,8 @@ import androidx.compose.ui.unit.dp
  * against the title above and what comes below.
  *
  * The row gets [padding] as its content padding and [bleedHorizontally] by [side], so its cards line up with the title
- * above it while unfocused and the first and last cards' rings grow into the padding instead of being cut.
+ * above it while unfocused and the first and last cards' rings grow into the padding instead of being cut. [end] is
+ * the room after the last card, [side] unless the row runs to the screen's edge ([toScreenEnd]).
  */
 @Immutable
 data class FocusRoom(
@@ -30,8 +31,17 @@ data class FocusRoom(
     val side: Dp,
     val top: Dp,
     val bottom: Dp,
+    val end: Dp = side,
 ) {
-    val padding: PaddingValues get() = PaddingValues(start = side, end = side, top = top, bottom = bottom)
+    val padding: PaddingValues get() = PaddingValues(start = side, end = end, top = top, bottom = bottom)
+
+    /**
+     * For a row whose page runs to the screen's right edge, as the kids home's (spec 028): the row still reaches the
+     * edge, so cards scrolled past it peek there, but the last card stops where its focused scale-up, border and ring
+     * end [PekeFocus.Spare] inside [SafeArea.EdgeHorizontal]. The row bleeds [side] past the edge, so [end] takes that
+     * back, then the edge, then the card's own [side].
+     */
+    fun toScreenEnd(): FocusRoom = copy(end = side + SafeArea.EdgeHorizontal + side)
 
     companion object {
         /**

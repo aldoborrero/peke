@@ -59,6 +59,7 @@ import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.ui.tryRequestFocus
@@ -143,7 +144,7 @@ fun PekeSettingsFrame(
     Box(modifier.fillMaxSize()) {
         Column(
             verticalArrangement = Arrangement.spacedBy(24.cpx),
-            modifier = Modifier.fillMaxSize().padding(horizontal = 64.cpx, vertical = 44.cpx),
+            modifier = Modifier.fillMaxSize().padding(SafeArea.page),
         ) {
             setUpPlugin?.let { (plugin, problem) -> SetUpHeader(plugin, problem) }
             Row(horizontalArrangement = Arrangement.spacedBy(32.cpx), modifier = Modifier.weight(1f)) {
@@ -193,7 +194,7 @@ fun PekeSettingsFrame(
         GrownUpNoticePill(
             notice = notice,
             onShown = onNoticeShown,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(horizontal = 64.cpx, vertical = 36.cpx),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(SafeArea.page),
         )
     }
 }

@@ -52,6 +52,7 @@ import dev.aldoborrero.peke.ui.playback.isEnterKey
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.ui.tryRequestFocus
@@ -123,7 +124,7 @@ private fun AddTimeHeader(kidName: String?) {
 private fun AddTimeFrame(content: @Composable ColumnScope.() -> Unit) {
     Column(
         verticalArrangement = Arrangement.spacedBy(32.cpx),
-        modifier = Modifier.fillMaxSize().padding(horizontal = 72.cpx, vertical = 56.cpx),
+        modifier = Modifier.fillMaxSize().padding(SafeArea.page),
         content = content,
     )
 }

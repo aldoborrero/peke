@@ -54,6 +54,7 @@ import dev.aldoborrero.peke.ui.nav.Destination
 import dev.aldoborrero.peke.ui.theme.BuddyMood
 import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.bleedHorizontally
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.csp
@@ -122,7 +123,8 @@ fun KidsLiveGuide(
             val now by LocalClock.current.now
             Column(
                 verticalArrangement = Arrangement.spacedBy(28.cpx),
-                modifier = modifier.fillMaxSize().padding(top = 48.cpx, start = 48.cpx, end = 48.cpx),
+                // The rows' rings keep inside the TV-safe edge on the right (spec 028)
+                modifier = modifier.fillMaxSize().padding(top = 48.cpx, start = 48.cpx, end = SafeArea.PageHorizontal),
             ) {
                 Text(
                     text = stringResource(R.string.watch_live),

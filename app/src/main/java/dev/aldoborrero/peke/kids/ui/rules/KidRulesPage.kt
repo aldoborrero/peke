@@ -68,6 +68,7 @@ import dev.aldoborrero.peke.ui.playback.isEnterKey
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.ui.tryRequestFocus
@@ -141,7 +142,7 @@ fun KidRulesContent(
     val name = state.kidName.orEmpty()
     Column(
         verticalArrangement = Arrangement.spacedBy(24.cpx),
-        modifier = modifier.fillMaxSize().padding(horizontal = 64.cpx, vertical = 44.cpx),
+        modifier = modifier.fillMaxSize().padding(SafeArea.page),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(20.cpx), verticalAlignment = Alignment.CenterVertically) {
             if (avatar != null) {
