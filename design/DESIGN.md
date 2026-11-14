@@ -294,9 +294,10 @@ Decided while testing the app:
 - **Grown-up pages (8–12):** pages over the whole screen, never dialogs (spec 021). The parent menu is board 8: the
   kid's avatar and name, their time left in a "time" pill, then the menu's items as big cards in its fixed order; Add
   time that can't be used stays in its place as a card that says why and takes no focus. Grown-up pages have no
-  mascot, except the buddy in Settings' header without a kid (board 11). Their Back pills ("Back to {Kid}", "Back")
-  name the Back key and never take focus; Back always goes up one level: Add time, the menu, the kid. Messages that
-  were toasts ("Parent code changed", a failed "Keep watching now", Undo's result) are S5 pills on the page.
+  mascot, except the buddy in Settings' header without a kid (board 11). Unlike boards 7–9, no pill names the Back
+  key: the remote already says how to go back (spec 023). Back always goes up one level: Add time, the menu, the kid.
+  Messages that were toasts ("Parent code changed", a failed "Keep watching now", Undo's result) are S5 pills on the
+  page.
 - **Settings (12):** two columns: "Settings" and its sections on the left (Household, This TV, Playback, Advanced,
   About, Reset this TV), the focused section's rows on the right, under a line about it. Right or OK enters the rows,
   Left returns; Back from the rows returns to their section, Back from the sections leaves. Rows are board 12's: on
@@ -315,10 +316,10 @@ Decided while testing the app:
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the
   household's code uses: the D-pad cross with OK for remote arrows, a number pad with OK for number buttons. A code
   is one kind of key, only the four arrows or only digits, so nothing else is drawn (D11). The entry
-  is the only thing focused, since the arrows type the code; "Back to {Kid}" ("Back" without a kid) is a label for
-  the Back key, never a button, and Back always leaves. Errors stay on the page (S5): a wrong code empties the entry
-  and shows the dots and "Wrong code" in primary; too many tries and can't reach the server are pills; each goes at
-  the next key. Changing the parent code asks for the current one on the same page, without "Forgot it?".
+  is the only thing focused, since the arrows type the code; Back always leaves, and no pill names it (spec 023,
+  unlike board 7). Errors stay on the page (S5): a wrong code empties the entry and shows the dots and "Wrong code"
+  in primary; too many tries and can't reach the server are pills; each goes at the next key. Changing the parent code
+  asks for the current one on the same page, without "Forgot it?".
 - **Reset this TV:** the only way out of kids mode. After a confirmation it signs every kid out (as far as the server
   can be reached), erases the server, the kids and this TV's setup, and starts setup again at the server step.
 - **Time left:** while a video plays (the player, with its controls or on Next Up) a bar in "time" runs along the

@@ -114,7 +114,6 @@ fun ParentCodeChange(
                 type = s.type,
                 attempt = s.attempt,
                 refusal = GateRefusal.Wrong.takeIf { s.wrong },
-                backLabel = gateBackLabel(null),
                 onDismissRequest = onDismissRequest,
                 onConfirm = { if (it.isNotEmpty()) viewModel.current(it) },
             )

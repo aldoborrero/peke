@@ -72,12 +72,12 @@ class AddTimePageTest {
     }
 
     @Test
-    fun `the page shows where it is, the stepper focused, the forecast and Back`() {
+    fun `the page shows where it is, the stepper focused, the forecast and no Back pill`() {
         showStepper(2)
         rule.onNodeWithText("Grown-up menu · Lucy").assertExists()
         rule.onNodeWithText("Add time for Lucy").assertExists()
         rule.onNodeWithText("15 min").assertExists()
-        rule.onNodeWithText("Back").assertExists()
+        rule.onNodeWithText("Back").assertDoesNotExist()
         rule.onNodeWithTag(AddTimeTags.STEPPER).assertIsFocused()
     }
 

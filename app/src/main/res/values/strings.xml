@@ -1194,8 +1194,6 @@
     <string name="kids_gate_title">Grown-ups only</string>
     <string name="kids_gate_hint_remote">Enter the parent code with the remote\'s arrows.</string>
     <string name="kids_gate_hint_numeric">Enter the parent code with the remote\'s number buttons.</string>
-    <string name="kids_gate_back_to">Back to %1$s</string>
-    <string name="kids_gate_back">Back</string>
     <!-- Spec 021: the grown-up screens -->
     <string name="kids_menu_title">Grown-up menu</string>
     <string name="kids_menu_of">Grown-up menu · %1$s</string>

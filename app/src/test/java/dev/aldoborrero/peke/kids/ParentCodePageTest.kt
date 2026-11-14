@@ -4,10 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -20,7 +17,6 @@ import dev.aldoborrero.peke.kids.gate.ParentLockType
 import dev.aldoborrero.peke.kids.ui.GateRefusal
 import dev.aldoborrero.peke.kids.ui.ParentCodePage
 import dev.aldoborrero.peke.kids.ui.ParentCodePageTags
-import dev.aldoborrero.peke.kids.ui.gateBackLabel
 import dev.aldoborrero.peke.ui.theme.PekeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -45,10 +41,7 @@ class ParentCodePageTest {
     private var refusal by mutableStateOf<GateRefusal?>(null)
     private var attempt by mutableStateOf(0)
 
-    private fun show(
-        type: ParentLockType,
-        kid: String? = "Lucy",
-    ) {
+    private fun show(type: ParentLockType) {
         rule.setContent {
             PekeTheme {
                 ParentCodePage(
@@ -56,7 +49,6 @@ class ParentCodePageTest {
                     type = type,
                     attempt = attempt,
                     refusal = refusal,
-                    backLabel = gateBackLabel(kid),
                     forgotHint = true,
                     onConfirm = { confirmed += it },
                     onDismissRequest = { dismissed++ },
@@ -74,12 +66,13 @@ class ParentCodePageTest {
     private fun dots(tag: String) = rule.onAllNodesWithTag(tag)
 
     @Test
-    fun `the arrows type shows the cross, the hint, empty dots and Back to the kid`() {
+    fun `the arrows type shows the cross, the hint, empty dots and no Back pill`() {
         show(ParentLockType.REMOTE)
         rule.onNodeWithText("Grown-ups only").assertExists()
         rule.onNodeWithText("Enter the parent code with the remote's arrows.").assertExists()
         rule.onNodeWithText("Forgot it? Press OK with no code").assertExists()
-        rule.onNodeWithText("Back to Lucy").assertExists()
+        rule.onNodeWithText("Back to Lucy").assertDoesNotExist()
+        rule.onNodeWithText("Back").assertDoesNotExist()
         rule.onNodeWithTag(ParentCodePageTags.CROSS).assertExists()
         rule.onNodeWithTag(ParentCodePageTags.PAD).assertDoesNotExist()
         dots(ParentCodePageTags.DOT_EMPTY).assertCountEquals(4)
@@ -140,7 +133,6 @@ class ParentCodePageTest {
 
     private fun backLeaves(type: ParentLockType) {
         show(type)
-        rule.onNodeWithTag(ParentCodePageTags.BACK).assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Focused))
         press(listOf(Key.Two, Key.DirectionLeft))
 
         press(listOf(Key.Back))
@@ -150,16 +142,10 @@ class ParentCodePageTest {
     }
 
     @Test
-    fun `Back leaves with keys typed, and the pill takes no focus, with the arrows type`() = backLeaves(ParentLockType.REMOTE)
+    fun `Back leaves with keys typed with the arrows type`() = backLeaves(ParentLockType.REMOTE)
 
     @Test
     fun `Back leaves with keys typed with the number type`() = backLeaves(ParentLockType.NUMERIC)
-
-    @Test
-    fun `without a kid the pill just says Back`() {
-        show(ParentLockType.REMOTE, kid = null)
-        rule.onNodeWithText("Back").assertExists()
-    }
 
     @Test
     @Config(qualifiers = "es-w960dp-h540dp-xhdpi")
@@ -168,7 +154,7 @@ class ParentCodePageTest {
         show(ParentLockType.NUMERIC)
         rule.onNodeWithText("Solo para adultos").assertExists()
         rule.onNodeWithText("Escribe el código de padres con las teclas de números del mando.").assertExists()
-        rule.onNodeWithText("Volver con Lucy").assertExists()
+        rule.onNodeWithText("Volver con Lucy").assertDoesNotExist()
         rule.onNodeWithText("Código incorrecto").assertExists()
     }
 }

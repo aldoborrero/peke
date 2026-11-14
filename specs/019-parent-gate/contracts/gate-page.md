@@ -10,6 +10,7 @@
   - `Wrong` → dots in primary, "Wrong code" in primary
   - `Wait(s)` → pill "Too many tries. Wait s seconds"
   - `CannotCheck` → pill "Can't reach the server to check the parent code. Try again in a moment."
-- `backLabel`: "Back to {Kid}" with a kid, else "Back"; a label with the Back icon, not focusable.
+- `backLabel`: "Back to {Kid}" with a kid, else "Back"; a label with the Back icon, not focusable. *(Removed by spec
+  023: no pill, no parameter.)*
 - `forgotHint`: shows "Forgot it? Press OK with no code" (the gate) or not (the current-code step).
 - Text: title `displaySmall`, hint 24/800 in text secondary; strings in English and Spanish.
