@@ -1,13 +1,18 @@
 package dev.aldoborrero.peke.kids.setup
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -21,14 +26,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -39,6 +48,7 @@ import coil3.compose.AsyncImage
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.cards.rememberIdColor
 import dev.aldoborrero.peke.ui.isNotNullOrBlank
+import dev.aldoborrero.peke.ui.theme.LocalPekeFocusScale
 import dev.aldoborrero.peke.ui.theme.PekeAvatar
 import dev.aldoborrero.peke.ui.theme.PekeFocus
 import dev.aldoborrero.peke.ui.theme.pekeFocus
@@ -158,39 +168,29 @@ fun KidAvatarCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier.size(size).pekeFocus(CircleShape),
-            shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
-            border =
-                ClickableSurfaceDefaults.border(
-                    border =
-                        if (selected) {
-                            Border(BorderStroke(3.dp, MaterialTheme.colorScheme.primary), shape = CircleShape)
-                        } else {
-                            Border.None
-                        },
-                    focusedBorder = Border.None,
-                ),
-            scale = PekeFocus.surfaceScale,
-        ) {
-            Box(Modifier.fillMaxSize()) {
+        val interactionSource = remember { MutableInteractionSource() }
+        Box(Modifier.size(size)) {
+            Surface(
+                onClick = onClick,
+                modifier = Modifier.fillMaxSize().pekeFocus(CircleShape),
+                shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
+                border =
+                    ClickableSurfaceDefaults.border(
+                        border =
+                            if (selected) {
+                                Border(BorderStroke(3.dp, MaterialTheme.colorScheme.primary), shape = CircleShape)
+                            } else {
+                                Border.None
+                            },
+                        focusedBorder = Border.None,
+                    ),
+                scale = PekeFocus.surfaceScale,
+                interactionSource = interactionSource,
+            ) {
                 KidAvatar(id = id, name = name, imageUrl = imageUrl, avatar = avatar, modifier = Modifier.fillMaxSize())
-                val icon = badge ?: if (selected) Icons.Default.CheckCircle else null
-                icon?.let {
-                    Icon(
-                        imageVector = it,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier =
-                            Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                                .size(32.dp)
-                                .background(MaterialTheme.colorScheme.surface, CircleShape),
-                    )
-                }
             }
+            val icon = badge ?: if (selected) Icons.Default.CheckCircle else null
+            icon?.let { KidBadge(it, size, interactionSource) }
         }
         Text(
             text = name ?: "",
@@ -213,3 +213,53 @@ fun KidAvatarCard(
         }
     }
 }
+
+/**
+ * The badge sits on the avatar's edge at the bottom end, over its border and focus ring, outside the round surface
+ * that would clip it, and grows with the avatar while it's focused
+ */
+@Composable
+private fun BoxScope.KidBadge(
+    icon: ImageVector,
+    circle: Dp,
+    interactionSource: MutableInteractionSource,
+) {
+    val focused by interactionSource.collectIsFocusedAsState()
+    val target = if (focused) PekeFocus.scale(LocalPekeFocusScale.current) else 1f
+    val scale by animateFloatAsState(target, tween(PekeFocus.ANIMATION_MILLIS), label = "badge")
+    val onEdge = circle / 2 * COS_45
+    Box(
+        modifier =
+            Modifier
+                .matchParentSize()
+                // Above the avatar, which is above its neighbours while focused and draws its focus ring over itself
+                .zIndex(2f)
+                // Scaled about the avatar's centre, as the avatar is
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .offset(x = onEdge, y = onEdge)
+                    .size(KidBadgeSize)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
+                    .testTag(KID_BADGE_TAG),
+        )
+    }
+}
+
+private const val COS_45 = 0.70710677f
+
+/**
+ * The check mark or lock on a [KidAvatarCard], centred on the avatar's edge
+ */
+internal val KidBadgeSize = 40.dp
+
+internal const val KID_BADGE_TAG = "kid_badge"
