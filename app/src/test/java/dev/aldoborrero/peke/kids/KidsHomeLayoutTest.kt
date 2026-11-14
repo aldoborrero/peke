@@ -148,6 +148,36 @@ class KidsHomeLayoutTest {
     }
 
     @Test
+    fun `an episode name with no letter or digit is no name`() {
+        val episode =
+            BaseItemDto(
+                id = UUID.randomUUID(),
+                type = BaseItemKind.EPISODE,
+                name = "/",
+                seriesName = "Daniel Tiger",
+                indexNumber = 1,
+                parentIndexNumber = 8,
+            )
+        // Spec 029: "S8 · Ep. 1", not "S8 · Ep. 1 · /"
+        val nameless = KeepWatchingEpisode(8, 1, null, "Daniel Tiger")
+        assertEquals(nameless, keepWatchingEpisode(episode))
+        assertEquals(nameless, keepWatchingEpisode(episode.copy(name = null)))
+        listOf("", "  ", " / ", "-", "...", "·", "?!").forEach { name ->
+            assertEquals(name, nameless, keepWatchingEpisode(episode.copy(name = name)))
+        }
+        // A name with a letter or a digit stays as the server sends it
+        listOf("¿Qué?", "1/2", "Día 3", "Ñ", "大").forEach { name ->
+            assertEquals(name, nameless.copy(name = name), keepWatchingEpisode(episode.copy(name = name)))
+        }
+        // No season: the first one, or none at all
+        assertEquals(nameless.copy(season = null), keepWatchingEpisode(episode.copy(parentIndexNumber = 1)))
+        assertEquals(
+            nameless.copy(season = null, name = "The shop"),
+            keepWatchingEpisode(episode.copy(parentIndexNumber = null, name = "The shop")),
+        )
+    }
+
+    @Test
     fun `a keep watching episode shows its own picture when it has one, its series' otherwise`() {
         val episode =
             BaseItemDto(
