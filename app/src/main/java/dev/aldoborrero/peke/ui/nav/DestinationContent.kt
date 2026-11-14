@@ -81,7 +81,7 @@ fun DestinationContent(
     }
     // Grown-up pages render only while a parent grant is live; otherwise the gate asks first (C12)
     if (destination.isGrownUp()) {
-        GrownUpGuard(inKidPages = true, modifier = modifier) {
+        GrownUpGuard(inKidPages = true, modifier = modifier, destination = destination) {
             DestinationPage(destination, preferences, onClearBackdrop, modifier)
         }
     } else {

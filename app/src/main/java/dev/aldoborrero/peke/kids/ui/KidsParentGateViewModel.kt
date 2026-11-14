@@ -27,7 +27,6 @@ import dev.aldoborrero.peke.kids.timer.BonusResult
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.kids.timer.TodayChange
 import dev.aldoborrero.peke.services.MusicService
-import dev.aldoborrero.peke.services.NavigationManager
 import dev.aldoborrero.peke.services.SetupDestination
 import dev.aldoborrero.peke.services.SetupNavigationManager
 import dev.aldoborrero.peke.services.hilt.DefaultCoroutineScope
@@ -167,7 +166,7 @@ class KidsParentGateViewModel
         val timeLimits: KidsTimeLimits,
         val pluginService: KidsPluginService,
         private val parentLockService: ParentLockService,
-        private val navigationManager: NavigationManager,
+        private val menuReturn: GrownUpMenuReturn,
         private val setupNavigationManager: SetupNavigationManager,
         private val adminSessions: AdminSessions,
         grownUpSessions: GrownUpSessions,
@@ -255,6 +254,11 @@ class KidsParentGateViewModel
          */
         private var lockType = ParentLockType.NUMERIC
 
+        /**
+         * The menu shows again from a page it opened ([returnToMenu]): the lock, once read, doesn't replace it
+         */
+        private var returning = false
+
         init {
             loadLock()
             viewModelScope.launch { epoch.drop(1).collect { reset() } }
@@ -262,9 +266,12 @@ class KidsParentGateViewModel
 
         private fun loadLock() {
             viewModelScope.launch {
+                val lock = parentLockService.lockState()
+                if (lock is LockState.Code) lockType = lock.type
+                if (returning && _stage.value == GateStage.Menu) return@launch
                 _stage.value =
-                    when (val lock = parentLockService.lockState()) {
-                        is LockState.Code -> GateStage.Passcode(type = lock.type).also { lockType = lock.type }
+                    when (lock) {
+                        is LockState.Code -> GateStage.Passcode(type = lock.type)
                         LockState.NotSet -> GateStage.NoCode(notSet = true)
                         LockState.Unknown -> GateStage.NoCode(notSet = false)
                         LockState.PluginMissing -> GateStage.PluginMissing
@@ -531,10 +538,18 @@ class KidsParentGateViewModel
         }
 
         /**
-         * The current kid's rules
+         * Back on a page the menu opened (spec 025): the menu again while the grant is live, otherwise the code first
+         */
+        fun returnToMenu() {
+            returning = true
+            if (parentLockService.hasLiveGrant()) _stage.value = GateStage.Menu
+        }
+
+        /**
+         * The current kid's rules, which Back leaves for the menu again
          */
         fun openRules() {
-            navigationManager.navigateTo(Destination.KidRules)
+            menuReturn.open(Destination.KidRules)
         }
 
         /**
@@ -543,7 +558,8 @@ class KidsParentGateViewModel
          */
         fun openThisTv() {
             if (withKid) {
-                navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.PEKE))
+                // Back leaves it for the menu again; from the picker, for the picker as before
+                menuReturn.open(Destination.Settings(PreferenceScreenOption.PEKE))
             } else {
                 setupNavigationManager.navigateTo(SetupDestination.ThisTv)
             }
@@ -671,6 +687,7 @@ class KidsParentGateViewModel
             closeAdmin()
             signInReturn = null
             pendingMinutes = null
+            returning = false
             timeLimits.holdStop.value = false
             _stage.value = GateStage.Passcode()
             loadLock()

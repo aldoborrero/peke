@@ -75,6 +75,7 @@ sealed interface MenuAddTime {
  * not), Switch kid with two kids or more, the kid's rules and Settings (spec 021 D2). No mascot. The Back pill only
  * names the key: Back leaves the menu, which ends the grant (D4).
  *
+ * @param focus the item focus starts on, the page Back came from (spec 025); null for the first usable card
  * @param avatar the kid's picture, 112 px round
  */
 @Composable
@@ -93,11 +94,20 @@ fun GrownUpMenuPage(
     onRules: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    focus: GrownUpMenuItem? = null,
     avatar: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalPekeColors.current
     val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+    val rulesFocus = remember { FocusRequester() }
+    val settingsFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        when (focus) {
+            GrownUpMenuItem.RULES -> rulesFocus
+            GrownUpMenuItem.SETTINGS -> settingsFocus
+            null -> firstFocus
+        }.tryRequestFocus()
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(36.cpx),
         modifier = modifier.fillMaxSize().padding(horizontal = 72.cpx, vertical = 56.cpx),
@@ -220,7 +230,7 @@ fun GrownUpMenuPage(
                 title = kidName?.let { stringResource(R.string.kids_rules_of, it) } ?: stringResource(R.string.kids_rules),
                 line = stringResource(R.string.kids_menu_rules_line),
                 onClick = onRules,
-                modifier = card.first().testTag(GrownUpMenuTags.RULES),
+                modifier = card.first().focusRequester(rulesFocus).testTag(GrownUpMenuTags.RULES),
             )
             GrownUpCard(
                 icon = PekeIcon.LIVE,
@@ -228,7 +238,7 @@ fun GrownUpMenuPage(
                 title = stringResource(R.string.peke_menu_settings),
                 line = stringResource(R.string.kids_menu_settings_line),
                 onClick = onSettings,
-                modifier = card.testTag(GrownUpMenuTags.SETTINGS),
+                modifier = card.focusRequester(settingsFocus).testTag(GrownUpMenuTags.SETTINGS),
             )
         }
         Spacer(Modifier.weight(1f))
