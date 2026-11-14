@@ -54,7 +54,11 @@ class BackToMenuTest {
                 BackHandler { pageLeft++ }
                 BackToMenu(
                     item = item,
-                    onMenuClosed = { menuClosed++ },
+                    onMenuClosed = {
+                        menuClosed++
+                        // No back stack here: the page stays, so the menu closes at once
+                        false
+                    },
                     menu = { focus, onDismissRequest ->
                         GrownUpWindow(onBack = onDismissRequest) {
                             GrownUpMenuPage(

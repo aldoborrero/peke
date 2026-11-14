@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -88,28 +89,32 @@ fun boardText(
 
 /**
  * A grown-up page over the whole screen in its own window, as the parent gate's (spec 019 D1, spec 021 D1): every
- * caller keeps its result, and Back calls [onBack]
+ * caller keeps its result, and Back calls [onBack]. While it covers a page that is leaving
+ * ([LocalGrownUpWindowInert]), it ignores every key (spec 027).
  */
 @Composable
 fun GrownUpWindow(
     onBack: () -> Unit,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val inert = LocalGrownUpWindowInert.current
     Dialog(
-        onDismissRequest = onBack,
+        onDismissRequest = { if (!inert) onBack() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         GrownUpSurface(
             // Back goes up one level from anywhere on the page, once per press (spec 021 D4)
             modifier =
-                Modifier.onKeyEvent {
-                    if (isBackKey(it)) {
-                        if (it.type == KeyEventType.KeyUp) onBack()
-                        true
-                    } else {
-                        false
-                    }
-                },
+                Modifier
+                    .onPreviewKeyEvent { inert }
+                    .onKeyEvent {
+                        if (isBackKey(it)) {
+                            if (it.type == KeyEventType.KeyUp) onBack()
+                            true
+                        } else {
+                            false
+                        }
+                    },
             content = content,
         )
     }
