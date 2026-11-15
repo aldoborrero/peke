@@ -316,10 +316,12 @@ Decided while testing the app:
   dimmed) that opens on the last amount given on this TV, with who gets it and "Can watch until 19:15". OK adds,
   Back returns to the menu; then "15 more minutes for Leo · until 19:15" with Undo for 10 seconds, and back to the kid.
   Board 9's layout: one wide tile with ‹ amount ›, the forecast in a box under it.
-- **A kid's rules:** that kid only. Daily time is the one rule changed on the TV; the rest is text, with the
-  dashboard's address for changing it. Marking or unmarking kids is done in the dashboard only. Board 10's layout:
-  daily time is a stepper row (‹ 60 min ›; Left and Right change it, OK saves, Back leaves it as it was), the other
-  rules are rows of text, and what Jellyfin decides and the dashboard's address are on the right.
+- **A kid's rules:** that kid only. Daily time, time in a row (when the plugin has the sitting limit), autoplay (Off or
+  1–10 episodes) and search are changed on the TV (spec 030); the rest is text, with the dashboard's address for picks
+  and home sections. Marking or unmarking kids is done in the dashboard only. Board 10's layout: the four rules are
+  stepper rows in that order (‹ 60 min ›; Left and Right change the value, OK saves, moving away or Back leaves it as
+  it was; Up and Down go between them), the other rules are rows of text, and what Jellyfin decides and the
+  dashboard's address are on the right.
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the

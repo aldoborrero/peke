@@ -923,13 +923,17 @@
     <string name="kids_rules_hours_today">Hoy %1$s</string>
     <string name="kids_rules_search">Buscar</string>
     <string name="kids_rules_search_off">No permitido</string>
-    <string name="kids_rules_search_voice_on">Permitido · búsqueda por voz activada en esta tele</string>
-    <string name="kids_rules_search_voice_off">Permitido · búsqueda por voz desactivada en esta tele</string>
+    <string name="kids_rules_search_on">Permitido</string>
+    <string name="kids_rules_voice_on">Búsqueda por voz activada en esta tele</string>
+    <string name="kids_rules_voice_off">Búsqueda por voz desactivada en esta tele</string>
     <string name="kids_rules_autoplay">Reproducción automática</string>
     <string name="kids_rules_autoplay_off">Desactivada</string>
-    <plurals name="kids_rules_autoplay_cap">
-        <item quantity="one">Hasta %1$d episodio seguido</item>
-        <item quantity="other">Hasta %1$d episodios seguidos</item>
+    <string name="kids_rules_autoplay_line">El siguiente episodio empieza solo</string>
+    <string name="kids_rules_sitting_line">Luego, un descanso</string>
+    <string name="kids_rules_sitting_line_break">Luego, %1$d min de descanso</string>
+    <plurals name="kids_rules_autoplay_episodes">
+        <item quantity="one">%1$d episodio</item>
+        <item quantity="other">%1$d episodios</item>
     </plurals>
     <string name="kids_rules_live_tv">TV en directo</string>
     <string name="kids_rules_live_tv_off">La TV en directo está desactivada en Jellyfin</string>
@@ -940,8 +944,8 @@
         <item quantity="other">%1$d elegidos</item>
     </plurals>
     <string name="kids_rules_jellyfin">Lo que decide Jellyfin</string>
-    <string name="kids_rules_where">El tiempo al día es la única norma que se cambia en esta tele. Las demás normas de %1$s están en el panel, y lo que decide Jellyfin, en los ajustes de usuario del panel de Jellyfin.</string>
-    <string name="kids_rules_dashboard">Cambia las normas de %1$s en el panel</string>
+    <string name="kids_rules_where">El tiempo al día, el tiempo seguido, la reproducción automática y la búsqueda se cambian en esta tele. Los elegidos y las secciones del inicio de %1$s están en el panel, y lo que decide Jellyfin, en los ajustes de usuario del panel de Jellyfin.</string>
+    <string name="kids_rules_dashboard">Cambia los elegidos y el inicio de %1$s en el panel</string>
     <string name="kids_rules_dashboard_pick">Abre esta dirección en un navegador y elige a %1$s</string>
     <string name="kids_channel_not_on_list">Este canal no está en la lista de %1$s</string>
     <string name="kids_channel_not_on_list_hint">Un adulto puede añadirlo en el panel</string>
@@ -1024,7 +1028,7 @@
     <string name="kids_add_time_server">El tiempo extra se cuenta en el servidor, así que vale en todas las teles.</string>
     <string name="kids_rules_on_server">Se guardan en el servidor, así que todas las teles las siguen</string>
     <string name="kids_rules_daily_line">Se cuenta en el servidor, en todos los dispositivos</string>
-    <string name="kids_rules_daily_unsaved">OK guarda · Atrás lo deja como estaba</string>
+    <string name="kids_rules_unsaved">OK guarda · Atrás lo deja como estaba</string>
     <string name="peke_settings_section_playback">Reproducción</string>
     <string name="peke_settings_household_intro">El código de padres es el mismo en todas las teles de este servidor.</string>
     <string name="peke_settings_this_tv_intro">Lo que muestra esta tele, y cómo, para todos sus niños.</string>

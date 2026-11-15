@@ -10,6 +10,8 @@ import dev.aldoborrero.peke.kids.data.KidProfileRepository
 import dev.aldoborrero.peke.kids.data.SaveResult
 import dev.aldoborrero.peke.kids.livetv.KidsChannel
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
+import dev.aldoborrero.peke.kids.server.KidProfileMapper
+import dev.aldoborrero.peke.kids.server.KidsJson
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsServer
 import dev.aldoborrero.peke.kids.server.KidsServerState
@@ -17,7 +19,7 @@ import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.ui.rules.KidRulesViewModel
-import dev.aldoborrero.peke.kids.ui.rules.PendingDailyTime
+import dev.aldoborrero.peke.kids.ui.rules.RuleChange
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -31,6 +33,10 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,8 +47,8 @@ import org.junit.Test
 import java.util.UUID
 
 /**
- * "{Kid}'s rules": Daily time is the one rule saved from the TV, opening on the current value with Unlimited last,
- * and a change the grant ran out for waits for the code (spec 006 US3)
+ * "{Kid}'s rules": daily time, time in a row, autoplay and search are saved from the TV (spec 030), daily time
+ * opening on the current value with Unlimited last, and a change the grant ran out for waits for the code (spec 006 US3)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KidRulesViewModelTest {
@@ -73,7 +79,7 @@ class KidRulesViewModelTest {
                 listOf(KidsChannel(UUID.randomUUID(), "Clan", "1"), KidsChannel(UUID.randomUUID(), null, "2"))
         }
 
-    private fun viewModel() =
+    private fun viewModel(features: String = "profiles,parentLock,enforcement,sitting,allowance,liveTv") =
         KidRulesViewModel(
             mockk<ServerRepository> {
                 every { current } returns MutableStateFlow(CurrentUser(server, leo))
@@ -84,7 +90,7 @@ class KidRulesViewModelTest {
             mockk<KidsPluginService> {
                 coEvery { state(serverId) } returns
                     KidsServerState(
-                        KidsServer(serverId, 1, "profiles,parentLock,enforcement,sitting,allowance,liveTv"),
+                        KidsServer(serverId, 1, features),
                         KidsServerStatus.AVAILABLE,
                     )
             },
@@ -124,7 +130,7 @@ class KidRulesViewModelTest {
             }
             val vm = viewModel()
 
-            vm.setDailyTime(90)
+            vm.save(RuleChange.DailyTime(90))
 
             coVerify { repository.save(leo, match { it.dailyAllowanceMinutes == 90 && it.revision == 2L }) }
             assertTrue(vm.state.value.saved)
@@ -140,7 +146,7 @@ class KidRulesViewModelTest {
     fun `the same value is not sent again`() =
         runTest(dispatcher) {
             val vm = viewModel()
-            vm.setDailyTime(60)
+            vm.save(RuleChange.DailyTime(60))
             coVerify(exactly = 0) { repository.save(any(), any()) }
         }
 
@@ -150,8 +156,8 @@ class KidRulesViewModelTest {
             coEvery { repository.save(leo, any()) } returnsMany listOf(SaveResult.NEEDS_GRANT, SaveResult.SAVED)
             val vm = viewModel()
 
-            vm.setDailyTime(null)
-            assertEquals(PendingDailyTime(null), vm.state.value.pending)
+            vm.save(RuleChange.DailyTime(null))
+            assertEquals(RuleChange.DailyTime(null), vm.state.value.pending)
             assertFalse(vm.state.value.saved)
 
             vm.retryPending()
@@ -166,11 +172,137 @@ class KidRulesViewModelTest {
         runTest(dispatcher) {
             coEvery { repository.save(leo, any()) } returns SaveResult.NEEDS_GRANT
             val vm = viewModel()
-            vm.setDailyTime(30)
+            vm.save(RuleChange.DailyTime(30))
 
             vm.dropPending()
 
             assertNull(vm.state.value.pending)
             assertEquals(dev.aldoborrero.peke.R.string.kids_not_saved, vm.state.value.error)
         }
+
+    private val serverProfile =
+        """
+        {"UserId":"${leo.id}","Revision":2,"SearchAllowed":false,"AutoplayEnabled":true,"AutoplayCap":3,
+         "Sections":[{"Section":"New","Visible":false}],"PickedItemIds":["${UUID.randomUUID()}"],
+         "DailyAllowanceMinutes":60,"SessionLimitMinutes":30,"LiveTvChannelIds":["${UUID.randomUUID()}"],
+         "FutureField":{"x":1}}
+        """.trimIndent()
+
+    /**
+     * Save [change] from the server's profile and return the keys of the PUT body that differ from an unchanged one
+     */
+    private fun changedKeys(
+        change: RuleChange,
+        features: String = SITTING,
+    ): Map<String, JsonElement?> {
+        profile = KidProfileMapper.fromServer(leo.rowId, serverId, KidsJson.parseToJsonElement(serverProfile).jsonObject)
+        val before = profile
+        val sent = mutableListOf<KidProfile>()
+        coEvery { repository.save(leo, capture(sent)) } answers {
+            profile = secondArg()
+            SaveResult.SAVED
+        }
+        val vm = viewModel(features)
+        vm.save(change)
+        assertTrue(vm.state.value.saved)
+        val old = KidProfileMapper.toUpdate(before, before.revision, sendSessionLimit = true)
+        val new = KidProfileMapper.toUpdate(sent.single(), before.revision, sendSessionLimit = true)
+        return (old.keys + new.keys).filter { old[it] != new[it] }.associateWith { new[it] }
+    }
+
+    @Test
+    fun `autoplay up to N episodes is sent alone, and the rest is kept`() =
+        runTest(dispatcher) {
+            assertEquals(mapOf("AutoplayCap" to JsonPrimitive(7)), changedKeys(RuleChange.Autoplay(7)))
+        }
+
+    @Test
+    fun `autoplay off keeps the cap for later`() =
+        runTest(dispatcher) {
+            assertEquals(mapOf("AutoplayEnabled" to JsonPrimitive(false)), changedKeys(RuleChange.Autoplay(null)))
+            assertEquals(3, profile.autoplayCap)
+        }
+
+    @Test
+    fun `search is sent alone`() =
+        runTest(dispatcher) {
+            assertEquals(mapOf("SearchAllowed" to JsonPrimitive(true)), changedKeys(RuleChange.Search(true)))
+        }
+
+    @Test
+    fun `time in a row is sent alone, and no limit as null`() =
+        runTest(dispatcher) {
+            assertEquals(mapOf("SessionLimitMinutes" to JsonPrimitive(45)), changedKeys(RuleChange.SittingLimit(45)))
+            assertEquals(mapOf("SessionLimitMinutes" to JsonNull), changedKeys(RuleChange.SittingLimit(null)))
+        }
+
+    @Test
+    fun `daily time is sent alone`() =
+        runTest(dispatcher) {
+            assertEquals(mapOf("DailyAllowanceMinutes" to JsonPrimitive(90)), changedKeys(RuleChange.DailyTime(90)))
+        }
+
+    @Test
+    fun `the autoplay cap is held to 1 to 10`() {
+        val base = KidProfile(userId = 1)
+        assertEquals(10, RuleChange.Autoplay(42).apply(base).autoplayCap)
+        assertEquals(1, RuleChange.Autoplay(0).apply(base).autoplayCap)
+        assertEquals(listOf(null) + (1..10).toList(), KidRulesViewModel.AUTOPLAY_OPTIONS)
+    }
+
+    @Test
+    fun `time in a row opens on the current value, with no limit last`() {
+        assertEquals(listOf(10, 15, 20, 25, 30, 45, 60, 90, 120, null), KidRulesViewModel.sittingOptions(25))
+        assertEquals(null, KidRulesViewModel.sittingOptions(null).last())
+    }
+
+    @Test
+    fun `time in a row is changed only when the plugin advertises the sitting limit`() =
+        runTest(dispatcher) {
+            profile = profile.copy(sessionLimitMinutes = 30)
+            val without = viewModel()
+            assertFalse(without.state.value.sessionLimitEditable)
+            without.save(RuleChange.SittingLimit(45))
+            coVerify(exactly = 0) { repository.save(any(), any()) }
+
+            coEvery { repository.save(leo, any()) } returns SaveResult.SAVED
+            val with = viewModel(SITTING)
+            assertTrue(with.state.value.sessionLimitEditable)
+            assertTrue(with.state.value.sessionLimitSupported)
+            with.save(RuleChange.SittingLimit(45))
+            coVerify { repository.save(leo, match { it.sessionLimitMinutes == 45 }) }
+        }
+
+    @Test
+    fun `an autoplay change the grant ran out for waits for the code, then is saved`() =
+        runTest(dispatcher) {
+            coEvery { repository.save(leo, any()) } returnsMany listOf(SaveResult.NEEDS_GRANT, SaveResult.SAVED)
+            val vm = viewModel()
+
+            vm.save(RuleChange.Autoplay(5))
+            assertEquals(RuleChange.Autoplay(5), vm.state.value.pending)
+            assertFalse(vm.state.value.saved)
+
+            vm.retryPending()
+
+            coVerify(exactly = 2) { repository.save(leo, match { it.autoplayEnabled && it.autoplayCap == 5 }) }
+            assertNull(vm.state.value.pending)
+            assertTrue(vm.state.value.saved)
+        }
+
+    @Test
+    fun `a search change the grant ran out for is kept for the code`() =
+        runTest(dispatcher) {
+            coEvery { repository.save(leo, any()) } returnsMany listOf(SaveResult.NEEDS_GRANT, SaveResult.SAVED)
+            val vm = viewModel()
+            vm.save(RuleChange.Search(true))
+            assertEquals(RuleChange.Search(true), vm.state.value.pending)
+            vm.retryPending()
+            coVerify(exactly = 2) { repository.save(leo, match { it.searchAllowed }) }
+            assertTrue(vm.state.value.saved)
+        }
+
+    private companion object {
+        const val SITTING = "profiles,parentLock,enforcement,sitting,allowance,liveTv,sessionLimit"
+    }
 }

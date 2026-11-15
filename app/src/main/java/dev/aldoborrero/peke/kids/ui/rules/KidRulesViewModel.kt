@@ -59,13 +59,55 @@ data class PolicySummary(
 }
 
 /**
- * A daily time chosen while the grant had run out, saved once the code passes again (F-K7)
- *
- * @param minutes null for unlimited
+ * A rule a grown-up changes on the TV (spec 030): applied to the profile as last saved, so every other field goes back
+ * to the server unchanged
  */
-data class PendingDailyTime(
-    val minutes: Int?,
-)
+sealed interface RuleChange {
+    fun apply(profile: KidProfile): KidProfile
+
+    /**
+     * @param minutes null for unlimited
+     */
+    data class DailyTime(
+        val minutes: Int?,
+    ) : RuleChange {
+        override fun apply(profile: KidProfile) = profile.copy(dailyAllowanceMinutes = minutes)
+    }
+
+    /**
+     * Time in a row before the break, only with the plugin's sitting limit
+     *
+     * @param minutes null for no limit
+     */
+    data class SittingLimit(
+        val minutes: Int?,
+    ) : RuleChange {
+        override fun apply(profile: KidProfile) = profile.copy(sessionLimitMinutes = minutes)
+    }
+
+    /**
+     * @param cap episodes in a row, held to 1–10, or null for off (the cap is kept for when it's on again)
+     */
+    data class Autoplay(
+        val cap: Int?,
+    ) : RuleChange {
+        override fun apply(profile: KidProfile) =
+            if (cap == null) {
+                profile.copy(autoplayEnabled = false)
+            } else {
+                profile.copy(
+                    autoplayEnabled = true,
+                    autoplayCap = cap.coerceIn(KidProfile.MIN_AUTOPLAY_CAP, KidProfile.MAX_AUTOPLAY_CAP),
+                )
+            }
+    }
+
+    data class Search(
+        val allowed: Boolean,
+    ) : RuleChange {
+        override fun apply(profile: KidProfile) = profile.copy(searchAllowed = allowed)
+    }
+}
 
 data class KidRulesState(
     val loading: Boolean = true,
@@ -77,6 +119,10 @@ data class KidRulesState(
      */
     val allowanceSupported: Boolean = false,
     val sessionLimitSupported: Boolean = false,
+    /**
+     * The plugin advertises the sitting limit, so Time in a row can be changed
+     */
+    val sessionLimitEditable: Boolean = false,
     val liveTvSupported: Boolean = false,
     /**
      * Today's use and allowance with bonus, in minutes, if the status is known
@@ -97,7 +143,10 @@ data class KidRulesState(
     val dashboardUrl: String? = null,
     val saving: Boolean = false,
     val saved: Boolean = false,
-    val pending: PendingDailyTime? = null,
+    /**
+     * A change the grant ran out for, saved once the code passes again (F-K7)
+     */
+    val pending: RuleChange? = null,
     /**
      * Why the last save failed, a string resource
      */
@@ -105,8 +154,8 @@ data class KidRulesState(
 )
 
 /**
- * "{Kid}'s rules" (spec 006 US3): the current kid's daily time, the only rule changed on the TV, and the rest read
- * only, with where to change it. Everything comes from the cache, the last status and the kid's Jellyfin policy, plus
+ * "{Kid}'s rules" (spec 006 US3, spec 030): the current kid's daily time, time in a row, autoplay and search changed
+ * on the TV, and the rest read only, with where to change it. Everything comes from the cache, the last status and the kid's Jellyfin policy, plus
  * the names of their channels and picks.
  */
 @HiltViewModel
@@ -152,6 +201,7 @@ class KidRulesViewModel
             val kid = current?.user
             val profile = kid?.let { kidProfileDao.get(it.rowId) }
             val plugin = current?.let { pluginService.state(it.server.id) }
+            val sessionLimit = plugin?.has(KidsFeatures.SESSION_LIMIT) == true
             _state.update {
                 it.copy(
                     loading = false,
@@ -159,9 +209,8 @@ class KidRulesViewModel
                     kidName = kid?.name,
                     profile = profile,
                     allowanceSupported = plugin?.has(KidsFeatures.ALLOWANCE) == true,
-                    sessionLimitSupported =
-                        plugin?.has(KidsFeatures.SESSION_LIMIT) == true ||
-                            profile?.let(KidProfileMapper::hasSessionLimitField) == true,
+                    sessionLimitSupported = sessionLimit || profile?.let(KidProfileMapper::hasSessionLimitField) == true,
+                    sessionLimitEditable = sessionLimit,
                     liveTvSupported = plugin?.has(KidsFeatures.LIVE_TV) == true,
                     policy = serverRepository.currentUserDto?.policy?.let(PolicySummary::from),
                     dashboardUrl = current?.server?.url?.let(::dashboardUrl),
@@ -194,11 +243,13 @@ class KidRulesViewModel
         }
 
         /**
-         * Save the kid's daily time, [minutes] or null for unlimited, from the profile as last saved. A grant that ran
-         * out keeps the value for [retryPending] after the code.
+         * Save [change] on the kid's profile as last saved. A grant that ran out keeps the change for [retryPending]
+         * after the code.
          */
-        fun setDailyTime(minutes: Int?) {
+        fun save(change: RuleChange) {
             val kid = user ?: return
+            // Without the plugin's sitting limit the PUT wouldn't carry it
+            if (change is RuleChange.SittingLimit && !_state.value.sessionLimitEditable) return
             viewModelScope.launch {
                 saveMutex.withLock {
                     _state.update { it.copy(saving = true, saved = false, error = null, pending = null) }
@@ -207,21 +258,22 @@ class KidRulesViewModel
                         _state.update { it.copy(saving = false, error = R.string.kids_save_failed) }
                         return@withLock
                     }
-                    if (latest.dailyAllowanceMinutes == minutes) {
+                    val changed = change.apply(latest)
+                    if (changed == latest) {
                         _state.update { it.copy(saving = false, profile = latest) }
                         return@withLock
                     }
-                    val result = kidProfileRepository.save(kid, latest.copy(dailyAllowanceMinutes = minutes))
+                    val result = kidProfileRepository.save(kid, changed)
                     val profile = kidProfileDao.get(kid.rowId) ?: latest
                     _state.update { it.copy(saving = false, profile = profile) }
-                    handle(result, minutes)
+                    handle(result, change)
                 }
             }
         }
 
         private fun handle(
             result: SaveResult,
-            minutes: Int?,
+            change: RuleChange,
         ) {
             when (result) {
                 SaveResult.SAVED -> {
@@ -236,7 +288,7 @@ class KidRulesViewModel
                 }
 
                 SaveResult.NEEDS_GRANT -> {
-                    _state.update { it.copy(pending = PendingDailyTime(minutes)) }
+                    _state.update { it.copy(pending = change) }
                 }
 
                 SaveResult.CONFLICT -> {
@@ -259,7 +311,7 @@ class KidRulesViewModel
         fun retryPending() {
             val pending = _state.value.pending ?: return
             _state.update { it.copy(pending = null) }
-            setDailyTime(pending.minutes)
+            save(pending)
         }
 
         /**
@@ -277,7 +329,30 @@ class KidRulesViewModel
              * The daily time choices: [DAILY_TIME_OPTIONS] with [current] in order when it isn't one of them, then
              * unlimited (null) last, so a hurried OK doesn't remove the limit (F-K3)
              */
-            fun dailyTimeOptions(current: Int?): List<Int?> = ((DAILY_TIME_OPTIONS + listOfNotNull(current)).distinct().sorted()) + null
+            fun dailyTimeOptions(current: Int?): List<Int?> = withCurrent(DAILY_TIME_OPTIONS, current) + null
+
+            val SITTING_OPTIONS = listOf(10, 15, 20, 30, 45, 60, 90, 120)
+
+            /**
+             * The time in a row choices, as [dailyTimeOptions]: [SITTING_OPTIONS] with [current] in order, then no limit
+             * (null) last
+             */
+            fun sittingOptions(current: Int?): List<Int?> = withCurrent(SITTING_OPTIONS, current) + null
+
+            /**
+             * The autoplay choices: off (null), then 1 to 10 episodes in a row
+             */
+            val AUTOPLAY_OPTIONS: List<Int?> = listOf<Int?>(null) + (KidProfile.MIN_AUTOPLAY_CAP..KidProfile.MAX_AUTOPLAY_CAP)
+
+            /**
+             * The search choices: not allowed, then allowed
+             */
+            val SEARCH_OPTIONS = listOf(false, true)
+
+            private fun withCurrent(
+                options: List<Int>,
+                current: Int?,
+            ): List<Int> = (options + listOfNotNull(current)).distinct().sorted()
 
             /**
              * The Kids plugin's page in the server's dashboard

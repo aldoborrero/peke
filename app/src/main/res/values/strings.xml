@@ -1112,13 +1112,17 @@
     <string name="kids_rules_hours_today">Today %1$s</string>
     <string name="kids_rules_search">Search</string>
     <string name="kids_rules_search_off">Not allowed</string>
-    <string name="kids_rules_search_voice_on">Allowed · voice search on for this TV</string>
-    <string name="kids_rules_search_voice_off">Allowed · voice search off on this TV</string>
+    <string name="kids_rules_search_on">Allowed</string>
+    <string name="kids_rules_voice_on">Voice search is on for this TV</string>
+    <string name="kids_rules_voice_off">Voice search is off on this TV</string>
     <string name="kids_rules_autoplay">Autoplay</string>
     <string name="kids_rules_autoplay_off">Off</string>
-    <plurals name="kids_rules_autoplay_cap">
-        <item quantity="one">Up to %1$d episode in a row</item>
-        <item quantity="other">Up to %1$d episodes in a row</item>
+    <string name="kids_rules_autoplay_line">The next episode starts by itself</string>
+    <string name="kids_rules_sitting_line">Then a break</string>
+    <string name="kids_rules_sitting_line_break">Then a %1$d min break</string>
+    <plurals name="kids_rules_autoplay_episodes">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
     </plurals>
     <string name="kids_rules_live_tv">Live TV</string>
     <string name="kids_rules_live_tv_off">Live TV is off in Jellyfin</string>
@@ -1129,8 +1133,8 @@
         <item quantity="other">%1$d picks</item>
     </plurals>
     <string name="kids_rules_jellyfin">What Jellyfin decides</string>
-    <string name="kids_rules_where">Daily time is the only rule changed on this TV. %1$s\'s other rules are on the dashboard, and what Jellyfin decides is in the Jellyfin dashboard\'s user settings.</string>
-    <string name="kids_rules_dashboard">Change %1$s\'s rules on the dashboard</string>
+    <string name="kids_rules_where">Daily time, time in a row, autoplay and search are changed on this TV. %1$s\'s picks and home sections are on the dashboard, and what Jellyfin decides is in the Jellyfin dashboard\'s user settings.</string>
+    <string name="kids_rules_dashboard">Change %1$s\'s picks and home on the dashboard</string>
     <string name="kids_rules_dashboard_pick">Open this address in a browser, then pick %1$s</string>
     <string name="kids_channel_not_on_list">This channel isn\'t on %1$s\'s list</string>
     <string name="kids_channel_not_on_list_hint">A grown-up can add it on the dashboard</string>
@@ -1208,7 +1212,7 @@
     <string name="kids_add_time_server">Extra time is counted on the server, so it works on every TV.</string>
     <string name="kids_rules_on_server">Saved on the server, so every TV follows them</string>
     <string name="kids_rules_daily_line">Counted on the server across every device</string>
-    <string name="kids_rules_daily_unsaved">OK saves · Back leaves it as it was</string>
+    <string name="kids_rules_unsaved">OK saves · Back leaves it as it was</string>
     <string name="peke_settings_section_playback">Playback</string>
     <string name="peke_settings_household_intro">The parent code is the same on every TV of this server.</string>
     <string name="peke_settings_this_tv_intro">What this TV shows, and how, for every kid on it.</string>

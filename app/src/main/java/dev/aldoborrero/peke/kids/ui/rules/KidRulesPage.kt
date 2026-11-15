@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -72,6 +73,7 @@ import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.ui.tryRequestFocus
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -84,11 +86,18 @@ import java.time.format.FormatStyle
 object KidRulesTags {
     const val DAILY = "rules-daily"
     const val DAILY_VALUE = "rules-daily-value"
+    const val SITTING = "rules-sitting"
+    const val SITTING_VALUE = "rules-sitting-value"
+    const val AUTOPLAY = "rules-autoplay"
+    const val AUTOPLAY_VALUE = "rules-autoplay-value"
+    const val SEARCH = "rules-search"
+    const val SEARCH_VALUE = "rules-search-value"
 }
 
 /**
- * "{Kid}'s rules" as on board 10, with spec 006's content (spec 021 D7): the current kid only, with Daily time the one
- * rule to change here and the only focus stop, the rest as text, and where to change it (spec 006 US3, US4)
+ * "{Kid}'s rules" as on board 10 (spec 021 D7): the current kid only, with Daily time, Time in a row (with the plugin's
+ * sitting limit), Autoplay and Search changed here as stepper rows, the only focus stops; the rest as text, and where
+ * to change it (spec 006 US3, US4; spec 030)
  */
 @Composable
 fun KidRulesPage(
@@ -100,7 +109,7 @@ fun KidRulesPage(
     GrownUpSurface(modifier) {
         KidRulesContent(
             state = state,
-            onSaveDaily = viewModel::setDailyTime,
+            onSave = viewModel::save,
             avatar =
                 state.kidId?.let { id ->
                     {
@@ -129,12 +138,12 @@ fun KidRulesPage(
 /**
  * The page without its view model
  *
- * @param onSaveDaily OK on Daily time with a value other than the saved one
+ * @param onSave OK on a rule's row with a value other than the saved one
  */
 @Composable
 fun KidRulesContent(
     state: KidRulesState,
-    onSaveDaily: (Int?) -> Unit,
+    onSave: (RuleChange) -> Unit,
     modifier: Modifier = Modifier,
     avatar: (@Composable () -> Unit)? = null,
 ) {
@@ -164,12 +173,9 @@ fun KidRulesContent(
         Row(horizontalArrangement = Arrangement.spacedBy(28.cpx), modifier = Modifier.weight(1f)) {
             val scroll = rememberScrollState()
             Column(verticalArrangement = Arrangement.spacedBy(20.cpx), modifier = Modifier.weight(1f)) {
-                val profile = state.profile
-                if (state.allowanceSupported && profile != null) {
-                    DailyTimeRow(profile.dailyAllowanceMinutes, saving = state.saving, scroll = scroll, onSave = onSaveDaily)
-                }
-                // Text only: focus never stops on these (F-K4). Up and Down on Daily time scroll them, so a long list
-                // (Spanish, many picks) is still all readable
+                state.profile?.let { profile -> RuleEditors(state, profile, scroll, onSave) }
+                // Text only: focus never stops on these (F-K4). Up on the first rule row and Down on the last scroll
+                // them, so a long list (Spanish, many picks) is still all readable
                 Column(
                     verticalArrangement = Arrangement.spacedBy(10.cpx),
                     modifier = Modifier.weight(1f).verticalScroll(scroll, enabled = false),
@@ -187,31 +193,145 @@ fun KidRulesContent(
 }
 
 /**
- * Daily time as board 10's stepper: Left and Right change the value shown, held at the ends; OK saves it. Leaving the
- * page with a value not saved leaves the rule as it was (spec 021 D7).
+ * The rules changed on the TV, in order: Daily time (with the plugin's allowance), Time in a row (with its sitting
+ * limit), Autoplay and Search. Up and Down move between them; past the first or last they scroll the text below.
  */
 @Composable
-private fun DailyTimeRow(
-    saved: Int?,
-    saving: Boolean,
+private fun RuleEditors(
+    state: KidRulesState,
+    profile: KidProfile,
     scroll: ScrollState,
-    onSave: (Int?) -> Unit,
+    onSave: (RuleChange) -> Unit,
+) {
+    val context = LocalContext.current
+    val daily = state.allowanceSupported
+    val sitting = state.sessionLimitEditable
+    val count = 2 + (if (daily) 1 else 0) + (if (sitting) 1 else 0)
+    val focus = remember(count) { List(count) { FocusRequester() } }
+    LaunchedEffect(count) { focus.first().tryRequestFocus() }
+    val nav = StepperNav(focus, scroll, rememberCoroutineScope())
+    var at = 0
+    Column(verticalArrangement = Arrangement.spacedBy(12.cpx)) {
+        if (daily) {
+            StepperRow(
+                label = stringResource(R.string.kids_daily_allowance),
+                line = stringResource(R.string.kids_rules_daily_line),
+                saved = profile.dailyAllowanceMinutes,
+                options = remember(profile.dailyAllowanceMinutes) { KidRulesViewModel.dailyTimeOptions(profile.dailyAllowanceMinutes) },
+                text = { dailyTimeLabel(it) },
+                tag = KidRulesTags.DAILY,
+                valueTag = KidRulesTags.DAILY_VALUE,
+                saving = state.saving,
+                nav = nav,
+                index = at++,
+                onSave = { onSave(RuleChange.DailyTime(it)) },
+            )
+        }
+        if (sitting) {
+            StepperRow(
+                label = stringResource(R.string.kids_rules_in_a_row),
+                line =
+                    state.breakMinutes?.let { stringResource(R.string.kids_rules_sitting_line_break, it) }
+                        ?: stringResource(R.string.kids_rules_sitting_line),
+                saved = profile.sessionLimitMinutes,
+                options = remember(profile.sessionLimitMinutes) { KidRulesViewModel.sittingOptions(profile.sessionLimitMinutes) },
+                text = { minutes ->
+                    minutes?.let { pluralStringResource(R.plurals.kids_minutes_option, it, it) } ?: stringResource(R.string.no_limit)
+                },
+                tag = KidRulesTags.SITTING,
+                valueTag = KidRulesTags.SITTING_VALUE,
+                saving = state.saving,
+                nav = nav,
+                index = at++,
+                onSave = { onSave(RuleChange.SittingLimit(it)) },
+            )
+        }
+        StepperRow(
+            label = stringResource(R.string.kids_rules_autoplay),
+            line = stringResource(R.string.kids_rules_autoplay_line),
+            saved = if (profile.autoplayEnabled) profile.validAutoplayCap else null,
+            options = KidRulesViewModel.AUTOPLAY_OPTIONS,
+            text = { cap ->
+                cap?.let { pluralStringResource(R.plurals.kids_rules_autoplay_episodes, it, it) }
+                    ?: stringResource(R.string.kids_rules_autoplay_off)
+            },
+            tag = KidRulesTags.AUTOPLAY,
+            valueTag = KidRulesTags.AUTOPLAY_VALUE,
+            saving = state.saving,
+            nav = nav,
+            index = at++,
+            onSave = { onSave(RuleChange.Autoplay(it)) },
+        )
+        val voice =
+            state.voiceSearch &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        StepperRow(
+            label = stringResource(R.string.kids_rules_search),
+            line = stringResource(if (voice) R.string.kids_rules_voice_on else R.string.kids_rules_voice_off),
+            saved = profile.searchAllowed,
+            options = KidRulesViewModel.SEARCH_OPTIONS,
+            text = { stringResource(if (it) R.string.kids_rules_search_on else R.string.kids_rules_search_off) },
+            tag = KidRulesTags.SEARCH,
+            valueTag = KidRulesTags.SEARCH_VALUE,
+            saving = state.saving,
+            nav = nav,
+            index = at,
+            onSave = { onSave(RuleChange.Search(it)) },
+        )
+    }
+}
+
+/**
+ * Up and Down between the rule rows: [focus] holds one requester per row, in order
+ */
+private class StepperNav(
+    val focus: List<FocusRequester>,
+    val scroll: ScrollState,
+    val scope: CoroutineScope,
+) {
+    fun move(
+        from: Int,
+        down: Boolean,
+    ) {
+        val to = if (down) from + 1 else from - 1
+        if (to in focus.indices) {
+            focus[to].tryRequestFocus()
+        } else {
+            scope.launch { scroll.animateScrollBy(if (down) SCROLL_STEP else -SCROLL_STEP) }
+        }
+    }
+}
+
+/**
+ * A rule as board 10's stepper: Left and Right change the value shown, held at the ends; OK saves it. Leaving the row
+ * or the page with a value not saved leaves the rule as it was (spec 021 D7, spec 030 D3).
+ */
+@Composable
+private fun <T> StepperRow(
+    label: String,
+    line: String,
+    saved: T,
+    options: List<T>,
+    text: @Composable (T) -> String,
+    tag: String,
+    valueTag: String,
+    saving: Boolean,
+    nav: StepperNav,
+    index: Int,
+    onSave: (T) -> Unit,
 ) {
     val colors = LocalPekeColors.current
-    val scope = rememberCoroutineScope()
-    val options = remember(saved) { KidRulesViewModel.dailyTimeOptions(saved) }
     var shown by remember(saved) { mutableStateOf(saved) }
-    val index = options.indexOf(shown).coerceAtLeast(0)
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.tryRequestFocus() }
+    val at = options.indexOf(shown).coerceAtLeast(0)
     GrownUpRow(
-        label = stringResource(R.string.kids_daily_allowance),
-        line = stringResource(if (shown != saved) R.string.kids_rules_daily_unsaved else R.string.kids_rules_daily_line),
+        label = label,
+        line = if (shown != saved) stringResource(R.string.kids_rules_unsaved) else line,
         modifier =
             Modifier
-                .testTag(KidRulesTags.DAILY)
-                .focusRequester(focus)
+                .testTag(tag)
+                .focusRequester(nav.focus[index])
                 .pekeFocus(GrownUpRowShape, grow = false)
+                .onFocusChanged { if (!it.isFocused) shown = saved }
                 .onKeyEvent {
                     when {
                         isEnterKey(it) -> {
@@ -220,18 +340,17 @@ private fun DailyTimeRow(
                         }
 
                         it.key == Key.DirectionLeft -> {
-                            if (it.type == KeyEventType.KeyDown) shown = options[(index - 1).coerceAtLeast(0)]
+                            if (it.type == KeyEventType.KeyDown) shown = options[(at - 1).coerceAtLeast(0)]
                             true
                         }
 
                         it.key == Key.DirectionRight -> {
-                            if (it.type == KeyEventType.KeyDown) shown = options[(index + 1).coerceAtMost(options.lastIndex)]
+                            if (it.type == KeyEventType.KeyDown) shown = options[(at + 1).coerceAtMost(options.lastIndex)]
                             true
                         }
 
                         it.key == Key.DirectionDown || it.key == Key.DirectionUp -> {
-                            val by = if (it.key == Key.DirectionDown) SCROLL_STEP else -SCROLL_STEP
-                            if (it.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by) }
+                            if (it.type == KeyEventType.KeyDown) nav.move(index, down = it.key == Key.DirectionDown)
                             true
                         }
 
@@ -241,17 +360,17 @@ private fun DailyTimeRow(
                     }
                 }.focusable(),
     ) {
-        Chevron(-90f, color = if (index > 0) colors.textSecondary else colors.textSecondary.copy(alpha = .35f), side = 32.cpx)
+        Chevron(-90f, color = if (at > 0) colors.textSecondary else colors.textSecondary.copy(alpha = .35f), side = 32.cpx)
         Text(
-            text = dailyTimeLabel(shown),
+            text = text(shown),
             style = boardText(22, FontWeight.W900),
             color = colors.time,
             textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(min = 120.cpx).testTag(KidRulesTags.DAILY_VALUE),
+            modifier = Modifier.widthIn(min = 120.cpx).testTag(valueTag),
         )
         Chevron(
             90f,
-            color = if (index < options.lastIndex) colors.textSecondary else colors.textSecondary.copy(alpha = .35f),
+            color = if (at < options.lastIndex) colors.textSecondary else colors.textSecondary.copy(alpha = .35f),
             side = 32.cpx,
         )
     }
@@ -283,7 +402,6 @@ private fun RuleRow(
 
 @Composable
 private fun ReadOnlyRules(state: KidRulesState) {
-    val context = LocalContext.current
     val profile: KidProfile? = state.profile
     val policy = state.policy
     val used = state.usedMinutes
@@ -298,7 +416,8 @@ private fun ReadOnlyRules(state: KidRulesState) {
             },
         )
     }
-    if (profile != null && state.sessionLimitSupported) {
+    if (profile != null && state.sessionLimitSupported && !state.sessionLimitEditable) {
+        // Sent by a plugin that doesn't advertise it: shown, not changed (spec 030 FR-003)
         val limit = profile.sessionLimitMinutes
         RuleRow(
             stringResource(R.string.kids_rules_in_a_row),
@@ -321,25 +440,6 @@ private fun ReadOnlyRules(state: KidRulesState) {
         )
     }
     if (profile != null) {
-        val voice =
-            state.voiceSearch &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        RuleRow(
-            stringResource(R.string.kids_rules_search),
-            if (profile.searchAllowed) {
-                stringResource(if (voice) R.string.kids_rules_search_voice_on else R.string.kids_rules_search_voice_off)
-            } else {
-                stringResource(R.string.kids_rules_search_off)
-            },
-        )
-        RuleRow(
-            stringResource(R.string.kids_rules_autoplay),
-            if (profile.autoplayEnabled) {
-                pluralStringResource(R.plurals.kids_rules_autoplay_cap, profile.validAutoplayCap, profile.validAutoplayCap)
-            } else {
-                stringResource(R.string.kids_rules_autoplay_off)
-            },
-        )
         if (state.liveTvSupported) {
             RuleRow(
                 stringResource(R.string.kids_rules_live_tv),
@@ -488,6 +588,7 @@ private val previewState =
             ),
         allowanceSupported = true,
         sessionLimitSupported = true,
+        sessionLimitEditable = true,
         liveTvSupported = true,
         usedMinutes = 15,
         todayMinutes = 60,
