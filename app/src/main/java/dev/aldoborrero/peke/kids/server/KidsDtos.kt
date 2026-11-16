@@ -69,6 +69,11 @@ object KidsFeatures {
     const val BREAK_END = "breakEnd"
 
     /**
+     * Autoplay without a cap (spec 030): the plugin accepts `AutoplayCap` 0 as no limit. Older plugins only take 1–10.
+     */
+    const val UNLIMITED_AUTOPLAY = "unlimitedAutoplay"
+
+    /**
      * Kid avatars (plugin 0.0.8.0, Kids API 1.1): `Avatar` in the kid profile, one of the six pictures Peke ships
      * ([dev.aldoborrero.peke.ui.theme.PekeAvatar]), omitted when the kid has none
      */

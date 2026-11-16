@@ -32,8 +32,8 @@ rules.
 - **D4. Order and focus.** Daily time, Time in a row, Autoplay, Search; the first is focused on open. Up and Down move
   between them; Up on the first and Down on the last scroll the text below, as Up and Down on daily time did.
 - **D5. Choices.** Time in a row: 10, 15, 20, 30, 45, 60, 90, 120 min with the current value in order, then No limit
-  last (like daily time's Unlimited, so a hurried OK doesn't remove the limit). Autoplay: Off, then 1 to 10 episodes;
-  Off keeps the cap for when it's on again. Search: Not allowed, Allowed.
+  last (like daily time's Unlimited, so a hurried OK doesn't remove the limit). Autoplay: Off, then 1 to 10 episodes,
+  then No limit (D10); Off keeps the cap for when it's on again. Search: Not allowed, Allowed.
 - **D6. Time in a row only with the plugin.** It is a row only when the plugin advertises `sessionLimit`: the PUT
   carries it only then. A profile that has the field without the feature shows it as text, as before.
 - **D7. Lines.** Daily time: "Counted on the server across every device". Time in a row: "Then a 15 min break" (or
@@ -74,3 +74,39 @@ rules.
 - **FR-008**: A change refused because the grant ran out MUST be kept, the code asked again and the change saved after
   (006 FR-012, for every rule).
 - **FR-009**: Strings MUST ship in English and Spanish.
+
+## Second round (2026-11-16)
+
+**Input**: the owner tried the first round on the emulator. "Da una opción para que autoplay sea infinito." "Los stats
+de Manuel deberían estar en otra pantalla."
+
+### Decisions
+
+- **D10. Autoplay without a limit.** The Autoplay stepper ends with "No limit" ("Sin límite") after 10 episodes, only
+  when the plugin advertises `unlimitedAutoplay`; it is saved as `AutoplayCap = 0`. Older plugins only take 1–10, so
+  without the feature the stepper stays Off, 1–10 and the app never sends 0. A profile already saved with 0 keeps it
+  as a choice. 0 is no cap for the player: autoplay never stops on the count and the "n of N" chip is hidden. The cap
+  stays soft as today (task 031); this round doesn't change when the count resets.
+- **D11. "{Kid}'s day".** Today's use moves off the rules to its own page, "{Kid}'s day" ("El día de {niño}"):
+  watched today (of the allowance with time added), left today, time added today, watched in a row (with the sitting
+  limit) and the break left, as rows of text. Before the first status it says the server hasn't answered, or that it
+  can't be reached. The page asks for a fresh status on opening.
+- **D12. Reached from the menu.** The parent menu has a "{Kid}'s day" card right after "{Kid}'s rules" (only with a
+  kid). Back from the day shows the menu again focused on it, as spec 025 does for the rules; the menu's other items
+  keep their order. The owner may move it.
+- **D13. The rules keep the rules.** "{Kid}'s rules" no longer shows today's use. The household break stays with
+  time in a row (under its row, or in its text row), since it is a rule, not a figure of the day.
+- **D14. Grant and time's up.** The day is a grown-up page: a grant that ran out asks for the code first, as for the
+  rules. A grown-up on the day isn't thrown out by time's up; it shows when they leave, as on the rules.
+- **D15. Focus.** The page has no rows to focus: the page itself holds focus, so keys stay on it and Back leaves.
+
+### Requirements
+
+- **FR-010**: Autoplay MUST offer No limit last only when the plugin advertises `unlimitedAutoplay`, and save it as
+  `AutoplayCap` 0; without the feature it MUST never send 0 (D10).
+- **FR-011**: A cap of 0 MUST be kept by the app and MUST never stop autoplay on the count; the in-a-row chip MUST be
+  hidden (D10).
+- **FR-012**: "{Kid}'s rules" MUST NOT show today's use (D13).
+- **FR-013**: "{Kid}'s day" MUST show today's figures as text with no focus stop of its own, open from the parent menu
+  and go back to it focused on its item (D11, D12, D15).
+- **FR-014**: The day MUST follow the grown-up grant like the rules, and MUST NOT be replaced by time's up (D14).

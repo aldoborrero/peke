@@ -10,3 +10,15 @@
   (four focus stops in order, Up/Down past the ends, each stepper saves, unsaved value dropped on leaving, sitting as
   text without the feature, "Saved")
 - [X] T005 DESIGN.md Screens: a kid's rules
+
+## Second round
+
+- [X] T006 Unlimited autoplay: feature, cap 0 kept, policy, rules stepper and save guard
+- [X] T007 [P] "{Kid}'s day": view model, page, destination, menu card, Back to the menu, time's up
+- [X] T008 Rules page without today's use
+- [X] T009 [P] Strings in English and Spanish; DESIGN.md (menu, rules, the day)
+- [X] T010 [P] Tests: `KidsAutoplayPolicyTest` (0 never stops, no chip), `KidRulesViewModelTest` (No limit only with
+  the feature, PUT carries 0, never sent without it), `KidRulesPageTest` (No limit after 10, no usage figures),
+  `KidDayPageTest` (figures, one focus stop, unreachable, status mapping, view model), `GrownUpMenuReturnTest` and
+  `BackToMenuTest` (menu → day → Back → menu focused on the day), `KidsParentGateViewModelTest` (openDay keeps the
+  grant)

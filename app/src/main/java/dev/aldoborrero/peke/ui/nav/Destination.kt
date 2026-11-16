@@ -147,6 +147,12 @@ sealed class Destination(
     @Serializable
     data object KidRules : Destination(true)
 
+    /**
+     * "{Kid}'s day": the kid's use today, apart from their rules (spec 030)
+     */
+    @Serializable
+    data object KidDay : Destination(true)
+
     @Serializable
     data object KidsTimesUp : Destination(true)
 

@@ -86,7 +86,8 @@ sealed interface RuleChange {
     }
 
     /**
-     * @param cap episodes in a row, held to 1–10, or null for off (the cap is kept for when it's on again)
+     * @param cap episodes in a row, held to 1–10, [KidProfile.UNLIMITED_AUTOPLAY_CAP] for no limit, or null for off
+     * (the cap is kept for when it's on again)
      */
     data class Autoplay(
         val cap: Int?,
@@ -94,6 +95,8 @@ sealed interface RuleChange {
         override fun apply(profile: KidProfile) =
             if (cap == null) {
                 profile.copy(autoplayEnabled = false)
+            } else if (cap == KidProfile.UNLIMITED_AUTOPLAY_CAP) {
+                profile.copy(autoplayEnabled = true, autoplayCap = KidProfile.UNLIMITED_AUTOPLAY_CAP)
             } else {
                 profile.copy(
                     autoplayEnabled = true,
@@ -125,10 +128,9 @@ data class KidRulesState(
     val sessionLimitEditable: Boolean = false,
     val liveTvSupported: Boolean = false,
     /**
-     * Today's use and allowance with bonus, in minutes, if the status is known
+     * The plugin takes autoplay with no limit, so Autoplay offers it last
      */
-    val usedMinutes: Int? = null,
-    val todayMinutes: Int? = null,
+    val unlimitedAutoplay: Boolean = false,
     /**
      * The household's break after a sitting, from the status, if known
      */
@@ -155,8 +157,8 @@ data class KidRulesState(
 
 /**
  * "{Kid}'s rules" (spec 006 US3, spec 030): the current kid's daily time, time in a row, autoplay and search changed
- * on the TV, and the rest read only, with where to change it. Everything comes from the cache, the last status and the kid's Jellyfin policy, plus
- * the names of their channels and picks.
+ * on the TV, and the rest read only, with where to change it. Everything comes from the cache, the last status and the
+ * kid's Jellyfin policy, plus the names of their channels and picks. Today's use is on "{Kid}'s day".
  */
 @HiltViewModel
 class KidRulesViewModel
@@ -184,14 +186,8 @@ class KidRulesViewModel
             viewModelScope.launch { voiceSearchSetting.on.collect { on -> _state.update { it.copy(voiceSearch = on) } } }
             viewModelScope.launch {
                 allowanceService.snapshot.collect { snapshot ->
-                    val status = snapshot?.status
-                    _state.update {
-                        it.copy(
-                            usedMinutes = status?.let { s -> (s.usedSeconds / 60).toInt() },
-                            todayMinutes = status?.allowanceSeconds?.let { a -> ((a + status.bonusSeconds) / 60).toInt() },
-                            breakMinutes = status?.breakSeconds?.let { b -> (b / 60).toInt() },
-                        )
-                    }
+                    val breakSeconds = snapshot?.status?.breakSeconds
+                    _state.update { it.copy(breakMinutes = breakSeconds?.let { b -> (b / 60).toInt() }) }
                 }
             }
         }
@@ -211,6 +207,7 @@ class KidRulesViewModel
                     allowanceSupported = plugin?.has(KidsFeatures.ALLOWANCE) == true,
                     sessionLimitSupported = sessionLimit || profile?.let(KidProfileMapper::hasSessionLimitField) == true,
                     sessionLimitEditable = sessionLimit,
+                    unlimitedAutoplay = plugin?.has(KidsFeatures.UNLIMITED_AUTOPLAY) == true,
                     liveTvSupported = plugin?.has(KidsFeatures.LIVE_TV) == true,
                     policy = serverRepository.currentUserDto?.policy?.let(PolicySummary::from),
                     dashboardUrl = current?.server?.url?.let(::dashboardUrl),
@@ -250,6 +247,8 @@ class KidRulesViewModel
             val kid = user ?: return
             // Without the plugin's sitting limit the PUT wouldn't carry it
             if (change is RuleChange.SittingLimit && !_state.value.sessionLimitEditable) return
+            // An older plugin refuses a cap of 0
+            if (change == RuleChange.Autoplay(KidProfile.UNLIMITED_AUTOPLAY_CAP) && !_state.value.unlimitedAutoplay) return
             viewModelScope.launch {
                 saveMutex.withLock {
                     _state.update { it.copy(saving = true, saved = false, error = null, pending = null) }
@@ -343,6 +342,20 @@ class KidRulesViewModel
              * The autoplay choices: off (null), then 1 to 10 episodes in a row
              */
             val AUTOPLAY_OPTIONS: List<Int?> = listOf<Int?>(null) + (KidProfile.MIN_AUTOPLAY_CAP..KidProfile.MAX_AUTOPLAY_CAP)
+
+            /**
+             * [AUTOPLAY_OPTIONS], then no limit ([KidProfile.UNLIMITED_AUTOPLAY_CAP]) last when the plugin takes it, or
+             * when it is the saved value
+             */
+            fun autoplayOptions(
+                unlimited: Boolean,
+                current: Int?,
+            ): List<Int?> =
+                if (unlimited || current == KidProfile.UNLIMITED_AUTOPLAY_CAP) {
+                    AUTOPLAY_OPTIONS + KidProfile.UNLIMITED_AUTOPLAY_CAP
+                } else {
+                    AUTOPLAY_OPTIONS
+                }
 
             /**
              * The search choices: not allowed, then allowed

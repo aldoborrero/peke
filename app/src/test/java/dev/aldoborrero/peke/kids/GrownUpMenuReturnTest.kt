@@ -46,6 +46,15 @@ class GrownUpMenuReturnTest {
     }
 
     @Test
+    fun `the kid's day opened from the menu returns to it, focused on their day`() {
+        menuReturn.open(Destination.KidDay)
+
+        assertEquals(GrownUpMenuItem.DAY, menuReturn.itemFor(Destination.KidDay))
+        menuReturn.close(Destination.KidDay)
+        assertEquals(listOf(Destination.Home(), kidPage), navigation.backStack.toList())
+    }
+
+    @Test
     fun `Settings opened from the menu returns to it, focused on Settings`() {
         menuReturn.open(settings)
 

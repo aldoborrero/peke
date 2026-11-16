@@ -243,10 +243,11 @@ class KidRulesViewModelTest {
         }
 
     @Test
-    fun `the autoplay cap is held to 1 to 10`() {
+    fun `the autoplay cap is held to 1 to 10, or 0 for no limit`() {
         val base = KidProfile(userId = 1)
         assertEquals(10, RuleChange.Autoplay(42).apply(base).autoplayCap)
-        assertEquals(1, RuleChange.Autoplay(0).apply(base).autoplayCap)
+        assertEquals(1, RuleChange.Autoplay(-3).apply(base).autoplayCap)
+        assertEquals(0, RuleChange.Autoplay(KidProfile.UNLIMITED_AUTOPLAY_CAP).apply(base).autoplayCap)
         assertEquals(listOf(null) + (1..10).toList(), KidRulesViewModel.AUTOPLAY_OPTIONS)
     }
 
@@ -300,6 +301,34 @@ class KidRulesViewModelTest {
             vm.retryPending()
             coVerify(exactly = 2) { repository.save(leo, match { it.searchAllowed }) }
             assertTrue(vm.state.value.saved)
+        }
+
+    @Test
+    fun `no limit is offered last only with the plugin's unlimited autoplay`() {
+        assertEquals(KidRulesViewModel.AUTOPLAY_OPTIONS, KidRulesViewModel.autoplayOptions(unlimited = false, current = 3))
+        assertEquals(KidRulesViewModel.AUTOPLAY_OPTIONS + 0, KidRulesViewModel.autoplayOptions(unlimited = true, current = 3))
+        assertEquals(0, KidRulesViewModel.autoplayOptions(unlimited = true, current = null).last())
+    }
+
+    @Test
+    fun `no limit is sent as cap 0 with the plugin's unlimited autoplay`() =
+        runTest(dispatcher) {
+            assertEquals(
+                mapOf("AutoplayCap" to JsonPrimitive(0)),
+                changedKeys(RuleChange.Autoplay(KidProfile.UNLIMITED_AUTOPLAY_CAP), "$SITTING,unlimitedAutoplay"),
+            )
+            assertTrue(profile.autoplayEnabled)
+            assertEquals(0, profile.autoplayCap)
+        }
+
+    @Test
+    fun `without unlimited autoplay no limit is never sent`() =
+        runTest(dispatcher) {
+            val vm = viewModel(SITTING)
+            assertFalse(vm.state.value.unlimitedAutoplay)
+            vm.save(RuleChange.Autoplay(KidProfile.UNLIMITED_AUTOPLAY_CAP))
+            coVerify(exactly = 0) { repository.save(any(), any()) }
+            assertTrue(viewModel("$SITTING,unlimitedAutoplay").state.value.unlimitedAutoplay)
         }
 
     private companion object {

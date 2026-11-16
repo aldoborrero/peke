@@ -60,8 +60,6 @@ class KidRulesPageTest {
             allowanceSupported = true,
             sessionLimitSupported = true,
             sessionLimitEditable = true,
-            usedMinutes = 15,
-            todayMinutes = 60,
             policy =
                 PolicySummary(
                     7,
@@ -104,8 +102,10 @@ class KidRulesPageTest {
         rule.onNodeWithTag(KidRulesTags.AUTOPLAY_VALUE).assertTextEquals("Off")
         rule.onNodeWithTag(KidRulesTags.SEARCH_VALUE).assertTextEquals("Not allowed")
         focusStops.assertCountEquals(4)
-        // The read-only text and the dashboard stay text
-        rule.onNodeWithText("Today").assertExists()
+        // The read-only text and the dashboard stay text; today's use is on the kid's day
+        rule.onNodeWithText("Allowed hours (set in Jellyfin)").assertExists()
+        rule.onNodeWithText("Today").assertDoesNotExist()
+        rule.onNodeWithText("Watched today").assertDoesNotExist()
         rule.onNodeWithText("https://jellyfin.home/web/#/configurationpage?name=Kids").assertExists()
         rule.onNodeWithText("Change Lucy's picks and home on the dashboard").assertExists()
     }
@@ -177,6 +177,17 @@ class KidRulesPageTest {
         rule.onNodeWithTag(KidRulesTags.AUTOPLAY_VALUE).assertTextEquals("10 episodes")
         press(listOf(Key.DirectionCenter))
         assertEquals(listOf<RuleChange>(RuleChange.Autoplay(10)), saved)
+    }
+
+    @Test
+    fun `with the plugin's unlimited autoplay, no limit comes after 10 and saves cap 0`() {
+        state = state.copy(unlimitedAutoplay = true)
+        show()
+        press(listOf(Key.DirectionDown, Key.DirectionDown))
+        repeat(15) { press(listOf(Key.DirectionRight)) }
+        rule.onNodeWithTag(KidRulesTags.AUTOPLAY_VALUE).assertTextEquals("No limit")
+        press(listOf(Key.DirectionCenter))
+        assertEquals(listOf<RuleChange>(RuleChange.Autoplay(0)), saved)
     }
 
     @Test

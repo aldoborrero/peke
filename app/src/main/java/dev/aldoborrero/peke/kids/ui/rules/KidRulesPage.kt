@@ -246,14 +246,18 @@ private fun RuleEditors(
                 onSave = { onSave(RuleChange.SittingLimit(it)) },
             )
         }
+        val autoplay = if (profile.autoplayEnabled) profile.validAutoplayCap else null
         StepperRow(
             label = stringResource(R.string.kids_rules_autoplay),
             line = stringResource(R.string.kids_rules_autoplay_line),
-            saved = if (profile.autoplayEnabled) profile.validAutoplayCap else null,
-            options = KidRulesViewModel.AUTOPLAY_OPTIONS,
+            saved = autoplay,
+            options = remember(state.unlimitedAutoplay, autoplay) { KidRulesViewModel.autoplayOptions(state.unlimitedAutoplay, autoplay) },
             text = { cap ->
-                cap?.let { pluralStringResource(R.plurals.kids_rules_autoplay_episodes, it, it) }
-                    ?: stringResource(R.string.kids_rules_autoplay_off)
+                when (cap) {
+                    null -> stringResource(R.string.kids_rules_autoplay_off)
+                    KidProfile.UNLIMITED_AUTOPLAY_CAP -> stringResource(R.string.no_limit)
+                    else -> pluralStringResource(R.plurals.kids_rules_autoplay_episodes, cap, cap)
+                }
             },
             tag = KidRulesTags.AUTOPLAY,
             valueTag = KidRulesTags.AUTOPLAY_VALUE,
@@ -382,7 +386,7 @@ private const val SCROLL_STEP = 160f
  * A rule shown as text: its name, and its value at the end in "time"
  */
 @Composable
-private fun RuleRow(
+internal fun RuleRow(
     label: String,
     value: String,
 ) {
@@ -404,18 +408,6 @@ private fun RuleRow(
 private fun ReadOnlyRules(state: KidRulesState) {
     val profile: KidProfile? = state.profile
     val policy = state.policy
-    val used = state.usedMinutes
-    if (used != null) {
-        val today = state.todayMinutes
-        RuleRow(
-            stringResource(R.string.kids_rules_today),
-            if (today != null) {
-                stringResource(R.string.kids_rules_today_of, used, today)
-            } else {
-                pluralStringResource(R.plurals.kids_rules_today_used, used, used)
-            },
-        )
-    }
     if (profile != null && state.sessionLimitSupported && !state.sessionLimitEditable) {
         // Sent by a plugin that doesn't advertise it: shown, not changed (spec 030 FR-003)
         val limit = profile.sessionLimitMinutes
@@ -590,8 +582,6 @@ private val previewState =
         sessionLimitSupported = true,
         sessionLimitEditable = true,
         liveTvSupported = true,
-        usedMinutes = 15,
-        todayMinutes = 60,
         breakMinutes = 15,
         policy =
             PolicySummary(

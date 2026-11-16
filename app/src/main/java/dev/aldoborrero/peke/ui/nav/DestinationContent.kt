@@ -17,6 +17,7 @@ import dev.aldoborrero.peke.kids.playback.KidsDirectPlayPage
 import dev.aldoborrero.peke.kids.ui.GrownUpGuard
 import dev.aldoborrero.peke.kids.ui.KidsChannelRefusedPage
 import dev.aldoborrero.peke.kids.ui.KidsTimesUpPage
+import dev.aldoborrero.peke.kids.ui.day.KidDayPage
 import dev.aldoborrero.peke.kids.ui.isGrownUp
 import dev.aldoborrero.peke.kids.ui.rules.KidRulesPage
 import dev.aldoborrero.peke.preferences.UserPreferences
@@ -152,6 +153,10 @@ internal fun DestinationPage(
 
         Destination.KidRules -> {
             KidRulesPage(modifier)
+        }
+
+        Destination.KidDay -> {
+            KidDayPage(modifier)
         }
 
         Destination.KidsTimesUp -> {

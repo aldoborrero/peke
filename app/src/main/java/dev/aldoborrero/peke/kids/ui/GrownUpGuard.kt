@@ -100,7 +100,7 @@ class GrownUpGuardViewModel
     }
 
 /**
- * The grown-up destinations a kid could otherwise reach: settings, debug, a kid's rules, the license and the update
+ * The grown-up destinations a kid could otherwise reach: settings, debug, a kid's rules and day, the license and the update
  * page (C12)
  */
 fun Destination.isGrownUp(): Boolean =
@@ -109,6 +109,7 @@ fun Destination.isGrownUp(): Boolean =
         is Destination.SubtitleSettings,
         Destination.UserAppPreferences,
         Destination.KidRules,
+        Destination.KidDay,
         Destination.UpdateApp,
         Destination.License,
         Destination.Debug,

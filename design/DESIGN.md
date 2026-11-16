@@ -294,7 +294,7 @@ Decided while testing the app:
   a grown-up has to decide.
 - **After the parent code:** the parent menu, in a fixed order: the kid and their status, Add time (or a line that
   says why not: a break, with "Keep watching now" when the plugin can end it; bedtime; no daily limit; offline),
-  Switch kid (2+ kids), "{Kid}'s rules" and Settings, never the user list. From the picker the code opens Settings
+  Switch kid (2+ kids), "{Kid}'s rules", "{Kid}'s day" and Settings, never the user list. From the picker the code opens Settings
   straight away. Settings holds Household (change the parent code), This TV (Kids on this TV, voice search, the timer
   bar and where its time sits, screensaver, clock, language, subtitles), playback, Advanced, About with the license,
   and Reset this TV last. Leaving the menu ends the code's grant.
@@ -303,9 +303,9 @@ Decided while testing the app:
   time that can't be used stays in its place as a card that says why and takes no focus. Grown-up pages have no
   mascot, except the buddy in Settings' header without a kid (board 11). Unlike boards 7–9, no pill names the Back
   key: the remote already says how to go back (spec 023). Back always goes up one level: Add time, the menu, the kid.
-  The kid's rules and Settings opened from the menu go back to it, focused on their item (the code first if the grant
-  ran out); Back on that menu goes straight to the kid, the menu covering until the page under it has gone (spec 027).
-  Without a kid, Settings goes back to the picker. Messages that were toasts ("Parent code changed", a failed
+  The kid's rules, their day and Settings opened from the menu go back to it, focused on their item (the code first if
+  the grant ran out); Back on that menu goes straight to the kid, the menu covering until the page under it has gone
+  (spec 027). Without a kid, Settings goes back to the picker. Messages that were toasts ("Parent code changed", a failed
   "Keep watching now", Undo's result) are S5 pills on the page.
 - **Settings (12):** two columns: "Settings" and its sections on the left (Household, This TV, Playback, Advanced,
   About, Reset this TV), the focused section's rows on the right, under a line about it. Right or OK enters the rows,
@@ -316,12 +316,17 @@ Decided while testing the app:
   dimmed) that opens on the last amount given on this TV, with who gets it and "Can watch until 19:15". OK adds,
   Back returns to the menu; then "15 more minutes for Leo · until 19:15" with Undo for 10 seconds, and back to the kid.
   Board 9's layout: one wide tile with ‹ amount ›, the forecast in a box under it.
-- **A kid's rules:** that kid only. Daily time, time in a row (when the plugin has the sitting limit), autoplay (Off or
-  1–10 episodes) and search are changed on the TV (spec 030); the rest is text, with the dashboard's address for picks
-  and home sections. Marking or unmarking kids is done in the dashboard only. Board 10's layout: the four rules are
+- **A kid's rules:** that kid only. Daily time, time in a row (when the plugin has the sitting limit), autoplay (Off,
+  1–10 episodes, or No limit when the plugin has `unlimitedAutoplay`) and search are changed on the TV (spec 030);
+  the rest is text, with the dashboard's address for picks and home sections. Today's use is on the kid's day.
+  Marking or unmarking kids is done in the dashboard only. Board 10's layout: the four rules are
   stepper rows in that order (‹ 60 min ›; Left and Right change the value, OK saves, moving away or Back leaves it as
   it was; Up and Down go between them), the other rules are rows of text, and what Jellyfin decides and the
   dashboard's address are on the right.
+- **A kid's day:** "{Kid}'s day" ("El día de {niño}"), that kid's use today apart from their rules (spec 030): watched
+  today (of the allowance with time added), left today, time added today, watched in a row (with the sitting limit)
+  and the break left, as rows of text on board 10's page with no focus stop; "Can't reach the server" before the
+  first status.
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the

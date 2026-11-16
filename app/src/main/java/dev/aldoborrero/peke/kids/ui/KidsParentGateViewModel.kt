@@ -553,6 +553,13 @@ class KidsParentGateViewModel
         }
 
         /**
+         * The current kid's day, which Back leaves for the menu again
+         */
+        fun openDay() {
+            menuReturn.open(Destination.KidDay)
+        }
+
+        /**
          * Settings, with Kids on this TV, its About (the license) and Reset this TV: in the kid's pages, or outside them
          * from the picker
          */
