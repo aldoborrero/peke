@@ -1,0 +1,147 @@
+Categories:
+  - Online Media Player
+License: GPL-2.0-only
+AuthorName: Aldo Borrero
+SourceCode: https://github.com/aldoborrero/peke
+IssueTracker: https://github.com/aldoborrero/peke/issues
+Changelog: https://github.com/aldoborrero/peke/releases
+
+AutoName: Peke
+
+RepoType: git
+Repo: https://github.com/aldoborrero/peke.git
+
+Builds:
+  - versionName: 0.2.0
+    versionCode: 21
+    commit: v0.2.0
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y make autoconf automake libtool pkg-config nasm ninja-build
+        cmake python3-jsonschema python3-jinja2
+      - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
+      - apt-get update
+      - apt-get install -y -t forky meson
+    gradle:
+      - yes
+    output: build/outputs/apk/release/Peke-release-*-armeabi-v7a.apk
+    srclibs:
+      - wholphin-extensions@v0.2.4
+      - androidx-media@1.11.1
+      - FFmpeg@n9.0
+      - dav1d@1.5.4
+      - cpu_features@4814778e45acc394b37ca0837441ad32a2305bb1
+      - mbedtls@v3.6.7
+      - freetype2@VER-2-14-1
+      - fribidi@v1.0.16
+      - harfbuzz@14.2.1
+      - libunibreak@libunibreak_7_0
+      - libass@0.17.5
+      - libplacebo@v7.360.1
+      - mpv@v0.41.0
+    prebuild: WHOLPHIN_EXTENSIONS=$$wholphin-extensions$$ MEDIA=$$androidx-media$$
+      NDK=$$NDK$$ FFMPEG=$$FFmpeg$$ DAV1D=$$dav1d$$ CPU_FEATURES=$$cpu_features$$
+      MBEDTLS=$$mbedtls$$ FREETYPE=$$freetype2$$ FRIBIDI=$$fribidi$$ HARFBUZZ=$$harfbuzz$$
+      UNIBREAK=$$libunibreak$$ LIBASS=$$libass$$ LIBPLACEBO=$$libplacebo$$ MPV=$$mpv$$
+      ../fdroid/build-extensions.sh prepare
+    build: WHOLPHIN_EXTENSIONS=$$wholphin-extensions$$ MEDIA=$$androidx-media$$ NDK=$$NDK$$
+      ../fdroid/build-extensions.sh build armeabi-v7a
+    ndk: 29.0.14206865
+    gradleprops:
+      - peke.versionCode=21
+      - peke.updateChecker=false
+
+  - versionName: 0.2.0
+    versionCode: 22
+    commit: v0.2.0
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y make autoconf automake libtool pkg-config nasm ninja-build
+        cmake python3-jsonschema python3-jinja2
+      - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
+      - apt-get update
+      - apt-get install -y -t forky meson
+    gradle:
+      - yes
+    output: build/outputs/apk/release/Peke-release-*-arm64-v8a.apk
+    srclibs:
+      - wholphin-extensions@v0.2.4
+      - androidx-media@1.11.1
+      - FFmpeg@n9.0
+      - dav1d@1.5.4
+      - cpu_features@4814778e45acc394b37ca0837441ad32a2305bb1
+      - mbedtls@v3.6.7
+      - freetype2@VER-2-14-1
+      - fribidi@v1.0.16
+      - harfbuzz@14.2.1
+      - libunibreak@libunibreak_7_0
+      - libass@0.17.5
+      - libplacebo@v7.360.1
+      - mpv@v0.41.0
+    prebuild: WHOLPHIN_EXTENSIONS=$$wholphin-extensions$$ MEDIA=$$androidx-media$$
+      NDK=$$NDK$$ FFMPEG=$$FFmpeg$$ DAV1D=$$dav1d$$ CPU_FEATURES=$$cpu_features$$
+      MBEDTLS=$$mbedtls$$ FREETYPE=$$freetype2$$ FRIBIDI=$$fribidi$$ HARFBUZZ=$$harfbuzz$$
+      UNIBREAK=$$libunibreak$$ LIBASS=$$libass$$ LIBPLACEBO=$$libplacebo$$ MPV=$$mpv$$
+      ../fdroid/build-extensions.sh prepare
+    build: WHOLPHIN_EXTENSIONS=$$wholphin-extensions$$ MEDIA=$$androidx-media$$ NDK=$$NDK$$
+      ../fdroid/build-extensions.sh build arm64-v8a
+    ndk: 29.0.14206865
+    gradleprops:
+      - peke.versionCode=22
+      - peke.updateChecker=false
+
+  - versionName: 0.2.0
+    versionCode: 23
+    commit: v0.2.0
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y make autoconf automake libtool pkg-config nasm ninja-build
+        cmake python3-jsonschema python3-jinja2
+      - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
+      - apt-get update
+      - apt-get install -y -t forky meson
+    gradle:
+      - yes
+    output: build/outputs/apk/release/Peke-release-*-x86_64.apk
+    srclibs:
+      - wholphin-extensions@v0.2.4
+      - androidx-media@1.11.1
+      - FFmpeg@n9.0
+      - dav1d@1.5.4
+      - cpu_features@4814778e45acc394b37ca0837441ad32a2305bb1
+      - mbedtls@v3.6.7
+      - freetype2@VER-2-14-1
+      - fribidi@v1.0.16
+      - harfbuzz@14.2.1
+      - libunibreak@libunibreak_7_0
+      - libass@0.17.5
+      - libplacebo@v7.360.1
+      - mpv@v0.41.0
+    prebuild: WHOLPHIN_EXTENSIONS=$$wholphin-extensions$$ MEDIA=$$androidx-media$$
+      NDK=$$NDK$$ FFMPEG=$$FFmpeg$$ DAV1D=$$dav1d$$ CPU_FEATURES=$$cpu_features$$
+      MBEDTLS=$$mbedtls$$ FREETYPE=$$freetype2$$ FRIBIDI=$$fribidi$$ HARFBUZZ=$$harfbuzz$$
+      UNIBREAK=$$libunibreak$$ LIBASS=$$libass$$ LIBPLACEBO=$$libplacebo$$ MPV=$$mpv$$
+      ../fdroid/build-extensions.sh prepare
+    build: WHOLPHIN_EXTENSIONS=$$wholphin-extensions$$ MEDIA=$$androidx-media$$ NDK=$$NDK$$
+      ../fdroid/build-extensions.sh build x86_64
+    ndk: 29.0.14206865
+    gradleprops:
+      - peke.versionCode=23
+      - peke.updateChecker=false
+
+MaintainerNotes: |-
+  MPV and the Media3 FFmpeg and AV1 decoders come from damontecres/wholphin-extensions, built from source by
+  fdroid/build-extensions.sh in the app's repository: prebuild lays the srclibs out where the upstream scripts expect
+  them (and fails if a srclib is at a different version than wholphin-extensions pins), build compiles them for the
+  entry's ABI and copies the three AARs into app/libs/. See fdroid/README.md in the app's repository.
+
+  versionCode is 10 * (number of v* tags) + ABI (1 armeabi-v7a, 2 arm64-v8a, 3 x86_64), passed to Gradle with
+  peke.versionCode. peke.updateChecker=false turns off the in-app updater, which installs APKs from GitHub releases.
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: 0.2.0
+CurrentVersionCode: 23

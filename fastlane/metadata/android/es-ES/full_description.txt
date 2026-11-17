@@ -1,0 +1,20 @@
+Peke es una app de Android TV hecha solo para niños. Reproduce películas, series y TV en directo de tu propio servidor Jellyfin, y las reglas que un adulto pone en el servidor deciden qué ve cada niño y durante cuánto tiempo.
+
+<b>Necesitas</b>
+<ul>
+<li>un dispositivo Android TV, Google TV o Fire TV con Android 6 o posterior. Peke es una app de tele que se usa con el mando; no tiene diseño para móvil ni tableta.</li>
+<li>un servidor Jellyfin 12.x con el plugin Jellyfin Kids (0.0.7.0 o posterior, https://github.com/aldoborrero/jellyfin-kids). Sin el plugin, Peke solo muestra la pantalla de configuración para adultos y explica qué falta.</li>
+</ul>
+
+<b>Qué hace</b>
+<ul>
+<li><b>Un inicio para cada niño</b>: selecciones, favoritos, series y películas de las bibliotecas que permite su cuenta de Jellyfin, y los canales de TV en directo que eligió un adulto.</li>
+<li><b>Solo lo que un niño necesita</b>: solo vídeo, sin páginas de música, personas ni fotos, sin tráileres antes de las películas. La búsqueda y la búsqueda por voz solo aparecen para los niños que pueden buscar.</li>
+<li><b>Tiempo de pantalla desde el servidor</b>: el plugin cuenta el tiempo diario, el tiempo por sesión y los descansos en todas las teles de casa. Peke muestra el tiempo que queda, avisa antes de que se acabe y explica por qué para.</li>
+<li><b>Control parental</b>: un código para toda la casa, con las flechas o los números del mando, abre los ajustes de un niño, añade tiempo o sale de la parte de los niños.</li>
+<li><b>Pantalla de configuración para adultos</b>: ajustes de los niños, ajustes de Peke, Quick Connect, la lista de usuarios y las licencias. Nunca abre la navegación ni la reproducción.</li>
+<li><b>Reproducción directa primero</b>: ExoPlayer con los decodificadores FFmpeg y AV1, y MPV, para que la mayoría de los archivos se reproduzcan sin que el servidor los convierta.</li>
+<li><b>En inglés y en español</b>, también las pantallas de los niños.</li>
+</ul>
+
+Peke es un fork de Wholphin, de damontecres. No es una app oficial de Jellyfin.

@@ -1,0 +1,6 @@
+- The parent gate is a full-screen page; a parent code is only arrows or only digits
+- Grown-up screens (parent menu, Add time, a kid's rules, Settings) are full-screen pages
+- The kids timer bar shows only while a video plays, on the left, centre or right
+- Back closes the sidebar; Back on the kids home asks before leaving Peke
+- Back from a kid's rules or Settings returns to the grown-up menu
+- Bigger play and pause icons, and faster kid pages and sidebar
