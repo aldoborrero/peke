@@ -119,12 +119,18 @@ fun keepWatchingEpisode(item: BaseItemDto): KeepWatchingEpisode? =
         KeepWatchingEpisode(
             season = item.parentIndexNumber?.takeIf { it > 1 && item.indexNumber != null },
             number = item.indexNumber,
-            name = item.name?.takeIf { it.isNotBlank() },
+            name = item.name?.takeIf { it.hasWords() },
             series = item.seriesName,
         )
     } else {
         null
     }
+
+/**
+ * Whether a name says anything: it has a letter or a digit. A library can name an episode "/", "-" or "." from its
+ * file name, which the card would show as "Ep. 1 · /" (spec 029)
+ */
+private fun String.hasWords(): Boolean = any { it.isLetterOrDigit() }
 
 /**
  * Whether a keep watching card shows [item]'s own picture, the frame Jellyfin takes from an episode, rather than its
