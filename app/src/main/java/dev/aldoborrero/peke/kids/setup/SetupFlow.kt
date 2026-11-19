@@ -42,8 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -1313,36 +1315,75 @@ private fun KidsStep(
         )
     } else {
         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
-            modifier = Modifier.focusRequester(focusRequester),
-        ) {
-            items(screen.kids, key = { it.id }) { kid ->
-                KidAvatarCard(
-                    id = kid.id,
-                    name = kid.name,
-                    imageUrl = kid.imageUrl,
-                    selected = kid.id in screen.selected,
-                    caption = if (kid.onTv) stringResource(R.string.peke_setup_on_tv) else null,
-                    onClick = { viewModel.toggle(kid.id) },
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            TextButton(
-                stringRes = R.string.peke_setup_continue,
-                onClick = { viewModel.confirmKids() },
-                enabled = screen.selected.isNotEmpty() && !screen.loading,
-            )
-            TextButton(
-                stringRes = R.string.peke_setup_check_again,
-                onClick = { viewModel.checkAgain() },
-                enabled = !screen.loading,
+        KidsChoice(
+            kids = screen.kids,
+            selected = screen.selected,
+            loading = screen.loading,
+            onToggle = viewModel::toggle,
+            onContinue = viewModel::confirmKids,
+            onCheckAgain = viewModel::checkAgain,
+            rowFocus = focusRequester,
+        )
+    }
+}
+
+/**
+ * The kids to pick, then Continue and Check again. Down from a kid goes to Continue, the main action, when it can be
+ * pressed (a kid is picked), else to Check again: left to itself, focus would go to whichever button sits nearer the
+ * kid (spec 026).
+ */
+@Composable
+internal fun KidsChoice(
+    kids: List<SetupKid>,
+    selected: Set<UUID>,
+    loading: Boolean,
+    onToggle: (UUID) -> Unit,
+    onContinue: () -> Unit,
+    onCheckAgain: () -> Unit,
+    rowFocus: FocusRequester,
+) {
+    val continueFocus = remember { FocusRequester() }
+    val checkAgainFocus = remember { FocusRequester() }
+    val canContinue = selected.isNotEmpty() && !loading
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
+        modifier = Modifier.focusRequester(rowFocus),
+    ) {
+        items(kids, key = { it.id }) { kid ->
+            KidAvatarCard(
+                id = kid.id,
+                name = kid.name,
+                imageUrl = kid.imageUrl,
+                selected = kid.id in selected,
+                caption = if (kid.onTv) stringResource(R.string.peke_setup_on_tv) else null,
+                onClick = { onToggle(kid.id) },
+                modifier =
+                    Modifier
+                        .testTag("$SETUP_KID_TAG${kid.id}")
+                        .focusProperties { down = if (canContinue) continueFocus else checkAgainFocus },
             )
         }
     }
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        TextButton(
+            stringRes = R.string.peke_setup_continue,
+            onClick = onContinue,
+            enabled = canContinue,
+            modifier = Modifier.focusRequester(continueFocus).testTag(SETUP_CONTINUE_TAG),
+        )
+        TextButton(
+            stringRes = R.string.peke_setup_check_again,
+            onClick = onCheckAgain,
+            enabled = !loading,
+            modifier = Modifier.focusRequester(checkAgainFocus).testTag(SETUP_CHECK_AGAIN_TAG),
+        )
+    }
 }
+
+internal const val SETUP_KID_TAG = "setup_kid_"
+internal const val SETUP_CONTINUE_TAG = "setup_continue"
+internal const val SETUP_CHECK_AGAIN_TAG = "setup_check_again"
 
 /**
  * Each picked kid signing in, with what to do when it doesn't work
