@@ -46,7 +46,7 @@ object GrownUpMenuTags {
     const val ADD_TIME_OFF = "menu-add-time-off"
     const val SWITCH_KID = "menu-switch-kid"
     const val RULES = "menu-rules"
-    const val DAY = "menu-day"
+    const val STATS = "menu-stats"
     const val SETTINGS = "menu-settings"
 }
 
@@ -73,11 +73,11 @@ sealed interface MenuAddTime {
 }
 
 /**
- * The parent menu as on board 8, with spec 006's items in its fixed order: the kid and their time, Add time (or why
- * not), Switch kid with two kids or more, the kid's rules, their day and Settings (spec 021 D2, spec 030). No mascot.
+ * The parent menu as on board 8, with its items in a fixed order: the kid and their time, Add time (or why not), Rules,
+ * Stats, Switch kid with two kids or more, and Settings (spec 021 D2, spec 033 D12). No mascot.
  * The Back pill only names the key: Back leaves the menu, which ends the grant (D4).
  *
- * @param onDay opens "{Kid}'s day", a card after the rules when there is a kid (spec 030)
+ * @param onStats opens Stats, every kid of this TV (spec 033)
  * @param focus the item focus starts on, the page Back came from (spec 025); null for the first usable card
  * @param avatar the kid's picture, 112 px round
  */
@@ -95,21 +95,21 @@ fun GrownUpMenuPage(
     onKeepWatching: () -> Unit,
     onSwitchKid: () -> Unit,
     onRules: () -> Unit,
+    onStats: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    onDay: (() -> Unit)? = null,
     focus: GrownUpMenuItem? = null,
     avatar: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalPekeColors.current
     val firstFocus = remember { FocusRequester() }
     val rulesFocus = remember { FocusRequester() }
-    val dayFocus = remember { FocusRequester() }
+    val statsFocus = remember { FocusRequester() }
     val settingsFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         when (focus) {
             GrownUpMenuItem.RULES -> rulesFocus
-            GrownUpMenuItem.DAY -> dayFocus
+            GrownUpMenuItem.STATS -> statsFocus
             GrownUpMenuItem.SETTINGS -> settingsFocus
             null -> firstFocus
         }.tryRequestFocus()
@@ -192,7 +192,9 @@ fun GrownUpMenuPage(
                         icon = PekeIcon.TIME_LEFT,
                         tint = colors.time,
                         title = stringResource(R.string.kids_add_time),
-                        line = stringResource(R.string.kids_menu_add_time_line),
+                        line =
+                            kidName?.let { stringResource(R.string.kids_menu_add_time_line_of, it) }
+                                ?: stringResource(R.string.kids_menu_add_time_line),
                         onClick = onAddTime,
                         modifier = card.first().testTag(GrownUpMenuTags.ADD_TIME),
                     )
@@ -220,6 +222,27 @@ fun GrownUpMenuPage(
                     )
                 }
             }
+            GrownUpCard(
+                icon = PekeIcon.SETTINGS,
+                tint = colors.tertiary,
+                title = stringResource(R.string.kids_rules),
+                line = stringResource(R.string.kids_menu_rules_line),
+                onClick = onRules,
+                modifier = card.first().focusRequester(rulesFocus).testTag(GrownUpMenuTags.RULES),
+            )
+            GrownUpCard(
+                icon = PekeIcon.WATCHED,
+                tint = colors.primary,
+                title = stringResource(R.string.kids_stats),
+                line =
+                    if (canSwitchKid || kidName == null) {
+                        stringResource(R.string.kids_menu_stats_line)
+                    } else {
+                        stringResource(R.string.kids_menu_stats_line_of, kidName)
+                    },
+                onClick = onStats,
+                modifier = card.focusRequester(statsFocus).testTag(GrownUpMenuTags.STATS),
+            )
             if (canSwitchKid) {
                 GrownUpCard(
                     icon = PekeIcon.SWITCH_KID,
@@ -227,32 +250,14 @@ fun GrownUpMenuPage(
                     title = stringResource(R.string.peke_menu_switch_kid),
                     line = stringResource(R.string.kids_menu_switch_kid_line),
                     onClick = onSwitchKid,
-                    modifier = card.first().testTag(GrownUpMenuTags.SWITCH_KID),
-                )
-            }
-            GrownUpCard(
-                icon = PekeIcon.SETTINGS,
-                tint = colors.tertiary,
-                title = kidName?.let { stringResource(R.string.kids_rules_of, it) } ?: stringResource(R.string.kids_rules),
-                line = stringResource(R.string.kids_menu_rules_line),
-                onClick = onRules,
-                modifier = card.first().focusRequester(rulesFocus).testTag(GrownUpMenuTags.RULES),
-            )
-            if (onDay != null && kidName != null) {
-                GrownUpCard(
-                    icon = PekeIcon.WATCHED,
-                    tint = colors.primary,
-                    title = stringResource(R.string.kids_day_of, kidName),
-                    line = stringResource(R.string.kids_menu_day_line),
-                    onClick = onDay,
-                    modifier = card.focusRequester(dayFocus).testTag(GrownUpMenuTags.DAY),
+                    modifier = card.testTag(GrownUpMenuTags.SWITCH_KID),
                 )
             }
             GrownUpCard(
                 icon = PekeIcon.LIVE,
                 tint = colors.secondary,
                 title = stringResource(R.string.peke_menu_settings),
-                line = stringResource(R.string.kids_menu_settings_line),
+                line = stringResource(R.string.kids_menu_settings_line_tv),
                 onClick = onSettings,
                 modifier = card.focusRequester(settingsFocus).testTag(GrownUpMenuTags.SETTINGS),
             )
@@ -287,8 +292,8 @@ private fun GrownUpMenuPekeTvPreview() {
                 onKeepWatching = {},
                 onSwitchKid = {},
                 onRules = {},
+                onStats = {},
                 onSettings = {},
-                onDay = {},
                 avatar = { Box(Modifier.fillMaxSize().background(LocalPekeColors.current.secondary, CircleShape)) },
             )
         }
@@ -313,6 +318,7 @@ private fun GrownUpMenuPapelBreakPreview() {
                 onKeepWatching = {},
                 onSwitchKid = {},
                 onRules = {},
+                onStats = {},
                 onSettings = {},
             )
         }
@@ -337,6 +343,7 @@ private fun GrownUpMenuMandarinaUnlimitedPreview() {
                 onKeepWatching = {},
                 onSwitchKid = {},
                 onRules = {},
+                onStats = {},
                 onSettings = {},
             )
         }
@@ -361,6 +368,7 @@ private fun GrownUpMenuCarameloPreview() {
                 onKeepWatching = {},
                 onSwitchKid = {},
                 onRules = {},
+                onStats = {},
                 onSettings = {},
             )
         }

@@ -66,6 +66,7 @@ class GrownUpMenuPageTest {
                         onKeepWatching = { clicks += "keep" },
                         onSwitchKid = { clicks += "switch" },
                         onRules = { clicks += "rules" },
+                        onStats = { clicks += "stats" },
                         onSettings = { clicks += "settings" },
                     )
                 }
@@ -89,25 +90,41 @@ class GrownUpMenuPageTest {
         rule.onNodeWithText("Lucy").assertExists()
         rule.onNodeWithText("45 minutes left today").assertExists()
         rule.onNodeWithText("20 minutes left in this sitting").assertExists()
-        rule.onNodeWithText("Lucy's rules").assertExists()
+        rule.onNodeWithText("Rules").assertExists()
+        rule.onNodeWithText("Stats").assertExists()
         rule.onNodeWithText("Settings").assertExists()
+        // One kid: no Switch kid, and no card of the kid's day any more (spec 033)
         rule.onNodeWithTag(GrownUpMenuTags.SWITCH_KID).assertDoesNotExist()
+        rule.onNodeWithText("Lucy's day").assertDoesNotExist()
+        rule.onNodeWithText("How Lucy is doing today and this week").assertExists()
+        rule.onNodeWithText("More minutes for Lucy today").assertExists()
         rule.onNodeWithTag(GrownUpMenuTags.ADD_TIME).assertIsFocused()
         // No Leave kids mode (spec 006)
         rule.onNodeWithText("Leave kids mode").assertDoesNotExist()
     }
 
     @Test
-    fun `cards keep 006's order and OK opens the focused one`() {
+    fun `with two kids the cards are Add time, Rules, Stats, Switch kid and Settings, and OK opens the focused one`() {
         show(canSwitchKid = true)
         press(GrownUpMenuTags.ADD_TIME, listOf(Key.DirectionRight))
-        rule.onNodeWithTag(GrownUpMenuTags.SWITCH_KID).assertIsFocused()
-        press(GrownUpMenuTags.SWITCH_KID, listOf(Key.DirectionRight))
         rule.onNodeWithTag(GrownUpMenuTags.RULES).assertIsFocused()
         press(GrownUpMenuTags.RULES, listOf(Key.DirectionRight))
+        rule.onNodeWithTag(GrownUpMenuTags.STATS).assertIsFocused()
+        press(GrownUpMenuTags.STATS, listOf(Key.DirectionCenter))
+        press(GrownUpMenuTags.STATS, listOf(Key.DirectionRight))
+        rule.onNodeWithTag(GrownUpMenuTags.SWITCH_KID).assertIsFocused()
+        press(GrownUpMenuTags.SWITCH_KID, listOf(Key.DirectionRight))
         rule.onNodeWithTag(GrownUpMenuTags.SETTINGS).assertIsFocused()
         press(GrownUpMenuTags.SETTINGS, listOf(Key.DirectionCenter))
-        assertEquals(listOf("settings"), clicks)
+        assertEquals(listOf("stats", "settings"), clicks)
+        rule.onNodeWithText("How each kid is doing today and this week").assertExists()
+    }
+
+    @Test
+    fun `with one kid Stats is followed by Settings`() {
+        show()
+        press(GrownUpMenuTags.ADD_TIME, listOf(Key.DirectionRight, Key.DirectionRight, Key.DirectionRight))
+        rule.onNodeWithTag(GrownUpMenuTags.SETTINGS).assertIsFocused()
     }
 
     @Test
@@ -156,7 +173,8 @@ class GrownUpMenuPageTest {
         rule.onNodeWithText("Menú de adultos").assertExists()
         rule.onNodeWithText("Dar más tiempo").assertExists()
         rule.onNodeWithText("Cambiar de niño").assertExists()
-        rule.onNodeWithText("Las normas de Lucy").assertExists()
+        rule.onNodeWithText("Normas").assertExists()
+        rule.onNodeWithText("Estadísticas").assertExists()
         rule.onNodeWithText("Ajustes").assertExists()
         rule.onNodeWithText("Volver con Lucy").assertDoesNotExist()
     }

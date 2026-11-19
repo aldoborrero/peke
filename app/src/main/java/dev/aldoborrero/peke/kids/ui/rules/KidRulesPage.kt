@@ -1,63 +1,53 @@
 package dev.aldoborrero.peke.kids.ui.rules
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.setup.KidAvatar
-import dev.aldoborrero.peke.kids.timer.AllowedHours
 import dev.aldoborrero.peke.kids.ui.Chevron
-import dev.aldoborrero.peke.kids.ui.GrownUpRow
 import dev.aldoborrero.peke.kids.ui.GrownUpRowShape
 import dev.aldoborrero.peke.kids.ui.GrownUpSurface
 import dev.aldoborrero.peke.kids.ui.KidsParentGate
@@ -73,12 +63,7 @@ import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.theme.pekeFocus
 import dev.aldoborrero.peke.ui.tryRequestFocus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
+import java.util.UUID
 
 /**
  * Test tags of [KidRulesContent]
@@ -86,18 +71,32 @@ import java.time.format.FormatStyle
 object KidRulesTags {
     const val DAILY = "rules-daily"
     const val DAILY_VALUE = "rules-daily-value"
+    const val DAILY_SAYS = "rules-daily-says"
     const val SITTING = "rules-sitting"
     const val SITTING_VALUE = "rules-sitting-value"
+    const val SITTING_SAYS = "rules-sitting-says"
     const val AUTOPLAY = "rules-autoplay"
     const val AUTOPLAY_VALUE = "rules-autoplay-value"
+    const val AUTOPLAY_SAYS = "rules-autoplay-says"
     const val SEARCH = "rules-search"
     const val SEARCH_VALUE = "rules-search-value"
+    const val SEARCH_SAYS = "rules-search-says"
+
+    /**
+     * The kid switch's chip of the kid at [index] in this TV's order
+     */
+    fun kid(index: Int) = "rules-kid-$index"
 }
 
 /**
- * "{Kid}'s rules" as on board 10 (spec 021 D7): the current kid only, with Daily time, Time in a row (with the plugin's
- * sitting limit), Autoplay and Search changed here as stepper rows, the only focus stops; the rest as text, and where
- * to change it (spec 006 US3, US4; spec 030)
+ * A kid's picture for the page, [px] board pixels round
+ */
+typealias RulesAvatar = @Composable (kid: RulesKid, px: Int) -> Unit
+
+/**
+ * "Rules" (spec 033): the rules a grown-up changes on the TV, full width, each with its icon, a sentence that says
+ * what the value means for the kid, and its stepper; the only focus stops but the kid switch. Nothing read only: what
+ * Jellyfin decides and the dashboard stay off the TV (spec 033 D1).
  */
 @Composable
 fun KidRulesPage(
@@ -105,24 +104,23 @@ fun KidRulesPage(
     viewModel: KidRulesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    val imageUrl = state.kidId?.let { LocalImageUrlService.current.getUserImageUrl(it) }
+    val images = LocalImageUrlService.current
     GrownUpSurface(modifier) {
         KidRulesContent(
             state = state,
             onSave = viewModel::save,
-            avatar =
-                state.kidId?.let { id ->
-                    {
-                        KidAvatar(
-                            id = id,
-                            name = state.kidName,
-                            imageUrl = imageUrl,
-                            alpha = 1f,
-                            initialStyle = boardText(32, FontWeight.W900),
-                            modifier = Modifier.size(72.cpx),
-                        )
-                    }
-                },
+            onSelectKid = viewModel::select,
+            avatar = { kid, px ->
+                KidAvatar(
+                    id = kid.id,
+                    name = kid.name,
+                    imageUrl = images.getUserImageUrl(kid.id),
+                    avatar = kid.avatar,
+                    alpha = 1f,
+                    initialStyle = boardText(px * 4 / 9, FontWeight.W900),
+                    modifier = Modifier.size(px.cpx),
+                )
+            },
         )
     }
 
@@ -139,25 +137,45 @@ fun KidRulesPage(
  * The page without its view model
  *
  * @param onSave OK on a rule's row with a value other than the saved one
+ * @param onSelectKid OK on another kid in the kid switch
+ * @param avatar a kid's picture; without it, their initial
  */
 @Composable
 fun KidRulesContent(
     state: KidRulesState,
     onSave: (RuleChange) -> Unit,
     modifier: Modifier = Modifier,
-    avatar: (@Composable () -> Unit)? = null,
+    onSelectKid: (UUID) -> Unit = {},
+    avatar: RulesAvatar? = null,
 ) {
     val colors = LocalPekeColors.current
     val name = state.kidName.orEmpty()
+    val shownKid = state.kids.firstOrNull { it.id == state.kidId } ?: state.kidId?.let { RulesKid(it, state.kidName) }
+    val switchFocus = remember(state.kids.size) { List(state.kids.size) { FocusRequester() } }
+    val showSwitch = state.kids.size > 1
+    val toSwitch: (() -> Unit)? =
+        if (showSwitch) {
+            {
+                val at = state.kids.indexOfFirst { it.id == state.kidId }.coerceAtLeast(0)
+                switchFocus[at].tryRequestFocus()
+            }
+        } else {
+            null
+        }
+    val ruleFocus = remember { mutableStateOf<FocusRequester?>(null) }
+    // The row OK was last pressed on, which says "Saved" by its name (board "Normas: guardado")
+    var lastSaved by remember(state.kidId) { mutableStateOf<String?>(null) }
     Column(
-        verticalArrangement = Arrangement.spacedBy(24.cpx),
+        verticalArrangement = Arrangement.spacedBy(30.cpx),
         modifier = modifier.fillMaxSize().padding(SafeArea.page),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(20.cpx), verticalAlignment = Alignment.CenterVertically) {
-            if (avatar != null) {
-                Box(Modifier.size(72.cpx).background(colors.surface, CircleShape), contentAlignment = Alignment.Center) { avatar() }
+            if (shownKid != null) {
+                Box(Modifier.size(72.cpx).background(colors.surface, CircleShape), contentAlignment = Alignment.Center) {
+                    KidPicture(shownKid, 72, avatar)
+                }
             }
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(
                     text = if (name.isBlank()) stringResource(R.string.kids_rules) else stringResource(R.string.kids_rules_of, name),
                     style = boardText(40, FontWeight.W900),
@@ -169,364 +187,396 @@ fun KidRulesContent(
                     color = colors.textSecondary,
                 )
             }
+            if (showSwitch) {
+                KidSwitch(
+                    kids = state.kids,
+                    shownId = state.kidId,
+                    focus = switchFocus,
+                    onSelect = onSelectKid,
+                    onDown = { ruleFocus.value?.tryRequestFocus() },
+                    avatar = avatar,
+                )
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(28.cpx), modifier = Modifier.weight(1f)) {
-            val scroll = rememberScrollState()
-            Column(verticalArrangement = Arrangement.spacedBy(20.cpx), modifier = Modifier.weight(1f)) {
-                state.profile?.let { profile -> RuleEditors(state, profile, scroll, onSave) }
-                // Text only: focus never stops on these (F-K4). Up on the first rule row and Down on the last scroll
-                // them, so a long list (Spanish, many picks) is still all readable
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.cpx),
-                    modifier = Modifier.weight(1f).verticalScroll(scroll, enabled = false),
-                ) {
-                    ReadOnlyRules(state)
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(16.cpx), modifier = Modifier.width(430.cpx)) {
-                JellyfinCard(state, name)
-                Spacer(Modifier.weight(1f))
-                SaveStatus(state)
-            }
+        state.profile?.let { profile ->
+            RuleEditors(
+                state = state,
+                profile = profile,
+                savedRow = lastSaved.takeIf { state.saved },
+                onSave = { row, change ->
+                    lastSaved = row
+                    onSave(change)
+                },
+                onUpFromFirst = toSwitch,
+                onFirst = { ruleFocus.value = it },
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.weight(1f))
+            SaveStatus(state)
         }
     }
 }
 
 /**
- * The rules changed on the TV, in order: Daily time (with the plugin's allowance), Time in a row (with its sitting
- * limit), Autoplay and Search. Up and Down move between them; past the first or last they scroll the text below.
+ * The kid switch, variant (a) of the canvas (spec 033 D5): one chip per kid of this TV, the kid shown marked. Left and
+ * Right move between them, OK shows that kid's rules, Down returns to the rules. Variant (b), a "Change" button, would
+ * replace only this.
+ */
+@Composable
+private fun KidSwitch(
+    kids: List<RulesKid>,
+    shownId: UUID?,
+    focus: List<FocusRequester>,
+    onSelect: (UUID) -> Unit,
+    onDown: () -> Unit,
+    avatar: RulesAvatar?,
+) {
+    val colors = LocalPekeColors.current
+    Row(horizontalArrangement = Arrangement.spacedBy(20.cpx), verticalAlignment = Alignment.CenterVertically) {
+        kids.forEachIndexed { index, kid ->
+            val shown = kid.id == shownId
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.cpx),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier
+                        .testTag(KidRulesTags.kid(index))
+                        .focusRequester(focus[index])
+                        .pekeFocus(CircleShape, grow = false)
+                        .height(56.cpx)
+                        .background(if (shown) colors.text else colors.surface, CircleShape)
+                        .onKeyEvent {
+                            when {
+                                isEnterKey(it) -> {
+                                    if (it.type == KeyEventType.KeyUp) onSelect(kid.id)
+                                    true
+                                }
+
+                                it.key == Key.DirectionDown -> {
+                                    if (it.type == KeyEventType.KeyDown) onDown()
+                                    true
+                                }
+
+                                // Nothing above the header
+                                it.key == Key.DirectionUp -> {
+                                    true
+                                }
+
+                                else -> {
+                                    false
+                                }
+                            }
+                        }.focusable()
+                        .padding(start = 8.cpx, end = 22.cpx),
+            ) {
+                KidPicture(kid, 40, avatar)
+                Text(
+                    text = kid.name.orEmpty(),
+                    style = boardText(20, FontWeight.W900),
+                    color = if (shown) colors.background else colors.textSecondary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun KidPicture(
+    kid: RulesKid,
+    px: Int,
+    avatar: RulesAvatar?,
+) {
+    if (avatar != null) {
+        avatar(kid, px)
+    } else {
+        val colors = LocalPekeColors.current
+        Box(Modifier.size(px.cpx).background(colors.secondary, CircleShape), contentAlignment = Alignment.Center) {
+            Text(
+                text = kid.name?.take(1).orEmpty(),
+                style = boardText(px * 4 / 9, FontWeight.W900),
+                color = colors.background,
+            )
+        }
+    }
+}
+
+/**
+ * The rules changed on the TV, in order: Daily time (with the plugin's allowance), Breaks (with its sitting limit),
+ * Next episode by itself and Search. Up and Down move between them; Up on the first goes to the kid switch.
+ *
+ * @param savedRow the test tag of the row just saved, which says so by its name
+ * @param onSave OK on a row: its tag and the change
  */
 @Composable
 private fun RuleEditors(
     state: KidRulesState,
     profile: KidProfile,
-    scroll: ScrollState,
-    onSave: (RuleChange) -> Unit,
+    savedRow: String?,
+    onSave: (String, RuleChange) -> Unit,
+    onUpFromFirst: (() -> Unit)?,
+    onFirst: (FocusRequester) -> Unit,
 ) {
-    val context = LocalContext.current
+    val colors = LocalPekeColors.current
     val daily = state.allowanceSupported
     val sitting = state.sessionLimitEditable
     val count = 2 + (if (daily) 1 else 0) + (if (sitting) 1 else 0)
     val focus = remember(count) { List(count) { FocusRequester() } }
-    LaunchedEffect(count) { focus.first().tryRequestFocus() }
-    val nav = StepperNav(focus, scroll, rememberCoroutineScope())
+    LaunchedEffect(count) {
+        onFirst(focus.first())
+        focus.first().tryRequestFocus()
+    }
+    val nav = StepperNav(focus, onUpFromFirst)
+    val kid = state.kidId
     var at = 0
-    Column(verticalArrangement = Arrangement.spacedBy(12.cpx)) {
+    Column(verticalArrangement = Arrangement.spacedBy(18.cpx)) {
         if (daily) {
             StepperRow(
+                icon = PekeIcon.TIME_LEFT,
+                tint = colors.time,
                 label = stringResource(R.string.kids_daily_allowance),
-                line = stringResource(R.string.kids_rules_daily_line),
+                says = { minutes ->
+                    minutes?.let { stringResource(R.string.kids_rules_daily_says, duration(it)) }
+                        ?: stringResource(R.string.kids_rules_daily_no_limit)
+                },
                 saved = profile.dailyAllowanceMinutes,
+                kid = kid,
                 options = remember(profile.dailyAllowanceMinutes) { KidRulesViewModel.dailyTimeOptions(profile.dailyAllowanceMinutes) },
-                text = { dailyTimeLabel(it) },
-                tag = KidRulesTags.DAILY,
-                valueTag = KidRulesTags.DAILY_VALUE,
+                text = { minutesLabel(it) },
+                tags = Triple(KidRulesTags.DAILY, KidRulesTags.DAILY_VALUE, KidRulesTags.DAILY_SAYS),
+                justSaved = savedRow == KidRulesTags.DAILY,
                 saving = state.saving,
                 nav = nav,
                 index = at++,
-                onSave = { onSave(RuleChange.DailyTime(it)) },
+                onSave = { onSave(KidRulesTags.DAILY, RuleChange.DailyTime(it)) },
             )
         }
         if (sitting) {
             StepperRow(
-                label = stringResource(R.string.kids_rules_in_a_row),
-                line =
-                    state.breakMinutes?.let { stringResource(R.string.kids_rules_sitting_line_break, it) }
-                        ?: stringResource(R.string.kids_rules_sitting_line),
-                saved = profile.sessionLimitMinutes,
-                options = remember(profile.sessionLimitMinutes) { KidRulesViewModel.sittingOptions(profile.sessionLimitMinutes) },
-                text = { minutes ->
-                    minutes?.let { pluralStringResource(R.plurals.kids_minutes_option, it, it) } ?: stringResource(R.string.no_limit)
+                icon = PekeIcon.BREAK,
+                tint = colors.secondary,
+                label = stringResource(R.string.kids_rules_breaks),
+                says = { minutes ->
+                    when {
+                        minutes == null -> stringResource(R.string.kids_rules_breaks_no_limit)
+                        state.breakMinutes != null -> stringResource(R.string.kids_rules_breaks_says, minutes, state.breakMinutes)
+                        else -> stringResource(R.string.kids_rules_breaks_says_no_break, minutes)
+                    }
                 },
-                tag = KidRulesTags.SITTING,
-                valueTag = KidRulesTags.SITTING_VALUE,
+                saved = profile.sessionLimitMinutes,
+                kid = kid,
+                options = remember(profile.sessionLimitMinutes) { KidRulesViewModel.sittingOptions(profile.sessionLimitMinutes) },
+                text = { minutesLabel(it) },
+                tags = Triple(KidRulesTags.SITTING, KidRulesTags.SITTING_VALUE, KidRulesTags.SITTING_SAYS),
+                justSaved = savedRow == KidRulesTags.SITTING,
                 saving = state.saving,
                 nav = nav,
                 index = at++,
-                onSave = { onSave(RuleChange.SittingLimit(it)) },
+                onSave = { onSave(KidRulesTags.SITTING, RuleChange.SittingLimit(it)) },
             )
         }
         val autoplay = if (profile.autoplayEnabled) profile.validAutoplayCap else null
         StepperRow(
+            icon = PekeIcon.NEXT_EPISODE,
+            tint = colors.primary,
             label = stringResource(R.string.kids_rules_autoplay),
-            line = stringResource(R.string.kids_rules_autoplay_line),
+            says = { cap ->
+                when (cap) {
+                    null -> stringResource(R.string.kids_rules_autoplay_off_says)
+                    KidProfile.UNLIMITED_AUTOPLAY_CAP -> stringResource(R.string.kids_rules_autoplay_no_limit)
+                    else -> pluralStringResource(R.plurals.kids_rules_autoplay_says, cap, cap)
+                }
+            },
             saved = autoplay,
+            kid = kid,
             options = remember(state.unlimitedAutoplay, autoplay) { KidRulesViewModel.autoplayOptions(state.unlimitedAutoplay, autoplay) },
             text = { cap ->
                 when (cap) {
-                    null -> stringResource(R.string.kids_rules_autoplay_off)
+                    null -> stringResource(R.string.kids_rules_value_no)
                     KidProfile.UNLIMITED_AUTOPLAY_CAP -> stringResource(R.string.no_limit)
-                    else -> pluralStringResource(R.plurals.kids_rules_autoplay_episodes, cap, cap)
+                    else -> pluralStringResource(R.plurals.kids_rules_value_in_a_row, cap, cap)
                 }
             },
-            tag = KidRulesTags.AUTOPLAY,
-            valueTag = KidRulesTags.AUTOPLAY_VALUE,
+            tags = Triple(KidRulesTags.AUTOPLAY, KidRulesTags.AUTOPLAY_VALUE, KidRulesTags.AUTOPLAY_SAYS),
+            justSaved = savedRow == KidRulesTags.AUTOPLAY,
             saving = state.saving,
             nav = nav,
             index = at++,
-            onSave = { onSave(RuleChange.Autoplay(it)) },
+            onSave = { onSave(KidRulesTags.AUTOPLAY, RuleChange.Autoplay(it)) },
         )
-        val voice =
-            state.voiceSearch &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         StepperRow(
+            icon = PekeIcon.SEARCH,
+            tint = colors.tertiary,
             label = stringResource(R.string.kids_rules_search),
-            line = stringResource(if (voice) R.string.kids_rules_voice_on else R.string.kids_rules_voice_off),
+            says = { stringResource(if (it) R.string.kids_rules_search_says else R.string.kids_rules_search_off_says) },
             saved = profile.searchAllowed,
+            kid = kid,
             options = KidRulesViewModel.SEARCH_OPTIONS,
-            text = { stringResource(if (it) R.string.kids_rules_search_on else R.string.kids_rules_search_off) },
-            tag = KidRulesTags.SEARCH,
-            valueTag = KidRulesTags.SEARCH_VALUE,
+            text = { stringResource(if (it) R.string.kids_rules_value_yes else R.string.kids_rules_value_no) },
+            tags = Triple(KidRulesTags.SEARCH, KidRulesTags.SEARCH_VALUE, KidRulesTags.SEARCH_SAYS),
+            justSaved = savedRow == KidRulesTags.SEARCH,
             saving = state.saving,
             nav = nav,
             index = at,
-            onSave = { onSave(RuleChange.Search(it)) },
+            onSave = { onSave(KidRulesTags.SEARCH, RuleChange.Search(it)) },
         )
     }
 }
 
 /**
- * Up and Down between the rule rows: [focus] holds one requester per row, in order
+ * Up and Down between the rule rows: [focus] holds one requester per row, in order; Up on the first calls
+ * [onUpFromFirst], the kid switch, when there is one
  */
 private class StepperNav(
     val focus: List<FocusRequester>,
-    val scroll: ScrollState,
-    val scope: CoroutineScope,
+    val onUpFromFirst: (() -> Unit)?,
 ) {
     fun move(
         from: Int,
         down: Boolean,
     ) {
         val to = if (down) from + 1 else from - 1
-        if (to in focus.indices) {
-            focus[to].tryRequestFocus()
-        } else {
-            scope.launch { scroll.animateScrollBy(if (down) SCROLL_STEP else -SCROLL_STEP) }
+        when {
+            to in focus.indices -> focus[to].tryRequestFocus()
+            !down -> onUpFromFirst?.invoke()
         }
     }
 }
 
 /**
- * A rule as board 10's stepper: Left and Right change the value shown, held at the ends; OK saves it. Leaving the row
- * or the page with a value not saved leaves the rule as it was (spec 021 D7, spec 030 D3).
+ * A rule as the "Normas" boards' stepper, full width with its icon (spec 033 D2): Left and Right change the value
+ * shown, held at the ends with the arrow dimmed; OK saves it, and "Saved" shows by its name. The sentence under the
+ * name follows the value shown, and "OK saves · Back leaves it as it was" sits under the row while it isn't saved.
+ * Leaving the row, the page or the kid with a value not saved leaves the rule as it was (spec 021 D7, spec 030 D3).
+ *
+ * @param tags the row's, its value's and its sentence's test tags
  */
 @Composable
 private fun <T> StepperRow(
+    icon: PekeIcon,
+    tint: Color,
     label: String,
-    line: String,
+    says: @Composable (T) -> String,
     saved: T,
+    kid: UUID?,
     options: List<T>,
     text: @Composable (T) -> String,
-    tag: String,
-    valueTag: String,
+    tags: Triple<String, String, String>,
+    justSaved: Boolean,
     saving: Boolean,
     nav: StepperNav,
     index: Int,
     onSave: (T) -> Unit,
 ) {
     val colors = LocalPekeColors.current
-    var shown by remember(saved) { mutableStateOf(saved) }
+    var shown by remember(saved, kid) { mutableStateOf(saved) }
+    var focused by remember { mutableStateOf(false) }
     val at = options.indexOf(shown).coerceAtLeast(0)
-    GrownUpRow(
-        label = label,
-        line = if (shown != saved) stringResource(R.string.kids_rules_unsaved) else line,
-        modifier =
-            Modifier
-                .testTag(tag)
-                .focusRequester(nav.focus[index])
-                .pekeFocus(GrownUpRowShape, grow = false)
-                .onFocusChanged { if (!it.isFocused) shown = saved }
-                .onKeyEvent {
-                    when {
-                        isEnterKey(it) -> {
-                            if (it.type == KeyEventType.KeyUp && !saving && shown != saved) onSave(shown)
-                            true
-                        }
-
-                        it.key == Key.DirectionLeft -> {
-                            if (it.type == KeyEventType.KeyDown) shown = options[(at - 1).coerceAtLeast(0)]
-                            true
-                        }
-
-                        it.key == Key.DirectionRight -> {
-                            if (it.type == KeyEventType.KeyDown) shown = options[(at + 1).coerceAtMost(options.lastIndex)]
-                            true
-                        }
-
-                        it.key == Key.DirectionDown || it.key == Key.DirectionUp -> {
-                            if (it.type == KeyEventType.KeyDown) nav.move(index, down = it.key == Key.DirectionDown)
-                            true
-                        }
-
-                        else -> {
-                            false
-                        }
-                    }
-                }.focusable(),
-    ) {
-        Chevron(-90f, color = if (at > 0) colors.textSecondary else colors.textSecondary.copy(alpha = .35f), side = 32.cpx)
-        Text(
-            text = text(shown),
-            style = boardText(22, FontWeight.W900),
-            color = colors.time,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(min = 120.cpx).testTag(valueTag),
-        )
-        Chevron(
-            90f,
-            color = if (at < options.lastIndex) colors.textSecondary else colors.textSecondary.copy(alpha = .35f),
-            side = 32.cpx,
-        )
-    }
-}
-
-private const val SCROLL_STEP = 160f
-
-/**
- * A rule shown as text: its name, and its value at the end in "time"
- */
-@Composable
-internal fun RuleRow(
-    label: String,
-    value: String,
-) {
-    val colors = LocalPekeColors.current
-    GrownUpRow(label = label) {
-        Text(
-            text = value,
-            style = boardText(20, FontWeight.W900),
-            color = colors.time,
-            textAlign = TextAlign.End,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 360.cpx),
-        )
-    }
-}
-
-@Composable
-private fun ReadOnlyRules(state: KidRulesState) {
-    val profile: KidProfile? = state.profile
-    val policy = state.policy
-    if (profile != null && state.sessionLimitSupported && !state.sessionLimitEditable) {
-        // Sent by a plugin that doesn't advertise it: shown, not changed (spec 030 FR-003)
-        val limit = profile.sessionLimitMinutes
-        RuleRow(
-            stringResource(R.string.kids_rules_in_a_row),
-            when {
-                limit == null -> stringResource(R.string.no_limit)
-                state.breakMinutes != null -> stringResource(R.string.kids_rules_in_a_row_break, limit, state.breakMinutes)
-                else -> stringResource(R.string.kids_rules_in_a_row_value, limit)
-            },
-        )
-    }
-    if (policy != null) {
-        val windows = remember(policy.schedules) { AllowedHours.windows(policy.schedules, LocalDate.now()) }
-        RuleRow(
-            stringResource(R.string.kids_rules_allowed_hours),
-            when {
-                policy.schedules.isEmpty() -> stringResource(R.string.kids_rules_any_time)
-                windows.isEmpty() -> stringResource(R.string.kids_rules_not_today)
-                else -> stringResource(R.string.kids_rules_hours_today, windows.joinToString(", ") { hours(it) })
-            },
-        )
-    }
-    if (profile != null) {
-        if (state.liveTvSupported) {
-            RuleRow(
-                stringResource(R.string.kids_rules_live_tv),
-                when {
-                    policy != null && !policy.liveTvAccess -> stringResource(R.string.kids_rules_live_tv_off)
-                    state.channels.isEmpty() -> stringResource(R.string.kids_live_tv_none)
-                    else -> state.channels.joinToString(", ")
-                },
-            )
-        }
-        RuleRow(
-            stringResource(R.string.kids_rules_picks),
-            when {
-                profile.pickedItemIds.isEmpty() -> {
-                    stringResource(R.string.kids_rules_picks_none)
-                }
-
-                state.pickNames.isEmpty() -> {
-                    pluralStringResource(R.plurals.kids_rules_picks_count, profile.pickedItemIds.size, profile.pickedItemIds.size)
-                }
-
-                else -> {
-                    state.pickNames.joinToString(", ")
-                }
-            },
-        )
-    }
-}
-
-/**
- * Board 10's "Set in the Jellyfin dashboard": what Jellyfin decides, then where the rest is changed
- */
-@Composable
-private fun ColumnScope.JellyfinCard(
-    state: KidRulesState,
-    name: String,
-) {
-    val colors = LocalPekeColors.current
-    val policy = state.policy
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.cpx),
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(colors.surface, RoundedCornerShape(26.cpx))
-                .padding(horizontal = 22.cpx, vertical = 20.cpx),
-    ) {
-        if (policy != null) {
-            Text(stringResource(R.string.kids_rules_jellyfin), style = boardText(20, FontWeight.W900), color = colors.text)
-            val rating =
-                policy.maxParentalRating?.let { stringResource(R.string.kids_restriction_max_rating, it) }
-                    ?: stringResource(R.string.kids_restriction_no_max_rating)
-            val unrated =
-                stringResource(
-                    if (policy.blocksUnrated) R.string.kids_restriction_unrated_blocked else R.string.kids_restriction_unrated_allowed,
-                )
-            val libraries =
-                if (policy.allLibraries) {
-                    stringResource(R.string.kids_restriction_all_libraries)
-                } else {
-                    pluralStringResource(R.plurals.kids_restriction_some_libraries, policy.libraryCount, policy.libraryCount)
-                }
-            Text(
-                listOf(rating, unrated, libraries).joinToString(" · "),
-                style = boardText(17, FontWeight.W800),
-                color = colors.textSecondary,
-            )
-            if (policy.maxParentalRating == null && !policy.blocksUnrated) {
-                Text(stringResource(R.string.kids_restrictions_warning), style = boardText(17, FontWeight.W800), color = colors.time)
-            }
-        }
-        Text(stringResource(R.string.kids_rules_where, name), style = boardText(17, FontWeight.W800), color = colors.textSecondary)
-    }
-    state.dashboardUrl?.let { url ->
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.cpx),
+    Column {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(22.cpx),
+            verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .background(colors.surface, RoundedCornerShape(26.cpx))
-                    .padding(horizontal = 22.cpx, vertical = 20.cpx),
+                    .testTag(tags.first)
+                    .focusRequester(nav.focus[index])
+                    .pekeFocus(GrownUpRowShape, grow = false)
+                    .background(colors.surface, GrownUpRowShape)
+                    .onFocusChanged {
+                        focused = it.isFocused
+                        if (!it.isFocused) shown = saved
+                    }.onKeyEvent {
+                        when {
+                            isEnterKey(it) -> {
+                                if (it.type == KeyEventType.KeyUp && !saving && shown != saved) onSave(shown)
+                                true
+                            }
+
+                            it.key == Key.DirectionLeft -> {
+                                if (it.type == KeyEventType.KeyDown) shown = options[(at - 1).coerceAtLeast(0)]
+                                true
+                            }
+
+                            it.key == Key.DirectionRight -> {
+                                if (it.type == KeyEventType.KeyDown) shown = options[(at + 1).coerceAtMost(options.lastIndex)]
+                                true
+                            }
+
+                            it.key == Key.DirectionDown || it.key == Key.DirectionUp -> {
+                                if (it.type == KeyEventType.KeyDown) nav.move(index, down = it.key == Key.DirectionDown)
+                                true
+                            }
+
+                            else -> {
+                                false
+                            }
+                        }
+                    }.focusable()
+                    .padding(horizontal = 22.cpx, vertical = 12.cpx),
         ) {
-            Text(stringResource(R.string.kids_rules_dashboard, name), style = boardText(20, FontWeight.W900), color = colors.text)
-            Text(url, style = boardText(17, FontWeight.W800), color = colors.secondary)
+            Box(
+                Modifier.size(60.cpx).background(colors.background, RoundedCornerShape(18.cpx)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(painterResource(icon.outline), contentDescription = null, tint = tint, modifier = Modifier.size(34.cpx))
+            }
+            Column(Modifier.weight(1f)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.cpx), verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = label, style = boardText(24, FontWeight.W900), color = colors.text)
+                    if (justSaved) {
+                        Text(
+                            text = stringResource(R.string.kids_saved),
+                            style = boardText(16, FontWeight.W900),
+                            color = colors.background,
+                            modifier =
+                                Modifier
+                                    .background(colors.secondary, CircleShape)
+                                    .padding(horizontal = 14.cpx, vertical = 2.cpx),
+                        )
+                    }
+                }
+                Text(
+                    text = says(shown),
+                    style = boardText(18, FontWeight.W800),
+                    color = if (focused) colors.text else colors.textSecondary,
+                    modifier = Modifier.testTag(tags.third),
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.widthIn(min = 250.cpx),
+            ) {
+                Chevron(-90f, color = if (at > 0) colors.textSecondary else colors.textSecondary.copy(alpha = .3f), side = 32.cpx)
+                Text(
+                    text = text(shown),
+                    style = boardText(24, FontWeight.W900),
+                    color = colors.time,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.cpx).testTag(tags.second),
+                )
+                Chevron(
+                    90f,
+                    color = if (at < options.lastIndex) colors.textSecondary else colors.textSecondary.copy(alpha = .3f),
+                    side = 32.cpx,
+                )
+            }
+        }
+        if (shown != saved) {
             Text(
-                stringResource(R.string.kids_rules_dashboard_pick, name),
-                style = boardText(17, FontWeight.W800),
-                color = colors.textSecondary,
+                text = stringResource(R.string.kids_rules_unsaved),
+                style = boardText(18, FontWeight.W900),
+                color = colors.time,
+                modifier = Modifier.padding(start = 104.cpx, top = 10.cpx),
             )
         }
     }
 }
 
 /**
- * Saving, saved or why not, as an S5 pill
+ * Saving or why a save failed, as an S5 pill; "Saved" shows on its row
  */
 @Composable
 private fun SaveStatus(state: KidRulesState) {
@@ -544,31 +594,40 @@ private fun SaveStatus(state: KidRulesState) {
         state.saving -> {
             StatusPill(icon = PekeIcon.TIME_LEFT, tint = colors.time, text = stringResource(R.string.kids_saving))
         }
-
-        state.saved -> {
-            StatusPill(icon = PekeIcon.WATCHED, tint = colors.secondary, text = stringResource(R.string.kids_saved))
-        }
     }
 }
 
 /**
- * An allowed window in minutes of the day, on the TV's clock format
+ * A stepper's minutes as the boards write them ("45 min", "1 h", "1 h 30"), or No limit (spec 033 D3)
  */
-private fun hours(window: IntRange): String {
-    val format = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-
-    fun at(minute: Int) = if (minute >= 24 * 60) LocalTime.MIDNIGHT else LocalTime.of(minute / 60, minute % 60)
-    return at(window.first).format(format) + "–" + at(window.last).format(format)
-}
-
 @Composable
-private fun dailyTimeLabel(minutes: Int?): String =
-    minutes?.let { pluralStringResource(R.plurals.kids_minutes_option, it, it) } ?: stringResource(R.string.kids_unlimited)
+private fun minutesLabel(minutes: Int?): String =
+    when {
+        minutes == null -> stringResource(R.string.no_limit)
+        minutes < 60 -> stringResource(R.string.kids_rules_value_minutes, minutes)
+        minutes % 60 == 0 -> stringResource(R.string.kids_rules_value_hours, minutes / 60)
+        else -> stringResource(R.string.kids_rules_value_hours_minutes, minutes / 60, minutes % 60)
+    }
+
+/**
+ * [minutes] said in a sentence: "45 minutes", "1 hour", "1 h 30 min"
+ */
+@Composable
+internal fun duration(minutes: Int): String =
+    when {
+        minutes < 60 -> pluralStringResource(R.plurals.kids_duration_minutes, minutes, minutes)
+        minutes % 60 == 0 -> pluralStringResource(R.plurals.kids_duration_hours, minutes / 60, minutes / 60)
+        else -> stringResource(R.string.kids_duration_hours_minutes, minutes / 60, minutes % 60)
+    }
+
+private val previewKids = listOf(RulesKid(UUID(0, 1), "Lucy"), RulesKid(UUID(0, 2), "Max"))
 
 private val previewState =
     KidRulesState(
         loading = false,
+        kidId = previewKids.first().id,
         kidName = "Lucy",
+        kids = previewKids,
         profile =
             KidProfile(
                 userId = 1,
@@ -579,21 +638,8 @@ private val previewState =
                 sessionLimitMinutes = 30,
             ),
         allowanceSupported = true,
-        sessionLimitSupported = true,
         sessionLimitEditable = true,
-        liveTvSupported = true,
         breakMinutes = 15,
-        policy =
-            PolicySummary(
-                maxParentalRating = 7,
-                blocksUnrated = true,
-                allLibraries = false,
-                libraryCount = 2,
-                liveTvAccess = true,
-                schedules = emptyList(),
-            ),
-        channels = listOf("PekeTV", "PekeTV Classics"),
-        dashboardUrl = "https://jellyfin.home/web/#/configurationpage?name=Kids",
         saved = true,
     )
 
@@ -615,9 +661,9 @@ private fun KidRulesPapelPreview() {
 
 @Preview(device = "spec:width=960dp,height=540dp", uiMode = UI_MODE_TYPE_TELEVISION)
 @Composable
-private fun KidRulesMandarinaPreview() {
+private fun KidRulesMandarinaOneKidPreview() {
     PekeTheme(appThemeColors = AppThemeColors.MANDARINA) {
-        GrownUpSurface { KidRulesContent(previewState, {}) }
+        GrownUpSurface { KidRulesContent(previewState.copy(kids = previewKids.take(1)), {}) }
     }
 }
 

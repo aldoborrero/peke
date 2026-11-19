@@ -75,7 +75,7 @@ class BackToMenuTest {
                                 onSwitchKid = {},
                                 onRules = {},
                                 onSettings = {},
-                                onDay = {},
+                                onStats = {},
                                 focus = focus,
                             )
                         }
@@ -113,15 +113,15 @@ class BackToMenuTest {
     }
 
     @Test
-    fun `Back from the kid's day shows the menu focused on their day`() {
-        show(GrownUpMenuItem.DAY)
+    fun `Back from Stats shows the menu focused on Stats`() {
+        show(GrownUpMenuItem.STATS)
 
         back()
 
-        rule.onNodeWithTag(GrownUpMenuTags.DAY).assertIsFocused()
-        rule.onNodeWithText("Lucy's day").assertExists()
+        rule.onNodeWithTag(GrownUpMenuTags.STATS).assertIsFocused()
+        rule.onNodeWithText("Stats").assertExists()
         assertEquals(0, pageLeft)
-        rule.onNodeWithTag(GrownUpMenuTags.DAY).performKeyInput { pressKey(Key.Back) }
+        rule.onNodeWithTag(GrownUpMenuTags.STATS).performKeyInput { pressKey(Key.Back) }
         rule.waitForIdle()
         assertEquals(1, menuClosed)
     }

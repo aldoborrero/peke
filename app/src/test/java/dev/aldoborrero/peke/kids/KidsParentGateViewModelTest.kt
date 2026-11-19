@@ -170,7 +170,7 @@ class KidsParentGateViewModelTest {
             vm.openMenu()
 
             vm.openRules()
-            vm.openDay()
+            vm.openStats()
             vm.openThisTv()
             vm.switchKid()
             vm.openReset()

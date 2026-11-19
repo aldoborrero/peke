@@ -4,22 +4,24 @@ import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
 import dev.aldoborrero.peke.data.model.JellyfinUser
+import dev.aldoborrero.peke.kids.data.KidAvatars
 import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.data.KidProfileDao
 import dev.aldoborrero.peke.kids.data.KidProfileRepository
 import dev.aldoborrero.peke.kids.data.SaveResult
-import dev.aldoborrero.peke.kids.livetv.KidsChannel
-import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
 import dev.aldoborrero.peke.kids.server.KidProfileMapper
 import dev.aldoborrero.peke.kids.server.KidsJson
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsServer
 import dev.aldoborrero.peke.kids.server.KidsServerState
 import dev.aldoborrero.peke.kids.server.KidsServerStatus
-import dev.aldoborrero.peke.kids.setup.VoiceSearchSetting
+import dev.aldoborrero.peke.kids.setup.TvSetupRepository
+import dev.aldoborrero.peke.kids.setup.TvState
 import dev.aldoborrero.peke.kids.timer.KidsAllowanceService
 import dev.aldoborrero.peke.kids.ui.rules.KidRulesViewModel
 import dev.aldoborrero.peke.kids.ui.rules.RuleChange
+import dev.aldoborrero.peke.kids.ui.rules.RulesKid
+import dev.aldoborrero.peke.ui.theme.PekeAvatar
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -64,41 +66,39 @@ class KidRulesViewModelTest {
     private val server = JellyfinServer(serverId, "home", "https://jf.example.org/", null)
     private val leo = JellyfinUser(rowId = 1, id = UUID.randomUUID(), name = "Leo", serverId = serverId, accessToken = "t1")
     private var profile = KidProfile(userId = leo.rowId, serverId = serverId, revision = 2, dailyAllowanceMinutes = 60)
+    private val lucy = JellyfinUser(rowId = 2, id = UUID.randomUUID(), name = "Lucy", serverId = serverId, accessToken = "t2")
+    private var lucyProfile = KidProfile(userId = lucy.rowId, serverId = serverId, revision = 5, dailyAllowanceMinutes = 30)
     private val dao =
         mockk<KidProfileDao> {
             coEvery { get(leo.rowId) } answers { profile }
+            coEvery { get(lucy.rowId) } answers { lucyProfile }
         }
     private val repository = mockk<KidProfileRepository>()
     private val allowance =
         mockk<KidsAllowanceService>(relaxed = true) {
             every { snapshot } returns MutableStateFlow(null)
         }
-    private val liveTv =
-        mockk<KidsLiveTvService> {
-            coEvery { channelsFor(leo, any()) } returns
-                listOf(KidsChannel(UUID.randomUUID(), "Clan", "1"), KidsChannel(UUID.randomUUID(), null, "2"))
-        }
 
-    private fun viewModel(features: String = "profiles,parentLock,enforcement,sitting,allowance,liveTv") =
-        KidRulesViewModel(
-            mockk<ServerRepository> {
-                every { current } returns MutableStateFlow(CurrentUser(server, leo))
-                every { currentUserDto } returns null
-            },
-            dao,
-            repository,
-            mockk<KidsPluginService> {
-                coEvery { state(serverId) } returns
-                    KidsServerState(
-                        KidsServer(serverId, 1, features),
-                        KidsServerStatus.AVAILABLE,
-                    )
-            },
-            allowance,
-            liveTv,
-            mockk<VoiceSearchSetting> { every { on } returns flowOf(true) },
-            mockk(relaxed = true),
-        )
+    private fun viewModel(
+        features: String = "profiles,parentLock,enforcement,sitting,allowance,liveTv",
+        kids: List<JellyfinUser> = listOf(leo),
+    ) = KidRulesViewModel(
+        mockk<ServerRepository> {
+            every { current } returns MutableStateFlow(CurrentUser(server, leo))
+        },
+        dao,
+        repository,
+        mockk<KidsPluginService> {
+            coEvery { state(serverId) } returns
+                KidsServerState(
+                    KidsServer(serverId, 1, features),
+                    KidsServerStatus.AVAILABLE,
+                )
+        },
+        allowance,
+        mockk<TvSetupRepository> { every { state } returns MutableStateFlow(TvState.SetUp(server, kids)) },
+        mockk<KidAvatars> { every { observe(serverId) } returns flowOf(mapOf(lucy.rowId to PekeAvatar.entries.first())) },
+    )
 
     @Test
     fun `the choices open on the current value, with unlimited last`() {
@@ -109,16 +109,14 @@ class KidRulesViewModelTest {
     }
 
     @Test
-    fun `the page shows the current kid, their channel names and the dashboard`() =
+    fun `the page shows the current kid and the features, and nothing read only`() =
         runTest(dispatcher) {
             val state = viewModel().state.value
             assertFalse(state.loading)
             assertEquals("Leo", state.kidName)
+            assertEquals(leo.id, state.kidId)
             assertTrue(state.allowanceSupported)
-            assertTrue(state.liveTvSupported)
-            assertEquals(listOf("Clan"), state.channels)
-            assertTrue(state.voiceSearch)
-            assertEquals("https://jf.example.org/web/#/configurationpage?name=Kids", state.dashboardUrl)
+            assertEquals(listOf(RulesKid(leo.id, "Leo")), state.kids)
         }
 
     @Test
@@ -269,7 +267,6 @@ class KidRulesViewModelTest {
             coEvery { repository.save(leo, any()) } returns SaveResult.SAVED
             val with = viewModel(SITTING)
             assertTrue(with.state.value.sessionLimitEditable)
-            assertTrue(with.state.value.sessionLimitSupported)
             with.save(RuleChange.SittingLimit(45))
             coVerify { repository.save(leo, match { it.sessionLimitMinutes == 45 }) }
         }
@@ -329,6 +326,69 @@ class KidRulesViewModelTest {
             vm.save(RuleChange.Autoplay(KidProfile.UNLIMITED_AUTOPLAY_CAP))
             coVerify(exactly = 0) { repository.save(any(), any()) }
             assertTrue(viewModel("$SITTING,unlimitedAutoplay").state.value.unlimitedAutoplay)
+        }
+
+    @Test
+    fun `the switch shows another kid's rules, then refreshes them from the server`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, lucy) } answers {
+                lucyProfile = lucyProfile.copy(dailyAllowanceMinutes = 45)
+                true
+            }
+            val vm = viewModel(kids = listOf(leo, lucy))
+            assertEquals(listOf(RulesKid(leo.id, "Leo"), RulesKid(lucy.id, "Lucy", PekeAvatar.entries.first())), vm.state.value.kids)
+
+            vm.select(lucy.id)
+
+            assertEquals(lucy.id, vm.state.value.kidId)
+            assertEquals("Lucy", vm.state.value.kidName)
+            assertEquals(
+                45,
+                vm.state.value.profile
+                    ?.dailyAllowanceMinutes,
+            )
+            coVerify { repository.refresh(server, lucy) }
+        }
+
+    @Test
+    fun `a change on the kid switched to is saved for them, not for the kid watching`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, lucy) } returns true
+            coEvery { repository.save(lucy, any()) } returns SaveResult.SAVED
+            val vm = viewModel(kids = listOf(leo, lucy))
+            vm.select(lucy.id)
+
+            vm.save(RuleChange.DailyTime(90))
+
+            coVerify { repository.save(lucy, match { it.dailyAllowanceMinutes == 90 && it.revision == 5L && it.userId == lucy.rowId }) }
+            coVerify(exactly = 0) { repository.save(leo, any()) }
+            assertTrue(vm.state.value.saved)
+        }
+
+    @Test
+    fun `a change the grant ran out for is saved after the code for the kid it was made for`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, leo) } returns true
+            coEvery { repository.refresh(server, lucy) } returns true
+            coEvery { repository.save(lucy, any()) } returnsMany listOf(SaveResult.NEEDS_GRANT, SaveResult.SAVED)
+            val vm = viewModel(kids = listOf(leo, lucy))
+            vm.select(lucy.id)
+            vm.save(RuleChange.Search(true))
+            assertEquals(RuleChange.Search(true), vm.state.value.pending)
+            vm.select(leo.id)
+
+            vm.retryPending()
+
+            coVerify(exactly = 2) { repository.save(lucy, match { it.searchAllowed }) }
+            coVerify(exactly = 0) { repository.save(leo, any()) }
+        }
+
+    @Test
+    fun `with one kid on this TV there is nobody to switch to`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+            vm.select(lucy.id)
+            assertEquals(leo.id, vm.state.value.kidId)
         }
 
     private companion object {

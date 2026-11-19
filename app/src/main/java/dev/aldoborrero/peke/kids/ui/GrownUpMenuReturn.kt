@@ -19,7 +19,7 @@ import javax.inject.Singleton
  */
 enum class GrownUpMenuItem {
     RULES,
-    DAY,
+    STATS,
     SETTINGS,
 }
 
@@ -59,7 +59,7 @@ class GrownUpMenuReturn
             }
             return when (destination) {
                 Destination.KidRules -> GrownUpMenuItem.RULES
-                Destination.KidDay -> GrownUpMenuItem.DAY
+                Destination.KidStats -> GrownUpMenuItem.STATS
                 is Destination.Settings -> GrownUpMenuItem.SETTINGS
                 else -> null
             }

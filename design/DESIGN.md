@@ -294,7 +294,7 @@ Decided while testing the app:
   a grown-up has to decide.
 - **After the parent code:** the parent menu, in a fixed order: the kid and their status, Add time (or a line that
   says why not: a break, with "Keep watching now" when the plugin can end it; bedtime; no daily limit; offline),
-  Switch kid (2+ kids), "{Kid}'s rules", "{Kid}'s day" and Settings, never the user list. From the picker the code opens Settings
+  Rules, Stats, Switch kid (2+ kids) and Settings, never the user list. From the picker the code opens Settings
   straight away. Settings holds Household (change the parent code), This TV (Kids on this TV, voice search, the timer
   bar and where its time sits, screensaver, clock, language, subtitles), playback, Advanced, About with the license,
   and Reset this TV last. Leaving the menu ends the code's grant.
@@ -303,9 +303,9 @@ Decided while testing the app:
   time that can't be used stays in its place as a card that says why and takes no focus. Grown-up pages have no
   mascot, except the buddy in Settings' header without a kid (board 11). Unlike boards 7–9, no pill names the Back
   key: the remote already says how to go back (spec 023). Back always goes up one level: Add time, the menu, the kid.
-  The kid's rules, their day and Settings opened from the menu go back to it, focused on their item (the code first if
-  the grant ran out); Back on that menu goes straight to the kid, the menu covering until the page under it has gone
-  (spec 027). Without a kid, Settings goes back to the picker. Messages that were toasts ("Parent code changed", a failed
+  Rules, Stats and Settings opened from the menu go back to it, focused on their item (the code first if the grant
+  ran out); Back on that menu goes straight to the kid, the menu covering until the page under it has gone (spec 027).
+  Without a kid, Settings goes back to the picker. Messages that were toasts ("Parent code changed", a failed
   "Keep watching now", Undo's result) are S5 pills on the page.
 - **Settings (12):** two columns: "Settings" and its sections on the left (Household, This TV, Playback, Advanced,
   About, Reset this TV), the focused section's rows on the right, under a line about it. Right or OK enters the rows,
@@ -316,17 +316,27 @@ Decided while testing the app:
   dimmed) that opens on the last amount given on this TV, with who gets it and "Can watch until 19:15". OK adds,
   Back returns to the menu; then "15 more minutes for Leo · until 19:15" with Undo for 10 seconds, and back to the kid.
   Board 9's layout: one wide tile with ‹ amount ›, the forecast in a box under it.
-- **A kid's rules:** that kid only. Daily time, time in a row (when the plugin has the sitting limit), autoplay (Off,
-  1–10 episodes, or No limit when the plugin has `unlimitedAutoplay`) and search are changed on the TV (spec 030);
-  the rest is text, with the dashboard's address for picks and home sections. Today's use is on the kid's day.
-  Marking or unmarking kids is done in the dashboard only. Board 10's layout: the four rules are
-  stepper rows in that order (‹ 60 min ›; Left and Right change the value, OK saves, moving away or Back leaves it as
-  it was; Up and Down go between them), the other rules are rows of text, and what Jellyfin decides and the
-  dashboard's address are on the right.
-- **A kid's day:** "{Kid}'s day" ("El día de {niño}"), that kid's use today apart from their rules (spec 030): watched
-  today (of the allowance with time added), left today, time added today, watched in a row (with the sitting limit)
-  and the break left, as rows of text on board 10's page with no focus stop; "Can't reach the server" before the
-  first status.
+- **Rules:** "Rules" ("Normas"), only what is changed on the TV, for any kid of this TV (spec 033): Daily time,
+  Breaks (when the plugin has the sitting limit), Next episode by itself ("Siguiente episodio solo": Off, 1–10
+  episodes, or No limit when the plugin has `unlimitedAutoplay`) and Search, each a full-width stepper row with its
+  icon, its name and one sentence that follows the value shown ("Can watch 1 hour each day", "Rests 15 min every 30
+  min in a row", "Stops after 3 episodes in a row") and its value ("1 h", "3 in a row", "Yes"); "No limit" is the one
+  word for no limit; "Saved" shows by the rule's name. ‹ 1 h ›: Left and
+  Right change the value, OK saves, moving away or Back leaves it as it was; Up and Down go between them. Nothing on
+  the page is read only: what Jellyfin decides, live TV, picks and the dashboard's address stay off the TV. The header
+  names the kid shown ("Lucy's rules", "Normas de Lucy", "They apply on every TV at home") and, with two kids or more,
+  holds the kid switch: one avatar chip per kid, the kid watching first shown; Up from the first rule reaches it,
+  OK shows that kid's rules, Down returns (variant a; the canvas also has a "Change" button, b). Marking or unmarking
+  kids is done in the dashboard only.
+- **Stats:** "Stats" ("Estadísticas"), every kid of this TV, read only (spec 033): one card per kid with the avatar,
+  the name and a pill (on a break with the minutes left, time's up, or "Watching now"), today's watched, left (or No
+  limit) and extra time, then, with the plugin's `stats`, the last 7 days as bars (today in "time", a day over its
+  limit in "primary", the rest "secondary", each day's allowance a dashed mark, day letters under) and, with the
+  household's advanced stats on, "Most watched this week" (two). A legend by the title; an over-limit day says by how
+  much above its bar. Two cards in view, more scroll sideways, one kid gets a wider card; focus walks the cards. A line
+  at the end: more detail is on the plugin's dashboard page, or how to turn advanced stats on, or that the week needs a
+  newer plugin. With no answer from the server one card says it can't be reached; a kid the server didn't answer for
+  shows the last cached figures with an "Offline" pill. Boards: "Zona de adultos" (ZAStats and its states).
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the
@@ -356,6 +366,11 @@ Decided while testing the app:
 Short, warm, and about what happens next. No blame ("You watched all your time", not "Time limit exceeded"), no
 technical errors for kids ("Oops, this one won't play"); details such as HTTP statuses and log sending are for
 grown-ups only. Every string ships in English and Spanish.
+
+On grown-up pages a rule has a plain name and one sentence that says what its value means for the kid, never how
+it works: "Breaks" ("Descansos") rather than "Time in a row, then a break", "Next episode by itself" ("Siguiente
+episodio solo") rather than "Autoplay". "No limit" ("Sin límite") is the only word for no limit. The pages are
+"Rules" ("Normas") and "Stats" ("Estadísticas") (spec 033).
 
 ## Mapping to Compose
 
