@@ -83,9 +83,15 @@ Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather t
 
 - **Corners:** posters and episode cards 20–24 px, home cards 24, list rows 22, dialogs 36, buttons and chips fully
   rounded (pills), avatars round.
-- **Screen padding:** Google's overscan-safe area, at least 64 px (48 dp) from the left and right edges and 36 px
-  (27 dp) from the top and bottom, for whatever must stay on screen: titles, buttons, the clock and the player's
-  controls; the boards' 40–56 px top and bottom already meet it. Rows that scroll sideways may run to the edge. Text
+- **Screen padding:** Android TV's overscan-safe area (spec 028), at least 77 px (58 dp) from the left and right
+  edges and 37 px (28 dp) from the top and bottom, for whatever must stay on screen on a page: titles, buttons, the
+  clock, and focus rings too (`SafeArea.EdgeHorizontal`/`EdgeVertical`). Grown-up pages all take one padding,
+  `SafeArea.page`: the edge plus a grown-up border and ring (about 91 by 51 px), so a focused element at the page's
+  side keeps its ring inside. Rows that scroll sideways may run to the edge, and cards past it peek there, but a row
+  scrolled to its end stops its last card where the card's focused scale-up, border and ring end 5 px inside the edge
+  (`FocusRoom.toScreenEnd`); at its start the row keeps its first card lined up with the title, and earlier cards peek
+  cut at that line. The player keeps Google's Compose playback area, 64 px (48 dp) from the sides and 36 px (27 dp)
+  from the top and bottom, for its clock, title, bar and buttons. Text
   pills are at least their height, taller rather than cut when the TV's text is larger. The time-left bar shows only on
   the player (spec 022), along the top or bottom edge, and its label keeps at least 64 px from the side edges when it
   sits at the left or right; the player's time warning sits below it. The kids home holds the time left in its header,

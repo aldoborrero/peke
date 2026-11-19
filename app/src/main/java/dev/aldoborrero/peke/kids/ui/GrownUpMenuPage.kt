@@ -33,6 +33,7 @@ import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
 import dev.aldoborrero.peke.ui.theme.PekeTheme
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 
@@ -110,7 +111,7 @@ fun GrownUpMenuPage(
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(36.cpx),
-        modifier = modifier.fillMaxSize().padding(horizontal = 72.cpx, vertical = 56.cpx),
+        modifier = modifier.fillMaxSize().padding(SafeArea.page),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(24.cpx),

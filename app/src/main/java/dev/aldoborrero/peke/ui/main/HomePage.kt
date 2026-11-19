@@ -94,6 +94,7 @@ import dev.aldoborrero.peke.ui.playback.playable
 import dev.aldoborrero.peke.ui.playback.scale
 import dev.aldoborrero.peke.ui.rememberPosition
 import dev.aldoborrero.peke.ui.theme.FocusRoom
+import dev.aldoborrero.peke.ui.theme.SafeArea
 import dev.aldoborrero.peke.ui.theme.cpx
 import dev.aldoborrero.peke.ui.tryRequestFocus
 import dev.aldoborrero.peke.ui.util.LocalInterfaceCustomization
@@ -246,9 +247,9 @@ fun HomePage(
                     onClickViewMore = onClickViewMore,
                     kidsLayout = true,
                     headerComposable = {
-                        KidsHomeHeader(showClock = showClock, modifier = Modifier.padding(end = 64.cpx, bottom = 26.cpx))
+                        KidsHomeHeader(showClock = showClock, modifier = Modifier.padding(end = SafeArea.EdgeHorizontal, bottom = 26.cpx))
                     },
-                    // The rows run to the right edge, as on the board
+                    // The rows run to the right edge, as on the board, and stop their last card inside the TV-safe edge (spec 028)
                     modifier = modifier.padding(top = 40.cpx, start = 48.cpx),
                 )
             } else {
@@ -521,7 +522,8 @@ fun HomePageContent(
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
                                             horizontalPadding = viewOptions.spacing.dp,
                                             kidsLayout = kidsLayout,
-                                            kidsRoom = kidsCardKind(row.rowType).focusRoom,
+                                            // The row runs to the screen's edge, its last card stops inside the TV-safe edge (spec 028)
+                                            kidsRoom = kidsCardKind(row.rowType).focusRoom.toScreenEnd(),
                                             cardContent = { index, item, cardModifier, onClick, onLongClick ->
                                                 val onFocus =
                                                     remember(rowIndex, index) {
