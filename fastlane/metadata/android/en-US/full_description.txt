@@ -1,0 +1,20 @@
+Peke is an Android TV app made only for kids. It plays films, shows and live TV from your own Jellyfin server, and the rules a grown-up sets on the server decide what each kid sees and for how long.
+
+<b>You need</b>
+<ul>
+<li>an Android TV, Google TV or Fire TV device running Android 6 or later. Peke is a TV app driven with the remote; it has no phone or tablet layout.</li>
+<li>a Jellyfin 12.x server with the Jellyfin Kids plugin (0.0.7.0 or later, https://github.com/aldoborrero/jellyfin-kids). Without the plugin Peke only shows the grown-up setup screen and explains what is missing.</li>
+</ul>
+
+<b>What it does</b>
+<ul>
+<li><b>A home for each kid</b>: picks, favourites, shows and films from the libraries the kid's Jellyfin account allows, plus the live TV channels a grown-up chose.</li>
+<li><b>Only what kids need</b>: video only, no music, people or photo pages, no trailers before films. Search and voice search appear only for kids allowed to search.</li>
+<li><b>Screen time from the server</b>: daily allowance, time per sitting and breaks are counted by the plugin across every TV in the house. Peke shows the time left, warns before it ends and explains a stop.</li>
+<li><b>Parent gate</b>: one household code, typed with the remote's arrows or digits, opens a kid's settings, adds time or leaves the kids' side.</li>
+<li><b>Grown-up setup screen</b>: kids settings, Peke's settings, Quick Connect, the user list and licenses. It never opens browsing or playback.</li>
+<li><b>Direct play first</b>: ExoPlayer with the FFmpeg and AV1 decoders, and MPV, so most files play without server transcoding.</li>
+<li><b>English and Spanish</b>, the kids' screens included.</li>
+</ul>
+
+Peke is a fork of Wholphin by damontecres. It is not an official Jellyfin app.

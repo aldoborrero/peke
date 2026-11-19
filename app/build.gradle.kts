@@ -102,12 +102,22 @@ configure<ApplicationExtension> {
         applicationId = "dev.aldoborrero.peke"
         minSdk = libs.versions.minSdk.getInt()
         targetSdk = libs.versions.targetSdk.getInt()
-        versionCode = gitTags.lines().count { it.isNotBlank() }.coerceAtLeast(1)
+        // F-Droid passes -Ppeke.versionCode, one per ABI (fdroid/README.md); every other build counts the v* tags
+        versionCode =
+            providers
+                .gradleProperty("peke.versionCode")
+                .map { it.toInt() }
+                .getOrElse(gitTags.lines().count { it.isNotBlank() }.coerceAtLeast(1))
         versionName = gitDescribe.trim().removePrefix("v").ifBlank { "0.0.0" }
         testInstrumentationRunner = "dev.aldoborrero.peke.test.PekeTestRunner"
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
-        buildConfigField("boolean", "UPDATING_ENABLED", "true")
+        // The in-app updater installs APKs from GitHub releases; F-Droid builds turn it off with -Ppeke.updateChecker=false
+        buildConfigField(
+            "boolean",
+            "UPDATING_ENABLED",
+            providers.gradleProperty("peke.updateChecker").orElse("true").get(),
+        )
         // Compose diagnostic stack traces slow down every composition; enable with -Ppeke.composeDiagnostics=true
         buildConfigField(
             "boolean",

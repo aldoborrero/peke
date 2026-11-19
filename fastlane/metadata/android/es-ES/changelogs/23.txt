@@ -1,0 +1,6 @@
+- El control parental es una página completa; un código usa solo flechas o solo números
+- Las pantallas de adultos son páginas completas
+- La barra de tiempo solo aparece al reproducir, a la izquierda, centro o derecha
+- Atrás cierra la barra lateral; en el inicio de los niños pregunta antes de salir
+- Atrás desde las reglas de un niño o Ajustes vuelve al menú de adultos
+- Iconos de reproducir y pausa más grandes; páginas y barra lateral más rápidas

@@ -1,0 +1,1 @@
+App de Android TV para niños, con el tiempo de pantalla fijado en tu Jellyfin

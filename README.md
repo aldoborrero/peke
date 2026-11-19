@@ -113,6 +113,9 @@ decoders; release builds refuse to build without it. CI reads the same values fr
 
 Releases are tagged `vMAJOR.MINOR.PATCH`, and the number of tags is the version code.
 
+F-Droid builds everything from source, the extensions included, with the recipe in `fdroid/`: see
+[fdroid/README.md](fdroid/README.md).
+
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up, test and format a
