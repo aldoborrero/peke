@@ -298,7 +298,8 @@ Decided while testing the app:
   mascot, except the buddy in Settings' header without a kid (board 11). Unlike boards 7–9, no pill names the Back
   key: the remote already says how to go back (spec 023). Back always goes up one level: Add time, the menu, the kid.
   The kid's rules and Settings opened from the menu go back to it, focused on their item (the code first if the grant
-  ran out); without a kid, Settings goes back to the picker. Messages that were toasts ("Parent code changed", a failed
+  ran out); Back on that menu goes straight to the kid, the menu covering until the page under it has gone (spec 027).
+  Without a kid, Settings goes back to the picker. Messages that were toasts ("Parent code changed", a failed
   "Keep watching now", Undo's result) are S5 pills on the page.
 - **Settings (12):** two columns: "Settings" and its sections on the left (Household, This TV, Playback, Advanced,
   About, Reset this TV), the focused section's rows on the right, under a line about it. Right or OK enters the rows,

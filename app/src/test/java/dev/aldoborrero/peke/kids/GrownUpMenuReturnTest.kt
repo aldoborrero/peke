@@ -12,7 +12,9 @@ import io.mockk.unmockkAll
 import org.acra.ACRA
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.UUID
@@ -54,7 +56,7 @@ class GrownUpMenuReturnTest {
     fun `closing the menu shown again removes the page, back to the kid's page`() {
         menuReturn.open(Destination.KidRules)
 
-        menuReturn.close(Destination.KidRules)
+        assertTrue(menuReturn.close(Destination.KidRules))
 
         assertEquals(listOf(Destination.Home(), kidPage), navigation.backStack.toList())
         assertNull(menuReturn.itemFor(Destination.KidRules))
@@ -88,7 +90,7 @@ class GrownUpMenuReturnTest {
 
         assertNull(menuReturn.itemFor(Destination.KidRules))
         // Closing then removes nothing
-        menuReturn.close(Destination.KidRules)
+        assertFalse(menuReturn.close(Destination.KidRules))
         assertEquals(Destination.KidRules, navigation.backStack.last())
     }
 

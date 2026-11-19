@@ -2,6 +2,9 @@ package dev.aldoborrero.peke.kids.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,32 +65,56 @@ class GrownUpMenuReturn
 
         /**
          * The menu shown again over [destination] closed: the page goes too, since the menu was the level above it
+         *
+         * @return whether the page was removed
          */
-        fun close(destination: Destination) {
-            if (itemFor(destination) != null) navigationManager.replaceTop(destination, null)
+        fun close(destination: Destination): Boolean {
+            val removed = itemFor(destination) != null && navigationManager.replaceTop(destination, null)
             page = null
+            return removed
         }
     }
 
 /**
+ * Whether the grown-up window covers a page that is leaving, and ignores keys meanwhile (spec 027)
+ */
+val LocalGrownUpWindowInert = compositionLocalOf { false }
+
+/**
  * A page Back can leave for the parent menu: with [item], Back shows [menu] over the page, focused on [item]; once the
  * menu closes, [onMenuClosed] removes the page. Back inside the page (a section's rows, a dialog) goes first.
+ *
+ * When the page was removed ([onMenuClosed] returns true), the menu stays drawn, ignoring keys, until the page has left
+ * with its exit transition, which takes this away: the page never shows alone between the menu and the page below it
+ * (spec 027). If the page becomes the menu's page again (the same page chosen again), the menu closes at once.
  */
 @Composable
 fun BackToMenu(
     item: GrownUpMenuItem?,
-    onMenuClosed: () -> Unit,
+    onMenuClosed: () -> Boolean,
     menu: @Composable (item: GrownUpMenuItem, onDismissRequest: () -> Unit) -> Unit,
     content: @Composable () -> Unit,
 ) {
-    var shown by remember { mutableStateOf(false) }
+    // The item the menu shows for, and whether it covers the page leaving
+    var shown by remember { mutableStateOf<GrownUpMenuItem?>(null) }
+    var covering by remember { mutableStateOf(false) }
     // Before the content, so Back handlers inside the page win while they are enabled
-    BackHandler(enabled = item != null && !shown) { shown = true }
+    BackHandler(enabled = item != null && shown == null) { shown = item }
     content()
-    if (shown && item != null) {
-        menu(item) {
-            shown = false
-            onMenuClosed()
+    LaunchedEffect(covering, item) {
+        if (covering && item != null) {
+            covering = false
+            shown = null
+        }
+    }
+    val showing = shown
+    if (showing != null && covering == (item == null)) {
+        CompositionLocalProvider(LocalGrownUpWindowInert provides covering) {
+            menu(showing) {
+                if (!covering) {
+                    if (onMenuClosed()) covering = true else shown = null
+                }
+            }
         }
     }
 }

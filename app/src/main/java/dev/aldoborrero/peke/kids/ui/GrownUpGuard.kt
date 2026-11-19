@@ -144,7 +144,7 @@ fun GrownUpGuard(
         CompositionLocalProvider(LocalPekeFocusScale provides false, LocalGrownUpPage provides true) {
             BackToMenu(
                 item = destination?.let(viewModel::menuItem),
-                onMenuClosed = { destination?.let(viewModel::closeMenuPage) },
+                onMenuClosed = { destination?.let(viewModel::closeMenuPage) ?: false },
                 // Its own view model: the page's gates (a grant that ran out on the rules) keep theirs
                 menu = { item, onDismissRequest ->
                     KidsParentGate(
