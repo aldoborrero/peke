@@ -84,7 +84,6 @@ import dev.aldoborrero.peke.kids.home.rememberHomeTimeLeft
 import dev.aldoborrero.peke.kids.home.timeLeftText
 import dev.aldoborrero.peke.kids.isActive
 import dev.aldoborrero.peke.kids.setup.KidAvatar
-import dev.aldoborrero.peke.kids.ui.KidsLeaveDialog
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.services.BackdropService
 import dev.aldoborrero.peke.services.ImageUrlService
@@ -275,48 +274,54 @@ data class ServerNavDrawerItem(
 }
 
 /**
- * Whether Back asks "Leave Peke?" (spec 024): only on the home page with the drawer closed. Back no longer opens the
- * drawer; Left does. Leaving is never gated: the question asks, it doesn't lock (constitution IV). With the drawer open
- * see [backClosesNavDrawer]. Back never opens the profile's gate; only its drawer entry does.
+ * Whether Back opens the nav drawer, as in Wholphin (spec 035): only on the home page with the drawer closed, with focus
+ * on the current item. With the drawer open on the home Back goes on to the system, which quits the app: leaving is
+ * never gated or asked about (constitution IV). Back never opens the profile's gate; only its drawer entry does.
  */
-internal fun backAsksToLeave(
+internal fun backOpensNavDrawer(
     drawerValue: DrawerValue,
     destination: Destination,
 ): Boolean = drawerValue == DrawerValue.Closed && destination is Destination.Home
 
 /**
- * Asks "Leave Peke?" where [backAsksToLeave] says and closes the drawer where [backClosesNavDrawer] says, with
- * [onClose]. "Leave" hands that Back on to the system, which quits as Back did before spec 024. Its own scope reads the
- * drawer's state, so opening and closing the drawer recomposes this alone, not the page around it
+ * Whether Back, on a page other than the home with the drawer open, closes the drawer on its way back a page (spec
+ * 035). It is the same press: Back never just closes the drawer, so it never both opens and closes it. Without this
+ * the drawer, shared by every page, would still be open on the page Back goes to.
+ */
+internal fun backClosesNavDrawerOnTheWayBack(
+    drawerValue: DrawerValue,
+    destination: Destination,
+): Boolean = drawerValue == DrawerValue.Open && destination !is Destination.Home
+
+/**
+ * Back opens the drawer where [backOpensNavDrawer] says, then [onOpened], and where [backClosesNavDrawerOnTheWayBack]
+ * says closes it and hands the same Back on, which goes back a page. Anywhere else Back isn't handled here. Its own
+ * scope reads the drawer's state, so opening and closing the drawer recomposes this alone, not the page around it
  */
 @Composable
 internal fun DrawerBackHandler(
     drawerState: DrawerState,
     destination: Destination,
     enabled: Boolean,
-    onClose: () -> Unit,
+    onOpened: () -> Unit,
 ) {
-    var askingToLeave by remember { mutableStateOf(false) }
-    // Set by "Leave": the handler steps aside, then the Back goes on to the system
-    var leaving by remember { mutableStateOf(false) }
-    BackHandler(enabled = enabled && !leaving && backAsksToLeave(drawerState.currentValue, destination)) {
-        askingToLeave = true
+    BackHandler(enabled = enabled && backOpensNavDrawer(drawerState.currentValue, destination)) {
+        drawerState.setValue(DrawerValue.Open)
+        onOpened()
     }
-    BackHandler(enabled = enabled && backClosesNavDrawer(drawerState.currentValue), onBack = onClose)
-    if (askingToLeave) {
-        KidsLeaveDialog(
-            onLeave = {
-                askingToLeave = false
-                leaving = true
-            },
-            onDismissRequest = { askingToLeave = false },
-        )
+    // Set once the drawer is closed: the handler steps aside, then the Back goes on to the page behind
+    var passingOn by remember { mutableStateOf(false) }
+    BackHandler(
+        enabled = enabled && !passingOn && backClosesNavDrawerOnTheWayBack(drawerState.currentValue, destination),
+    ) {
+        drawerState.setValue(DrawerValue.Closed)
+        passingOn = true
     }
     val dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
-    LaunchedEffect(leaving) {
-        if (leaving) {
+    LaunchedEffect(passingOn) {
+        if (passingOn) {
             dispatcher?.onBackPressed()
-            leaving = false
+            passingOn = false
         }
     }
 }
@@ -339,13 +344,6 @@ internal fun rememberPageAlpha(drawerState: DrawerState): State<Float> {
 }
 
 private fun pageAlpha(drawerOpen: Boolean) = if (drawerOpen) .35f else 1f
-
-/**
- * Whether Back closes the nav drawer: on any page, the home included (spec 024), while the drawer is open, giving
- * focus back to the page (where it was, or the page's default) instead of going back a page behind the open drawer.
- * The next Back goes back a page as usual, or on the home asks [backAsksToLeave].
- */
-internal fun backClosesNavDrawer(drawerValue: DrawerValue): Boolean = drawerValue == DrawerValue.Open
 
 private const val HOME_INDEX = -1
 private const val SEARCH_INDEX = -2
@@ -390,16 +388,14 @@ fun NavDrawer(
     // the one leaving is still composed: only the page on top may take focus or handle Back (spec 005 FR-013)
     val activeEntry = viewModel.navigationManager.backStack.lastOrNull() == destination
 
-    // Back with the drawer open closes it: focus goes back to the page, which closes the drawer. On the home with the
-    // drawer closed Back asks "Leave Peke?" (spec 024). These come before the page, so the page's own Back handling (the
-    // gate, time's up) still wins where it applies
-    val pageFocus = remember { FocusRequester() }
+    // As in Wholphin (spec 035): Back on the home with the drawer closed opens it, and another Back quits the app; on
+    // other pages Back goes back a page, closing the drawer if open. These come before the page, so the page's own Back
+    // handling (the gate, time's up) still wins where it applies
     DrawerBackHandler(
         drawerState,
         destination,
         enabled = activeEntry,
-        onClose = { pageFocus.tryRequestFocus() },
-    )
+    ) { focusRequester.tryRequestFocus() }
     val serviceState by viewModel.serviceState.collectAsState()
     val drawerItems = if (showLibraries) serviceState.items else customization.navDrawerItems
     val state by viewModel.state.collectAsState()
@@ -610,11 +606,10 @@ fun NavDrawer(
         ) {
             // Drawer content: the open sidebar covers it, and it fades to 35% behind (HomeDrawerPekeTV)
             val kidsHome = destination is Destination.Home && LocalKidsMode.current.isActive
-            // Focus coming back to the page, as when Back closes the drawer, returns to where it was
+            // Focus coming back to the page, as when Right closes the drawer, returns to where it was
             Box(
                 Modifier
                     .fillMaxSize()
-                    .focusRequester(pageFocus)
                     .focusRestorer()
                     .focusGroup(),
             ) {

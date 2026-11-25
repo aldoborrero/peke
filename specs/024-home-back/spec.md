@@ -4,7 +4,8 @@
 
 **Created**: 2026-11-13
 
-**Status**: Implemented
+**Status**: Implemented; superseded by spec 035 (2026-11-26). Back on the kids home works as in Wholphin again: it
+opens the sidebar and a second Back quits, with no "Leave Peke?" question, and Back never just closes the sidebar.
 
 **Input**: "On the kids home, Back closes the open sidebar, and with the sidebar closed it asks 'Leave Peke?' instead of
 quitting at once." The owner's decision of 2026-11-13 (option "Cerrar menú + diálogo").
