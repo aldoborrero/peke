@@ -6,6 +6,7 @@ import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
 import dev.aldoborrero.peke.kids.ui.barMinutes
+import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.cpx
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -155,4 +156,18 @@ fun channelPicture(item: BaseItemDto): ChannelPicture? =
         ChannelPicture(item.id, item.imageTags?.get(ImageType.PRIMARY))
     } else {
         item.channelId?.let { ChannelPicture(it, item.channelPrimaryImageTag) }
+    }
+
+/**
+ * The address of a Watch live card's channel [picture], at the height channel logos show; null when the channel has
+ * no picture, and the card draws Peke's TV
+ */
+fun ImageUrlService.channelImageUrl(picture: ChannelPicture): String? =
+    picture.tag?.let {
+        getItemImageUrl(
+            itemId = picture.channelId,
+            imageType = ImageType.PRIMARY,
+            maxHeight = ImageUrlService.channelImageMaxHeight,
+            tag = it,
+        )
     }

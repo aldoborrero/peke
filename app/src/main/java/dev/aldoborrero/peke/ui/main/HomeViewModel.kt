@@ -19,6 +19,7 @@ import dev.aldoborrero.peke.services.HomePageResolvedSettings
 import dev.aldoborrero.peke.services.HomeRowConfigDisplay
 import dev.aldoborrero.peke.services.HomeSettingsService
 import dev.aldoborrero.peke.services.LatestNextUpService
+import dev.aldoborrero.peke.services.LiveRow
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavDrawerService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -40,9 +41,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
@@ -50,9 +55,11 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
@@ -127,6 +134,7 @@ class HomeViewModel
                             loadHomeRows(userDto, settings)
                         }
                 }
+            viewModelScope.launch { refreshLiveAtEnds() }
         }
 
         fun init() {
@@ -191,24 +199,57 @@ class HomeViewModel
                 }
                 if (dataLoadingJob?.isActive == true) return@launchIO
                 dataLoadingJob =
-                    viewModelScope.launchIO {
-                        val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
-                        val libraries =
-                            libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
-                        current.settings.rows
-                            .withIndex()
-                            .filter { isWatchingRow(it.value.config) }
-                            .map { (index, row) ->
-                                async(PekeDispatchers.IO) {
-                                    val rowData = fetchRow(row, prefs, userDto, libraries, refresh = true)
-                                    _state.update { state ->
-                                        if (state.settings != current.settings) return@update state
-                                        state.copy(homeRows = state.homeRows.toMutableList().apply { set(index, rowData) })
-                                    }
-                                }
-                            }.awaitAll()
-                    }
+                    viewModelScope.launchIO { refreshRows(current, userDto) { isRefreshedOnReturn(it) } }
             }
+        }
+
+        /**
+         * Reads again only the rows of [current] whose config matches [which], and puts each in place on its own, so
+         * the rest of the home keeps its state
+         */
+        private suspend fun refreshRows(
+            current: HomeState,
+            userDto: ServerUserConfig,
+            which: (HomeRowConfig) -> Boolean,
+        ) {
+            val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
+            val libraries = libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+            coroutineScope {
+                current.settings.rows
+                    .withIndex()
+                    .filter { which(it.value.config) }
+                    .map { (index, row) ->
+                        async(PekeDispatchers.IO) {
+                            val rowData = fetchRow(row, prefs, userDto, libraries, refresh = true)
+                            _state.update { state ->
+                                if (state.settings != current.settings) return@update state
+                                state.copy(homeRows = state.homeRows.toMutableList().apply { set(index, rowData) })
+                            }
+                        }
+                    }.awaitAll()
+            }
+        }
+
+        /**
+         * The live row's programmes are read again when the first of them ends (spec 034), while the home is shown.
+         * Left by then, the return reads the row ([refreshWatching]).
+         */
+        private suspend fun refreshLiveAtEnds() {
+            state
+                .map { liveProgrammes(it) }
+                .distinctUntilChanged()
+                .collectLatest { shown ->
+                    LiveRow.refreshAtEnds(shown, now = { LocalDateTime.now() }) {
+                        val userDto = serverRepository.currentUserDto
+                        val current = state.value
+                        if (left || userDto == null || current.loadingState != LoadingState.Success) {
+                            return@refreshAtEnds null
+                        }
+                        Timber.d("A live programme ended: reading the live row again")
+                        refreshRows(current, userDto) { it is HomeRowConfig.TvPrograms }
+                        liveProgrammes(state.value)
+                    }
+                }
         }
 
         private suspend fun fetchRow(
@@ -446,9 +487,18 @@ data class HomeState(
 }
 
 /**
- * Whether a row is a "is watching" type
+ * Whether a row is read again on a short return to the home: what is being watched, and what is on live now, which
+ * changes with the clock (spec 034)
  */
-private fun isWatchingRow(row: HomeRowConfig) =
+internal fun isRefreshedOnReturn(row: HomeRowConfig) =
     row is HomeRowConfig.ContinueWatching ||
         row is HomeRowConfig.NextUp ||
-        row is HomeRowConfig.ContinueWatchingCombined
+        row is HomeRowConfig.ContinueWatchingCombined ||
+        row is HomeRowConfig.TvPrograms
+
+/** The programmes the home's live rows show */
+internal fun liveProgrammes(state: HomeState): List<BaseItemDto> =
+    state.homeRows
+        .filterIsInstance<HomeRowLoadingState.Success>()
+        .filter { it.rowType is HomeRowConfig.TvPrograms }
+        .flatMap { row -> row.items.mapNotNull { it?.data } }

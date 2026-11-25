@@ -21,7 +21,6 @@ import dev.aldoborrero.peke.preferences.HomePagePreferences
 import dev.aldoborrero.peke.ui.AspectRatio
 import dev.aldoborrero.peke.ui.Cards
 import dev.aldoborrero.peke.ui.HomeItemFields
-import dev.aldoborrero.peke.ui.ProgramItemFields
 import dev.aldoborrero.peke.ui.components.getGenreImageMap
 import dev.aldoborrero.peke.ui.formatTypeName
 import dev.aldoborrero.peke.ui.main.settings.Library
@@ -63,11 +62,9 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
-import org.jellyfin.sdk.model.api.GetProgramsDto
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -1176,18 +1173,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.TvPrograms -> {
-                    val request =
-                        GetProgramsDto(
-                            userId = userDto.id,
-                            fields = ProgramItemFields,
-                            limit = limit,
-                            enableUserData = true,
-                            enableImages = true,
-                            enableImageTypes = listOf(ImageType.PRIMARY, ImageType.LOGO),
-                            imageTypeLimit = 1,
-                            isAiring = true,
-                            minEndDate = DateTime.now().plusMinutes(1),
-                        )
+                    val request = LiveRow.request(userDto.id, limit)
                     if (usePaging) {
                         ApiRequestPager(
                             api,
