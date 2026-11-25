@@ -1,5 +1,10 @@
 <!--
 Sync Impact Report
+- Version change: 2.1.1 → 2.1.2 (2026-11-26). PATCH: Principle IV clarified. Back on the kids
+  home works as in Wholphin: it opens the sidebar, and a second Back quits; it never asks (spec
+  035, which supersedes spec 024's "Leave Peke?" question). Google's Android TV guidance asks for
+  no exit gating and no Back that both opens and closes a menu. No principle added or removed;
+  AGENTS.md and design/DESIGN.md "Behaviour" follow the same wording.
 - Version change: 2.1.0 → 2.1.1 (2026-11-13). PATCH: Principle IV clarified. Back on the kids
   home now asks "Leave Peke?" before quitting (spec 024); leaving stays ungated, the question asks
   and doesn't lock. No principle added or removed; AGENTS.md and design/DESIGN.md "Behaviour"
@@ -99,8 +104,8 @@ switching TVs or clients; only presentation exists on the device.
   to a non-kid profile or another user, extending or disabling time limits, enabling search,
   blocking or unblocking content, leaving kids mode.
 - Leaving the app is not gated. The remote's Home button leaves any Android TV app and cannot be
-  blocked, so Back on the kids home asks "Leave Peke?" and quits on "Leave", with no parent code
-  (spec 024). What MUST hold instead: Peke opens no other app itself (no external links or remote
+  blocked, so Back on the kids home works as in Wholphin: it opens the sidebar and a second Back
+  quits, with no question and no parent code (spec 035). What MUST hold instead: Peke opens no other app itself (no external links or remote
   trailers for kids), and relaunching Peke while the TV is locked returns to the kid. Whatever lies
   outside Peke is the TV's job (for example a Google TV kids profile).
 - A grown-up profile gets only the grown-up shell: kids settings, a short "This TV" settings group,
@@ -196,4 +201,4 @@ This constitution takes precedence over other practices for Peke.
 - **Compliance:** every plan includes a Constitution Check, and every review verifies Principles
   III, IV and VII explicitly. Any deviation is justified in the plan's complexity tracking.
 
-**Version**: 2.1.1 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-11-13
+**Version**: 2.1.2 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-11-26

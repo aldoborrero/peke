@@ -1,5 +1,9 @@
 # 017 · Mando y reproductor: informe
 
+> **Superado en el punto 1 por la spec 035 (2026-11-26):** Back ya no cierra el sidebar abierto. En otras páginas
+> Back retrocede una página y el sidebar se cierra con ella, como en Wholphin. El `focusRestorer` (el foco vuelve
+> a donde estaba al salir del sidebar con Right) y el resto de la 017 siguen.
+
 ## 1. Back con el sidebar abierto
 
 - `ui/nav/NavDrawer.kt`: nueva `backClosesNavDrawer(drawerValue, destination)`, verdadera con el drawer abierto en
