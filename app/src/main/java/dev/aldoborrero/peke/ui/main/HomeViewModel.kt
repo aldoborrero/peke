@@ -2,6 +2,7 @@ package dev.aldoborrero.peke.ui.main
 
 import android.content.Context
 import android.os.SystemClock
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +20,7 @@ import dev.aldoborrero.peke.services.HomePageResolvedSettings
 import dev.aldoborrero.peke.services.HomeRowConfigDisplay
 import dev.aldoborrero.peke.services.HomeSettingsService
 import dev.aldoborrero.peke.services.LatestNextUpService
+import dev.aldoborrero.peke.services.LiveRow
 import dev.aldoborrero.peke.services.MediaManagementService
 import dev.aldoborrero.peke.services.NavDrawerService
 import dev.aldoborrero.peke.services.NavigationManager
@@ -40,9 +42,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
@@ -50,9 +56,11 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
@@ -92,6 +100,13 @@ class HomeViewModel
         private var leftAt = 0L
         private var leftOn: LocalDate? = null
 
+        /** When the next live programme starts, after the timer found a gap in the guide, see [refreshLiveAtEnds] */
+        private val liveNextStart = MutableStateFlow<LocalDateTime?>(null)
+
+        /** The TV's clock for the live row's timer; tests set a virtual one */
+        @VisibleForTesting
+        internal var clock: () -> LocalDateTime = { LocalDateTime.now() }
+
         init {
             serverRepository.currentUserDtoFlow
                 .combinePair(homeSettingsService.currentSettings)
@@ -127,6 +142,7 @@ class HomeViewModel
                             loadHomeRows(userDto, settings)
                         }
                 }
+            viewModelScope.launch { refreshLiveAtEnds() }
         }
 
         fun init() {
@@ -191,23 +207,140 @@ class HomeViewModel
                 }
                 if (dataLoadingJob?.isActive == true) return@launchIO
                 dataLoadingJob =
-                    viewModelScope.launchIO {
-                        val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
-                        val libraries =
-                            libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
-                        current.settings.rows
-                            .withIndex()
-                            .filter { isWatchingRow(it.value.config) }
-                            .map { (index, row) ->
-                                async(PekeDispatchers.IO) {
-                                    val rowData = fetchRow(row, prefs, userDto, libraries, refresh = true)
-                                    _state.update { state ->
-                                        if (state.settings != current.settings) return@update state
-                                        state.copy(homeRows = state.homeRows.toMutableList().apply { set(index, rowData) })
-                                    }
-                                }
-                            }.awaitAll()
-                    }
+                    viewModelScope.launchIO { refreshRows(current, userDto) { isRefreshedOnReturn(it) } }
+            }
+        }
+
+        /**
+         * Reads again only the rows of [current] whose config matches [which], and puts each in place on its own, so
+         * the rest of the home keeps its state
+         */
+        private suspend fun refreshRows(
+            current: HomeState,
+            userDto: ServerUserConfig,
+            which: (HomeRowConfig) -> Boolean,
+        ) {
+            val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
+            val libraries = libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+            coroutineScope {
+                current.settings.rows
+                    .withIndex()
+                    .filter { which(it.value.config) }
+                    .map { (index, row) ->
+                        async(PekeDispatchers.IO) {
+                            val rowData = fetchRow(row, prefs, userDto, libraries, refresh = true)
+                            _state.update { state ->
+                                if (state.settings != current.settings) return@update state
+                                state.copy(homeRows = state.homeRows.toMutableList().apply { set(index, rowData) })
+                            }
+                        }
+                    }.awaitAll()
+            }
+        }
+
+        /**
+         * The live row's programmes are read again when the first of them ends (spec 034), while the home is shown,
+         * or when the next programme starts after a gap in the guide. Left by then, the return reads the row
+         * ([refreshWatching]). A failed read keeps the row on screen and is retried, see [LiveRow.refreshAtEnds].
+         */
+        private suspend fun refreshLiveAtEnds() {
+            state
+                .map { liveProgrammes(it) }
+                .distinctUntilChanged()
+                .combinePair(liveNextStart)
+                .collectLatest { (shown, nextStart) ->
+                    var read: LiveRead? = null
+                    LiveRow.refreshAtEnds(
+                        shown = shown,
+                        nextStart = nextStart,
+                        now = { clock() },
+                        read = { readLive()?.also { read = it }?.result },
+                        show = {
+                            liveNextStart.value = null
+                            read?.let(::putLive)
+                        },
+                        hide = { next ->
+                            liveNextStart.value = next
+                            read?.let(::putLive)
+                        },
+                    )
+                }
+        }
+
+        /** A read of the live rows by the timer, and the rows' states to put on screen if it goes there */
+        private class LiveRead(
+            val result: LiveRow.Read,
+            val settings: HomePageResolvedSettings,
+            val rows: List<IndexedValue<HomeRowLoadingState>>,
+        )
+
+        /**
+         * Reads the live rows without touching the screen; null when the home isn't shown (left, or not loaded). Any
+         * failure, a 404 too, is [LiveRow.Read.Failed]; nothing airing is a gap, with the next start
+         */
+        private suspend fun readLive(): LiveRead? {
+            val userDto = serverRepository.currentUserDto
+            val current = state.value
+            if (left || userDto == null || current.loadingState != LoadingState.Success) return null
+            Timber.d("Reading the live row again")
+            val rows =
+                try {
+                    val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
+                    val libraries = libraries ?: navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                    current.settings.rows
+                        .withIndex()
+                        .filter { it.value.config is HomeRowConfig.TvPrograms }
+                        .map { (index, row) ->
+                            IndexedValue(
+                                index,
+                                homeSettingsService.fetchDataForRow(
+                                    row = row.config,
+                                    scope = viewModelScope,
+                                    prefs = prefs,
+                                    userDto = userDto,
+                                    libraries = libraries,
+                                    limit = prefs.maxItemsPerRow,
+                                    isRefresh = true,
+                                ),
+                            )
+                        }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Could not read the live row, keeping it")
+                    return LiveRead(LiveRow.Read.Failed, current.settings, emptyList())
+                }
+            if (rows.any { it.value !is HomeRowLoadingState.Success }) {
+                Timber.w("The live row came back with an error, keeping it")
+                return LiveRead(LiveRow.Read.Failed, current.settings, emptyList())
+            }
+            val programmes =
+                rows.flatMap { (_, row) -> (row as HomeRowLoadingState.Success).items.mapNotNull { it?.data } }
+            val result =
+                if (programmes.isNotEmpty()) {
+                    LiveRow.Read.Airing(programmes)
+                } else {
+                    val nextStart =
+                        try {
+                            homeSettingsService.nextLiveStart(userDto.id, clock())
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.w(ex, "Could not read the next live start")
+                            null
+                        }
+                    LiveRow.Read.Gap(nextStart)
+                }
+            return LiveRead(result, current.settings, rows)
+        }
+
+        /** Puts the live rows the timer read on screen, unless the home's rows changed since */
+        private fun putLive(read: LiveRead) {
+            _state.update { state ->
+                if (state.settings != read.settings) return@update state
+                state.copy(
+                    homeRows = state.homeRows.toMutableList().apply { read.rows.forEach { (i, row) -> set(i, row) } },
+                )
             }
         }
 
@@ -446,9 +579,18 @@ data class HomeState(
 }
 
 /**
- * Whether a row is a "is watching" type
+ * Whether a row is read again on a short return to the home: what is being watched, and what is on live now, which
+ * changes with the clock (spec 034)
  */
-private fun isWatchingRow(row: HomeRowConfig) =
+internal fun isRefreshedOnReturn(row: HomeRowConfig) =
     row is HomeRowConfig.ContinueWatching ||
         row is HomeRowConfig.NextUp ||
-        row is HomeRowConfig.ContinueWatchingCombined
+        row is HomeRowConfig.ContinueWatchingCombined ||
+        row is HomeRowConfig.TvPrograms
+
+/** The programmes the home's live rows show */
+internal fun liveProgrammes(state: HomeState): List<BaseItemDto> =
+    state.homeRows
+        .filterIsInstance<HomeRowLoadingState.Success>()
+        .filter { it.rowType is HomeRowConfig.TvPrograms }
+        .flatMap { row -> row.items.mapNotNull { it?.data } }

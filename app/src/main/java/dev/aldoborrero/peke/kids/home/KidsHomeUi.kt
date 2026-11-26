@@ -42,7 +42,6 @@ import dev.aldoborrero.peke.kids.ui.KidsCardTitle
 import dev.aldoborrero.peke.kids.ui.KidsChannelPicture
 import dev.aldoborrero.peke.kids.ui.KidsLiveBadge
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
-import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -245,17 +244,7 @@ fun KidsHomeCard(
         KidsCardKind.CHANNEL -> {
             val imageUrlService = LocalImageUrlService.current
             val picture = remember(item) { item?.let { channelPicture(it.data) } }
-            val imageUrl =
-                remember(picture) {
-                    picture?.tag?.let {
-                        imageUrlService.getItemImageUrl(
-                            itemId = picture.channelId,
-                            imageType = ImageType.PRIMARY,
-                            maxHeight = ImageUrlService.channelImageMaxHeight,
-                            tag = it,
-                        )
-                    }
-                }
+            val imageUrl = remember(picture) { picture?.let { imageUrlService.channelImageUrl(it) } }
             KidsChannelCard(
                 id = picture?.channelId ?: item?.id,
                 name = item?.data?.channelName ?: item?.name,
