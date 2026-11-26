@@ -1020,6 +1020,7 @@
     <string name="kids_stats_advanced_off">Para ver qué ha visto cada hijo, enciende «Estadísticas avanzadas» en el panel del plugin Kids.</string>
     <string name="kids_stats_no_week">Los últimos 7 días llegan con una versión nueva del plugin Kids.</string>
     <string name="kids_stats_week_needs_code">Para ver los últimos 7 días hace falta el código de padres.</string>
+    <string name="kids_stats_week_failed">No se han podido cargar los últimos 7 días.</string>
     <string name="kids_menu_add_time_line_of">Más minutos para %1$s hoy</string>
     <string name="kids_menu_stats_line_of">Cómo va %1$s hoy y esta semana</string>
     <string name="kids_menu_settings_line_tv">Esta tele, código de padres, avanzado</string>

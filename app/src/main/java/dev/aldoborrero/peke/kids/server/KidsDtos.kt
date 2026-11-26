@@ -319,7 +319,7 @@ data class KidsStatsBreaks(
 )
 
 /**
- * The answer to a bonus:the kid's new status and, with [KidsFeatures.BONUS_UNDO], the id that takes it back
+ * The answer to a bonus: the kid's new status and, with [KidsFeatures.BONUS_UNDO], the id that takes it back
  *
  * @param undoSeconds how long the server still accepts the undo (`BonusUndoUntil` less `ServerTime`, both on the
  * server's clock), or null if it didn't say

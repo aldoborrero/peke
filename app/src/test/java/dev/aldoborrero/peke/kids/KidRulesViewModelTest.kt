@@ -1,5 +1,6 @@
 package dev.aldoborrero.peke.kids
 
+import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.CurrentUser
 import dev.aldoborrero.peke.data.ServerRepository
 import dev.aldoborrero.peke.data.model.JellyfinServer
@@ -27,6 +28,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -381,6 +383,78 @@ class KidRulesViewModelTest {
 
             coVerify(exactly = 2) { repository.save(lucy, match { it.searchAllowed }) }
             coVerify(exactly = 0) { repository.save(leo, any()) }
+        }
+
+    @Test
+    fun `a save that fails after a switch says nothing over the other kid's rules`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, any()) } returns true
+            val answer = CompletableDeferred<SaveResult>()
+            coEvery { repository.save(leo, any()) } coAnswers { answer.await() }
+            val vm = viewModel(kids = listOf(leo, lucy))
+            vm.save(RuleChange.DailyTime(90))
+            vm.select(lucy.id)
+
+            answer.complete(SaveResult.UNREACHABLE)
+
+            assertEquals(lucy.id, vm.state.value.kidId)
+            assertNull(vm.state.value.error)
+            assertEquals(
+                30,
+                vm.state.value.profile
+                    ?.dailyAllowanceMinutes,
+            )
+        }
+
+    @Test
+    fun `a save that ends after a switch doesn't say Saved over the other kid's rules`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, any()) } returns true
+            val answer = CompletableDeferred<SaveResult>()
+            coEvery { repository.save(leo, any()) } coAnswers { answer.await() }
+            val vm = viewModel(kids = listOf(leo, lucy))
+            vm.save(RuleChange.DailyTime(90))
+            vm.select(lucy.id)
+
+            answer.complete(SaveResult.SAVED)
+
+            assertFalse(vm.state.value.saved)
+            assertNull(vm.state.value.error)
+        }
+
+    @Test
+    fun `a save the grant ran out for keeps its value after a switch, for the kid it was made for`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, any()) } returns true
+            val answer = CompletableDeferred<SaveResult>()
+            coEvery { repository.save(leo, any()) } coAnswers { answer.await() } andThen SaveResult.SAVED
+            val vm = viewModel(kids = listOf(leo, lucy))
+            vm.save(RuleChange.DailyTime(90))
+            vm.select(lucy.id)
+            answer.complete(SaveResult.NEEDS_GRANT)
+            assertEquals(RuleChange.DailyTime(90), vm.state.value.pending)
+
+            vm.retryPending()
+
+            coVerify(exactly = 2) { repository.save(leo, match { it.dailyAllowanceMinutes == 90 }) }
+            coVerify(exactly = 0) { repository.save(lucy, any()) }
+        }
+
+    @Test
+    fun `when another kid's rules can't be refreshed the page says it can't reach the server`() =
+        runTest(dispatcher) {
+            coEvery { repository.refresh(server, lucy) } returns false
+            val vm = viewModel(kids = listOf(leo, lucy))
+
+            vm.select(lucy.id)
+
+            assertEquals(lucy.id, vm.state.value.kidId)
+            assertEquals(
+                30,
+                vm.state.value.profile
+                    ?.dailyAllowanceMinutes,
+            )
+            assertEquals(R.string.kids_cant_reach_server, vm.state.value.error)
         }
 
     @Test

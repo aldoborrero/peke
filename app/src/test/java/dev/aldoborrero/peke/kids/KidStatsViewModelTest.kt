@@ -91,11 +91,12 @@ class KidStatsViewModelTest {
     private fun viewModel(
         features: String = "profiles,parentLock,enforcement,sitting,allowance,stats",
         kids: List<JellyfinUser> = listOf(leo, lucy),
+        plugin: KidsServerStatus = KidsServerStatus.AVAILABLE,
     ) = KidStatsViewModel(
         mockk<ServerRepository> { every { current } returns MutableStateFlow(CurrentUser(server, leo)) },
         mockk<TvSetupRepository> { every { state } returns MutableStateFlow(TvState.SetUp(server, kids)) },
         mockk<KidsPluginService> {
-            coEvery { state(serverId) } returns KidsServerState(KidsServer(serverId, 1, features), KidsServerStatus.AVAILABLE)
+            coEvery { state(serverId) } returns KidsServerState(KidsServer(serverId, 1, features), plugin)
         },
         allowance,
         lock,
@@ -116,7 +117,8 @@ class KidStatsViewModelTest {
             assertFalse(state.loading)
             assertTrue(state.statsSupported)
             assertEquals(true, state.advanced)
-            assertTrue(state.reachable)
+            assertFalse(state.weekFailed)
+            assertFalse(state.pluginGone)
             assertFalse(state.offline)
             assertEquals(listOf("Leo", "Lucy"), state.kids.map { it.name })
             assertEquals(listOf(true, false), state.kids.map { it.watching })
@@ -170,12 +172,54 @@ class KidStatsViewModelTest {
 
             val state = viewModel().state.value
 
-            assertFalse(state.reachable)
             assertTrue(state.offline)
             assertTrue(state.kids.all { it.stale })
             assertEquals(20, state.kids[0].today?.usedMinutes)
             assertNull(state.kids[1].today)
             assertTrue(state.kids.all { it.week == null })
+        }
+
+    @Test
+    fun `the week failing while today is fresh says so, and the page keeps today only`() =
+        runTest(dispatcher) {
+            coEvery { allowance.lastKnownStatus(server, any()) } returns KnownKidsStatus(status(600), true, Duration.ZERO)
+            coEvery { api.stats(any(), any(), any(), leo.id, any()) } returns KidsResult.Unreachable
+            coEvery { api.stats(any(), any(), any(), lucy.id, any()) } returns KidsResult.Failed(500)
+
+            val state = viewModel().state.value
+
+            assertFalse(state.offline)
+            assertTrue(state.weekFailed)
+            assertNull(state.advanced)
+            assertTrue(state.kids.all { it.today != null && it.bars.isEmpty() })
+        }
+
+    @Test
+    fun `one kid's week is enough, and the page doesn't say the week failed`() =
+        runTest(dispatcher) {
+            coEvery { allowance.lastKnownStatus(server, any()) } returns KnownKidsStatus(status(600), true, Duration.ZERO)
+            coEvery { api.stats(any(), any(), any(), leo.id, any()) } returns KidsResult.Ok(week(advanced = true))
+            coEvery { api.stats(any(), any(), any(), lucy.id, any()) } returns KidsResult.Failed(500)
+
+            val state = viewModel().state.value
+
+            assertFalse(state.weekFailed)
+            assertEquals(7, state.kids[0].bars.size)
+            assertTrue(state.kids[1].bars.isEmpty())
+        }
+
+    @Test
+    fun `with the plugin gone the cards show the cached status, not that it can't reach the server, and no week is asked`() =
+        runTest(dispatcher) {
+            coEvery { allowance.lastKnownStatus(server, any()) } returns KnownKidsStatus(status(1200), false, 30.minutes)
+
+            val state = viewModel(plugin = KidsServerStatus.GONE).state.value
+
+            assertTrue(state.pluginGone)
+            assertFalse(state.offline)
+            assertFalse(state.statsSupported)
+            assertTrue(state.kids.all { it.stale && it.today?.usedMinutes == 20 })
+            coVerify(exactly = 0) { api.stats(any(), any(), any(), any(), any()) }
         }
 
     @Test

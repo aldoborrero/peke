@@ -116,5 +116,8 @@ data class StatsKid(
     val stale: Boolean = false,
     val week: KidsStats? = null,
 ) {
-    val bars: List<StatsBar> get() = week?.days?.let(StatsBar::of).orEmpty()
+    /**
+     * The week's bars, worked out once with the card
+     */
+    val bars: List<StatsBar> = week?.days?.let(StatsBar::of).orEmpty()
 }

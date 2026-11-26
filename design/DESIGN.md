@@ -335,8 +335,9 @@ Decided while testing the app:
   household's advanced stats on, "Most watched this week" (two). A legend by the title; an over-limit day says by how
   much above its bar. Two cards in view, more scroll sideways, one kid gets a wider card; focus walks the cards. A line
   at the end: more detail is on the plugin's dashboard page, or how to turn advanced stats on, or that the week needs a
-  newer plugin. With no answer from the server one card says it can't be reached; a kid the server didn't answer for
-  shows the last cached figures with an "Offline" pill. Boards: "Zona de adultos" (ZAStats and its states).
+  newer plugin, or that it couldn't be loaded. With no answer from the server one card says it can't be reached; a kid
+  the server didn't answer for shows the last cached figures with an "Offline" pill, and so does every kid when the
+  plugin is gone or too old, the menu's notice as the line. Boards: "Zona de adultos" (ZAStats and its states).
 - **The parent code:** one name, "parent code" ("código de padres"). OK with no code opens "Forgot the code?", where
   an administrator signs in with a password or Quick Connect.
 - **The parent gate (7):** a page over the whole screen, not a dialog (spec 019). The right side draws the keys the

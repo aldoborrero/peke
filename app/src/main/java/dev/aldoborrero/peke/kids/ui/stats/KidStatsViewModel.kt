@@ -11,6 +11,7 @@ import dev.aldoborrero.peke.kids.server.KidsApi
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsPluginService
 import dev.aldoborrero.peke.kids.server.KidsResult
+import dev.aldoborrero.peke.kids.server.KidsServerStatus
 import dev.aldoborrero.peke.kids.server.KidsStats
 import dev.aldoborrero.peke.kids.setup.TvSetupRepository
 import dev.aldoborrero.peke.kids.setup.TvState
@@ -40,9 +41,19 @@ data class KidStatsState(
      */
     val advanced: Boolean? = null,
     /**
-     * False when the server didn't answer: the cards show what was cached
+     * The plugin has the stats endpoint but no kid's week came (unreachable, or the plugin failed): today only, with a
+     * line that says so
      */
-    val reachable: Boolean = true,
+    val weekFailed: Boolean = false,
+    /**
+     * The server no longer offers the Kids plugin, or it is too old ([KidsServerStatus.GONE]): the server may answer,
+     * but the plugin doesn't. The cards show what was cached, with the menu's notice instead of "can't reach the server"
+     */
+    val pluginGone: Boolean = false,
+    /**
+     * With [pluginGone], the plugin is there but too old
+     */
+    val pluginOutdated: Boolean = false,
     /**
      * No kid's status came from the server just now: the page shows that it can't reach it, instead of the cards
      */
@@ -92,10 +103,14 @@ class KidStatsViewModel
             }
             val onTv = (tvSetupRepository.state.value as? TvState.SetUp)?.kids.orEmpty()
             kids = if (current.user.let { u -> onTv.any { it.rowId == u.rowId } }) onTv else listOf(current.user) + onTv
-            val supported = pluginService.state(server.id).has(KidsFeatures.STATS)
+            val plugin = pluginService.state(server.id)
+            val gone = plugin.status != KidsServerStatus.AVAILABLE
+            val supported = !gone && plugin.has(KidsFeatures.STATS)
             _state.update {
                 it.copy(
                     statsSupported = supported,
+                    pluginGone = gone,
+                    pluginOutdated = gone && plugin.outdated,
                     kids = kids.map { kid -> StatsKid(kid.id, kid.name, avatars[kid.rowId], watching = kid.rowId == current.user.rowId) },
                 )
             }
@@ -114,8 +129,8 @@ class KidStatsViewModel
             _state.update {
                 it.copy(
                     loading = false,
-                    reachable = today.all { known -> known?.fresh == true },
-                    offline = today.isNotEmpty() && today.none { known -> known?.fresh == true },
+                    // Without the plugin no status is ever fresh, though the server may answer: not "offline"
+                    offline = !gone && today.isNotEmpty() && today.none { known -> known?.fresh == true },
                     kids =
                         it.kids.mapIndexed { i, kid ->
                             kid.copy(today = today[i]?.status?.let(KidToday::from), stale = today[i]?.fresh != true)
@@ -152,7 +167,7 @@ class KidStatsViewModel
                 }
             _state.update {
                 it.copy(
-                    reachable = it.reachable && results.none { r -> r == KidsResult.Unreachable },
+                    weekFailed = weeks.isNotEmpty() && weeks.all { w -> w == null },
                     advanced = weeks.firstNotNullOfOrNull { w -> w?.advancedStats } ?: it.advanced,
                     kids = it.kids.mapIndexed { i, kid -> kid.copy(week = weeks.getOrNull(i)) },
                 )
@@ -171,7 +186,7 @@ class KidStatsViewModel
          * The code passed: the week again
          */
         fun retryWeek() {
-            _state.update { it.copy(needsGrant = false, weekRefused = false) }
+            _state.update { it.copy(needsGrant = false, weekRefused = false, weekFailed = false) }
             viewModelScope.launch { loadWeek(retry = true) }
         }
 

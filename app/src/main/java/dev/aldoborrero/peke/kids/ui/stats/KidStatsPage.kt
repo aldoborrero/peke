@@ -57,6 +57,7 @@ import dev.aldoborrero.peke.kids.setup.KidAvatar
 import dev.aldoborrero.peke.kids.ui.GrownUpSurface
 import dev.aldoborrero.peke.kids.ui.KidsParentGate
 import dev.aldoborrero.peke.kids.ui.boardText
+import dev.aldoborrero.peke.kids.ui.pluginGoneTitle
 import dev.aldoborrero.peke.preferences.AppThemeColors
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
@@ -158,9 +159,7 @@ fun KidStatsContent(
                 Text(stringResource(R.string.kids_stats), style = boardText(40, FontWeight.W900), color = colors.text)
                 Text(
                     stringResource(
-                        if (state.statsSupported &&
-                            !state.weekRefused
-                        ) {
+                        if (state.statsSupported && !state.weekRefused && !state.weekFailed) {
                             R.string.kids_stats_line
                         } else {
                             R.string.kids_stats_line_today
@@ -265,8 +264,10 @@ private fun Offline() {
 private fun footer(state: KidStatsState): Int? =
     when {
         state.loading -> null
+        state.pluginGone -> pluginGoneTitle(state.pluginOutdated)
         !state.statsSupported -> R.string.kids_stats_no_week
         state.weekRefused -> R.string.kids_stats_week_needs_code
+        state.weekFailed -> R.string.kids_stats_week_failed
         state.advanced == true -> R.string.kids_stats_more
         state.advanced == false -> R.string.kids_stats_advanced_off
         else -> null
@@ -647,7 +648,6 @@ private fun KidStatsPapelTodayOnlyPreview() {
                 previewState.copy(
                     statsSupported = false,
                     advanced = null,
-                    reachable = false,
                     kids = previewState.kids.map { it.copy(week = null) },
                 ),
             )

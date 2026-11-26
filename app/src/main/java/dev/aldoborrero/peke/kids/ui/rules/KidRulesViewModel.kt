@@ -222,10 +222,11 @@ class KidRulesViewModel
                         it.copy(kidId = kid.id, kidName = kid.name, profile = kidProfileDao.get(kid.rowId), saved = false, error = null)
                     }
                     val server = server ?: return@launch
-                    kidProfileRepository.refresh(server, kid)
+                    val answered = kidProfileRepository.refresh(server, kid)
                     if (shown?.rowId == kid.rowId) {
                         val fresh = kidProfileDao.get(kid.rowId)
-                        _state.update { it.copy(profile = fresh) }
+                        // No answer: the rules shown are the cached ones, and the page says so
+                        _state.update { it.copy(profile = fresh, error = if (answered) it.error else R.string.kids_cant_reach_server) }
                     }
                 }
         }
@@ -251,7 +252,8 @@ class KidRulesViewModel
                     _state.update { it.copy(saving = true, saved = false, error = null, pending = null) }
                     val latest = kidProfileDao.get(kid.rowId)
                     if (latest == null) {
-                        _state.update { it.copy(saving = false, error = R.string.kids_save_failed) }
+                        _state.update { it.copy(saving = false) }
+                        ifShown(kid) { it.copy(error = R.string.kids_save_failed) }
                         return@withLock
                     }
                     val changed = change.apply(latest)
@@ -275,7 +277,18 @@ class KidRulesViewModel
             kid: JellyfinUser,
             profile: KidProfile,
         ) {
-            if (shown?.rowId == kid.rowId) _state.update { it.copy(profile = profile) }
+            ifShown(kid) { it.copy(profile = profile) }
+        }
+
+        /**
+         * Update the state with [change] only if [kid] is still the one shown: a save that ends after a switch of kid
+         * says nothing over the other kid's rules
+         */
+        private fun ifShown(
+            kid: JellyfinUser,
+            change: (KidRulesState) -> KidRulesState,
+        ) {
+            if (shown?.rowId == kid.rowId) _state.update(change)
         }
 
         private fun handle(
@@ -286,6 +299,7 @@ class KidRulesViewModel
             when (result) {
                 SaveResult.SAVED -> {
                     allowanceService.refresh()
+                    if (shown?.rowId != kid.rowId) return
                     _state.update { it.copy(saved = true) }
                     savedJob?.cancel()
                     savedJob =
@@ -295,21 +309,22 @@ class KidRulesViewModel
                         }
                 }
 
+                // For the kid it was made for, even after a switch (D6)
                 SaveResult.NEEDS_GRANT -> {
                     pendingKid = kid
                     _state.update { it.copy(pending = change) }
                 }
 
                 SaveResult.CONFLICT -> {
-                    _state.update { it.copy(error = R.string.kids_changed_elsewhere) }
+                    ifShown(kid) { it.copy(error = R.string.kids_changed_elsewhere) }
                 }
 
                 SaveResult.UNREACHABLE -> {
-                    _state.update { it.copy(error = R.string.kids_cant_reach_server) }
+                    ifShown(kid) { it.copy(error = R.string.kids_cant_reach_server) }
                 }
 
                 SaveResult.FAILED -> {
-                    _state.update { it.copy(error = R.string.kids_save_failed) }
+                    ifShown(kid) { it.copy(error = R.string.kids_save_failed) }
                 }
             }
         }

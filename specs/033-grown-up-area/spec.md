@@ -45,7 +45,10 @@ seguidos"), "Yes"/"No" ("Sí"/"No"), "No limit". Each row has its icon in a roun
   replaces only it. The owner picks between them on the canvas.
 - **D6. Another kid's rules.** They come from the cache, refreshed from the server with that kid's own token when
   shown, and are saved with the grown-up's grant like the current kid's (the plugin lets a grant holder change any
-  kid). A change the grant ran out for is saved, after the code, for the kid it was made for.
+  kid). A change the grant ran out for is saved, after the code, for the kid it was made for. When the refresh gets
+  no answer, the cached rules stay and the page says it can't reach the server. A save that ends after a switch of
+  kid changes nothing on the kid now shown: no "Saved", no error over their rules (only the value waiting for the
+  code is kept, for the kid it was made for).
 - **D7. Stats.** A page, "Stats" ("Estadísticas"), with one card per kid of this TV in this TV's order: the avatar and
   name with a status pill (on a break with the minutes left, else time's up, else "Watching now" for the kid whose
   session is open), then watched today, left today (or No limit) and extra time today (from each kid's `/Status`, asked
@@ -60,7 +63,11 @@ seguidos"), "Yes"/"No" ("Sí"/"No"), "No limit". Each row has its icon in a roun
   With `stats` and `AdvancedStats` off: no "Most watched", and one line at the end that "Advanced stats" can be turned
   on in the plugin's page of the dashboard. With it on: the line says more detail is on the plugin's dashboard page.
   Offline: when no kid's status came from the server, one card instead of the kids' ("Can't reach the server at
-  home"); when only some, those cards show the last status cached with an "Offline" pill, or "No figures yet". 3+
+  home"); when only some, those cards show the last status cached with an "Offline" pill, or "No figures yet". With
+  `stats` but no kid's week answered (unreachable, or the plugin failed) while today came: today only, with a line
+  that the last 7 days couldn't be loaded. With the plugin gone or too old (`GONE`) the server may answer but the
+  plugin doesn't: the cards show the last status cached with "Offline" and the menu's notice ("This server no longer
+  has the Kids plugin", or that it is too old) as the page's line, never "Can't reach the server". 3+
   kids: the cards are a row that scrolls sideways, two in view; one kid gets a wider card. A legend (today, over the
   limit, daily time) sits by the title when there are bars; an over-limit day says by how much ("+15") above its
   bar, today's bar is labelled "Today", and the line is labelled with today's allowance. "Most watched" shows two.

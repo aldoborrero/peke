@@ -166,8 +166,50 @@ class KidStatsPageTest {
     }
 
     @Test
+    fun `when the week couldn't be loaded the page says so, today only and no bars`() {
+        state = state.copy(advanced = null, weekFailed = true, kids = state.kids.map { it.copy(week = null) })
+        show()
+        rule.onNodeWithText("Today").assertExists()
+        rule.onNodeWithText("29 min").assertExists()
+        rule.onAllNodesWithTag(KidStatsTags.BAR_TODAY).assertCountEquals(0)
+        rule.onNodeWithText("The last 7 days couldn't be loaded.").assertExists()
+        rule.onNodeWithTag(KidStatsTags.OFFLINE).assertDoesNotExist()
+    }
+
+    @Test
+    fun `with the plugin gone the cards show the cached figures with Offline and the menu's notice`() {
+        state =
+            state.copy(
+                statsSupported = false,
+                advanced = null,
+                pluginGone = true,
+                kids = state.kids.map { it.copy(stale = true, week = null) },
+            )
+        show()
+        rule.onNodeWithTag(KidStatsTags.OFFLINE).assertDoesNotExist()
+        rule.onNodeWithText("29 min").assertExists()
+        rule.onAllNodesWithText("Offline").assertCountEquals(2)
+        rule.onNodeWithText("This server no longer has the Kids plugin").assertExists()
+        rule.onNodeWithText("Can't reach the server at home").assertDoesNotExist()
+    }
+
+    @Test
+    fun `with the plugin too old the line says to update it`() {
+        state =
+            state.copy(
+                statsSupported = false,
+                advanced = null,
+                pluginGone = true,
+                pluginOutdated = true,
+                kids = state.kids.map { it.copy(stale = true, week = null) },
+            )
+        show()
+        rule.onNodeWithText("This server's Kids plugin is too old").assertExists()
+    }
+
+    @Test
     fun `with no kid's status from the server the page says it can't reach it, without cards`() {
-        state = state.copy(reachable = false, offline = true, kids = state.kids.map { it.copy(stale = true, week = null) })
+        state = state.copy(offline = true, kids = state.kids.map { it.copy(stale = true, week = null) })
         show()
         rule.onNodeWithTag(KidStatsTags.OFFLINE).assertExists()
         rule.onNodeWithText("Can't reach the server at home").assertExists()
@@ -179,7 +221,6 @@ class KidStatsPageTest {
     fun `a kid the server didn't answer for shows the cached figures with Offline, or no figures yet`() {
         state =
             state.copy(
-                reachable = false,
                 kids = listOf(manuel, lucia.copy(stale = true), lucia.copy(id = UUID(0, 3), today = null, stale = true)),
             )
         show()
