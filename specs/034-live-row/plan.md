@@ -15,3 +15,13 @@
   `KidsHomeUi.kt` (same URL as before, now testable).
 
 No new dependency, string or layout change.
+
+## After review (D5–D7)
+
+- `services/LiveRow.kt`: `Read` (airing, gap with next start, failed); `refreshAtEnds` decides show, keep or hide;
+  `nextRefresh` retries at 15 s twice then 1 min when a shown programme has ended; `untilStart`; `nextStartRequest`.
+- `services/HomeSettingsService.kt`: `nextLiveStart`.
+- `ui/main/HomeViewModel.kt`: the timer reads the live rows itself (`readLive`) without touching the screen, and puts
+  them on screen (`putLive`) only when `LiveRow` says so; the next start after a gap is a flow the timer follows; the
+  clock is injectable for tests.
+- `HomeViewModelLiveRowTest` (Robolectric, virtual time, fake `HomeSettingsService`).

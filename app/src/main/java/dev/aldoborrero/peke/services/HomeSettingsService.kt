@@ -645,6 +645,17 @@ class HomeSettingsService
                 ResStringProvider(R.string.unknown)
             }
 
+        /** When the next live programme starts from [now] on, on any channel; null if the guide has none (spec 034) */
+        suspend fun nextLiveStart(
+            userId: UUID,
+            now: LocalDateTime,
+        ): LocalDateTime? =
+            api.liveTvApi
+                .getPrograms(LiveRow.nextStartRequest(userId, now))
+                .content.items
+                .firstOrNull()
+                ?.startDate
+
         /**
          * Fetch the data from the server for a given [HomeRowConfig]
          */
