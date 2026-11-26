@@ -3,7 +3,8 @@ package dev.aldoborrero.peke.kids.playback
 import dev.aldoborrero.peke.kids.data.KidProfile
 
 /**
- * Kids mode never autoplays endlessly: off by default, and capped at a number of episodes in a row when enabled
+ * Kids mode autoplay: off by default, and capped at a number of episodes in a row when enabled, unless a grown-up chose
+ * no limit (cap 0, spec 030)
  */
 object KidsAutoplayPolicy {
     /**
@@ -17,5 +18,8 @@ object KidsAutoplayPolicy {
     fun allowNext(
         profile: KidProfile,
         autoplayedInARow: Int,
-    ): Boolean = profile.autoplayEnabled && autoplayedInARow < profile.validAutoplayCap
+    ): Boolean {
+        val cap = profile.validAutoplayCap
+        return profile.autoplayEnabled && (cap == KidProfile.UNLIMITED_AUTOPLAY_CAP || autoplayedInARow < cap)
+    }
 }

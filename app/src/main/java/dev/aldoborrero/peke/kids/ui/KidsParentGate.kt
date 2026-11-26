@@ -297,6 +297,7 @@ fun KidsParentGate(
                     },
                     onSwitchKid = { leaveFor(viewModel::switchKid) },
                     onRules = { leaveFor(viewModel::openRules) },
+                    onStats = { leaveFor(viewModel::openStats) },
                     onSettings = { leaveFor(viewModel::openThisTv) },
                     avatar =
                         current?.user?.let { user ->

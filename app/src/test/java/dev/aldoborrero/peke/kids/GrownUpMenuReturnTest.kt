@@ -46,6 +46,15 @@ class GrownUpMenuReturnTest {
     }
 
     @Test
+    fun `Stats opened from the menu returns to it, focused on Stats`() {
+        menuReturn.open(Destination.KidStats)
+
+        assertEquals(GrownUpMenuItem.STATS, menuReturn.itemFor(Destination.KidStats))
+        menuReturn.close(Destination.KidStats)
+        assertEquals(listOf(Destination.Home(), kidPage), navigation.backStack.toList())
+    }
+
+    @Test
     fun `Settings opened from the menu returns to it, focused on Settings`() {
         menuReturn.open(settings)
 

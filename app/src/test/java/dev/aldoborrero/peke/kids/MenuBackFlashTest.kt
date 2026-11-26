@@ -174,6 +174,14 @@ class MenuBackFlashTest {
     }
 
     @Test
+    fun `Back on the menu over the stats leaves to the kid's page without the stats showing alone`() {
+        show(Destination.KidStats)
+        backToMenu()
+
+        assertLeavesWithoutFlash()
+    }
+
+    @Test
     fun `Back on the menu over Settings leaves to the kid's page without Settings showing alone`() {
         show(settings)
         backToMenu()

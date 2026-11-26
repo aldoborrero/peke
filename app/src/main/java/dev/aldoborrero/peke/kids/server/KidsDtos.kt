@@ -69,6 +69,17 @@ object KidsFeatures {
     const val BREAK_END = "breakEnd"
 
     /**
+     * Autoplay without a cap (spec 030): the plugin accepts `AutoplayCap` 0 as no limit. Older plugins only take 1–10.
+     */
+    const val UNLIMITED_AUTOPLAY = "unlimitedAutoplay"
+
+    /**
+     * A kid's stats over the last days (spec 033): `GET /Kids/Users/{id}/Stats?days=N`. Whether the household turned
+     * advanced stats on is a field of the answer, not a feature.
+     */
+    const val STATS = "stats"
+
+    /**
      * Kid avatars (plugin 0.0.8.0, Kids API 1.1): `Avatar` in the kid profile, one of the six pictures Peke ships
      * ([dev.aldoborrero.peke.ui.theme.PekeAvatar]), omitted when the kid has none
      */
@@ -258,6 +269,54 @@ data class KidsStatus(
                 else -> null
             }
 }
+
+/**
+ * A kid's stats over the last days ([KidsFeatures.STATS], the stats contract of 2026-11-19). Today's live figures
+ * stay on [KidsStatus].
+ *
+ * @param days one per day of the range, oldest first, today last, days with nothing watched included
+ * @param topSeries at most 5 by minutes over the range, empty without [advancedStats]
+ */
+@Serializable
+data class KidsStats(
+    @SerialName("UserId") val userId: String? = null,
+    @SerialName("Today") val today: String? = null,
+    @SerialName("AdvancedStats") val advancedStats: Boolean = false,
+    @SerialName("RetentionDays") val retentionDays: Int? = null,
+    @SerialName("Days") val days: List<KidsStatsDay> = emptyList(),
+    @SerialName("TopSeries") val topSeries: List<KidsTopSeries> = emptyList(),
+    @SerialName("Breaks") val breaks: List<KidsStatsBreaks> = emptyList(),
+)
+
+/**
+ * @param allowanceMinutes that day's daily allowance, null for unlimited
+ */
+@Serializable
+data class KidsStatsDay(
+    @SerialName("Day") val day: String,
+    @SerialName("UsedMinutes") val usedMinutes: Int = 0,
+    @SerialName("BonusMinutes") val bonusMinutes: Int = 0,
+    @SerialName("AllowanceMinutes") val allowanceMinutes: Int? = null,
+)
+
+/**
+ * A series, a movie (its own entry) or a live channel ([isLiveTv]) of the most watched
+ */
+@Serializable
+data class KidsTopSeries(
+    @SerialName("SeriesId") val seriesId: String? = null,
+    @SerialName("Name") val name: String? = null,
+    @SerialName("Minutes") val minutes: Int = 0,
+    @SerialName("Plays") val plays: Int = 0,
+    @SerialName("IsLiveTv") val isLiveTv: Boolean = false,
+)
+
+@Serializable
+data class KidsStatsBreaks(
+    @SerialName("Day") val day: String,
+    @SerialName("Count") val count: Int = 0,
+    @SerialName("Minutes") val minutes: Int = 0,
+)
 
 /**
  * The answer to a bonus: the kid's new status and, with [KidsFeatures.BONUS_UNDO], the id that takes it back

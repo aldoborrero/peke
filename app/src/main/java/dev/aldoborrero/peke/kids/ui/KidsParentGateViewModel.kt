@@ -546,10 +546,17 @@ class KidsParentGateViewModel
         }
 
         /**
-         * The current kid's rules, which Back leaves for the menu again
+         * Rules, on the current kid, which Back leaves for the menu again
          */
         fun openRules() {
             menuReturn.open(Destination.KidRules)
+        }
+
+        /**
+         * Stats, every kid of this TV, which Back leaves for the menu again
+         */
+        fun openStats() {
+            menuReturn.open(Destination.KidStats)
         }
 
         /**

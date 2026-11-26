@@ -19,6 +19,7 @@ import dev.aldoborrero.peke.kids.ui.KidsChannelRefusedPage
 import dev.aldoborrero.peke.kids.ui.KidsTimesUpPage
 import dev.aldoborrero.peke.kids.ui.isGrownUp
 import dev.aldoborrero.peke.kids.ui.rules.KidRulesPage
+import dev.aldoborrero.peke.kids.ui.stats.KidStatsPage
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.components.ErrorMessage
 import dev.aldoborrero.peke.ui.components.ItemGrid
@@ -152,6 +153,10 @@ internal fun DestinationPage(
 
         Destination.KidRules -> {
             KidRulesPage(modifier)
+        }
+
+        Destination.KidStats -> {
+            KidStatsPage(modifier)
         }
 
         Destination.KidsTimesUp -> {

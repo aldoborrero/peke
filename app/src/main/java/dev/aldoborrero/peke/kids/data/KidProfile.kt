@@ -58,10 +58,26 @@ data class KidProfile(
      */
     val serverJson: String? = null,
 ) {
-    val validAutoplayCap: Int get() = autoplayCap.coerceIn(MIN_AUTOPLAY_CAP, MAX_AUTOPLAY_CAP)
+    /**
+     * The cap held to 1–10, or [UNLIMITED_AUTOPLAY_CAP] kept as it is
+     */
+    val validAutoplayCap: Int
+        get() =
+            if (autoplayCap ==
+                UNLIMITED_AUTOPLAY_CAP
+            ) {
+                UNLIMITED_AUTOPLAY_CAP
+            } else {
+                autoplayCap.coerceIn(MIN_AUTOPLAY_CAP, MAX_AUTOPLAY_CAP)
+            }
 
     companion object {
         const val DEFAULT_AUTOPLAY_CAP = 3
+
+        /**
+         * Autoplay with no cap, from a plugin with `unlimitedAutoplay` (spec 030)
+         */
+        const val UNLIMITED_AUTOPLAY_CAP = 0
         const val MIN_AUTOPLAY_CAP = 1
         const val MAX_AUTOPLAY_CAP = 10
     }

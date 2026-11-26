@@ -75,6 +75,7 @@ class BackToMenuTest {
                                 onSwitchKid = {},
                                 onRules = {},
                                 onSettings = {},
+                                onStats = {},
                                 focus = focus,
                             )
                         }
@@ -109,6 +110,20 @@ class BackToMenuTest {
         rule.waitForIdle()
         assertEquals(1, menuClosed)
         rule.onNodeWithTag(GrownUpMenuTags.RULES).assertDoesNotExist()
+    }
+
+    @Test
+    fun `Back from Stats shows the menu focused on Stats`() {
+        show(GrownUpMenuItem.STATS)
+
+        back()
+
+        rule.onNodeWithTag(GrownUpMenuTags.STATS).assertIsFocused()
+        rule.onNodeWithText("Stats").assertExists()
+        assertEquals(0, pageLeft)
+        rule.onNodeWithTag(GrownUpMenuTags.STATS).performKeyInput { pressKey(Key.Back) }
+        rule.waitForIdle()
+        assertEquals(1, menuClosed)
     }
 
     @Test

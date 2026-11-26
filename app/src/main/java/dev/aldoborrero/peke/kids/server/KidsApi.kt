@@ -239,6 +239,21 @@ class KidsApi
         ): KidsResult<KidsStatus> = call(baseUrl, "Kids/Users/$userId/Status", caller) { decode(KidsStatus.serializer(), it) }
 
         /**
+         * The kid's stats over the last [days] days, today included (`GET /Kids/Users/{id}/Stats`, [KidsFeatures.STATS]).
+         * Like a bonus it needs an administrator or the parent grant: 403 otherwise.
+         */
+        suspend fun stats(
+            baseUrl: String,
+            caller: KidsCaller,
+            grant: String?,
+            userId: UUID,
+            days: Int,
+        ): KidsResult<KidsStats> =
+            call(baseUrl, "Kids/Users/$userId/Stats", caller, grant, query = mapOf("days" to days.toString())) {
+                decode(KidsStats.serializer(), it)
+            }
+
+        /**
          * The kid's effective live TV channels, with what is on now (`GET /Kids/Users/{id}/LiveTv/Channels`)
          */
         suspend fun liveTvChannels(

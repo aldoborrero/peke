@@ -215,8 +215,8 @@ private fun KidsTimerEffectsContent(
     val holdStop by viewModel.timeLimits.holdStop.collectAsState()
     LaunchedEffect(expired, top, holdStop) {
         if (expired) {
-            // A grown-up on the kid's rules isn't interrupted mid-change: time's up shows when they leave
-            if (top !is Destination.KidRules) viewModel.showTimesUp()
+            // A grown-up on the rules or the stats isn't interrupted: time's up shows when they leave
+            if (top !is Destination.KidRules && top !is Destination.KidStats) viewModel.showTimesUp()
         } else if (top is Destination.KidsTimesUp && !holdStop) {
             viewModel.leaveTimesUp()
         }
