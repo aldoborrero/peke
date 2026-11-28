@@ -147,7 +147,7 @@ private fun KidsChannelRow(
             modifier = Modifier.fillMaxSize().padding(20.cpx),
         ) {
             Box(Modifier.size(NowPicture).clip(RoundedCornerShape(24.cpx))) {
-                LivePictureBox(now, NowPicture.height)
+                LivePictureBox(now, NowPicture.height, backdrop = colors.background)
                 status?.let { LiveProgress(it.progress, Modifier.align(Alignment.BottomCenter).padding(14.cpx)) }
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.cpx), modifier = Modifier.weight(1f)) {
@@ -200,7 +200,7 @@ private fun KidsLaterColumn(
             maxLines = 1,
         )
         Box(Modifier.size(LaterPicture).clip(RoundedCornerShape(16.cpx))) {
-            LivePictureBox(card, LaterPicture.height, pill = false)
+            LivePictureBox(card, LaterPicture.height, pill = false, backdrop = colors.background)
         }
         Text(
             text = later.name.orEmpty(),

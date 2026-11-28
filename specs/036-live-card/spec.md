@@ -40,7 +40,8 @@ detail, on the canvas "Peke TV UX", page "Pendiente · noviembre", row "031 · T
   sooner than 15 s. While the page is left it doesn't read.
 - **D6. Titles follow the app's cards.** The card's series line is the app's card title (text colour and 900 when
   focused, "text, secondary" and 800 otherwise), as keep watching beside it; the boards draw it white always.
-- **D7. Poster on dark.** The poster sits in the middle of a card in the page colour; a logo or a picture that can't
+- **D7. Poster on dark.** The poster sits in the middle of a dark card: "surface" on the home, the page colour on the
+  Live page's surface rows, so the card, its pill and its bar stand out (seen on the emulator); a logo or a picture that can't
   load gives way to the next in O2's order.
 
 ## Requirements

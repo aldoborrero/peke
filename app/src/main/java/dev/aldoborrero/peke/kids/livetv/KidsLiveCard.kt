@@ -226,12 +226,15 @@ private fun ImageUrlService.channelLogoUrl(logo: LivePicture.Logo): String? =
  * programme's own picture the channel's logo sits in a pill at the top left, when it has one.
  *
  * @param pill whether to draw the logo pill (the Live page's "later" picture has none)
+ * @param backdrop around a poster: a colour that stands out from what is around the card (surface on the home,
+ * the page colour on the Live page's surface rows)
  */
 @Composable
 fun BoxScope.LivePictureBox(
     card: LiveCard,
     height: Dp,
     pill: Boolean = true,
+    backdrop: Color = LocalPekeColors.current.surface,
 ) {
     val colors = LocalPekeColors.current
     val imageUrlService = LocalImageUrlService.current
@@ -254,7 +257,7 @@ fun BoxScope.LivePictureBox(
 
         is LivePicture.Poster -> {
             // A 2:3 poster in the middle of a dark card
-            Box(Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize().background(backdrop), contentAlignment = Alignment.Center) {
                 AsyncImage(
                     model = url,
                     contentDescription = null,
