@@ -1139,7 +1139,6 @@
     <string name="kids_code_cant_change">There is no parent code to change. Set it in Grown-ups as a server administrator.</string>
     <string name="kids_code_needs_grant">Open Grown-ups again to change the parent code</string>
     <!-- 008 Phase 1: the kids home -->
-    <string name="kids_live_badge">LIVE</string>
     <string name="kids_home_greeting">Hi, %1$s!</string>
     <string name="kids_home_question">What do you want to watch?</string>
     <plurals name="kids_home_time_left_today">
@@ -1179,7 +1178,38 @@
     <string name="kids_episode_short">Ep. %1$d</string>
     <string name="kids_season_episode_short">S%1$d · Ep. %2$d</string>
     <!-- 008 Phase 4: live TV -->
-    <string name="kids_next_programme">Next: %1$s</string>
+    <!-- 036: the live card and the Live page say what is on and how long it has left -->
+    <plurals name="kids_live_minutes_left">
+        <item quantity="one">%1$d min left</item>
+        <item quantity="other">%1$d min left</item>
+    </plurals>
+    <string name="kids_live_hours_left">%1$d h %2$d min left</string>
+    <plurals name="kids_live_hour_left">
+        <item quantity="one">%1$d h left</item>
+        <item quantity="other">%1$d h left</item>
+    </plurals>
+    <string name="kids_live_ending">ending now</string>
+    <plurals name="kids_live_minutes_spoken">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="kids_live_hours_spoken">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="kids_live_minutes_left_spoken">
+        <item quantity="one">%1$d minute left</item>
+        <item quantity="other">%1$d minutes left</item>
+    </plurals>
+    <plurals name="kids_live_hour_left_spoken">
+        <item quantity="one">%1$d hour left</item>
+        <item quantity="other">%1$d hours left</item>
+    </plurals>
+    <string name="kids_live_hours_minutes_spoken">%1$s and %2$s left</string>
+    <string name="kids_live_ending_spoken">ending now</string>
+    <string name="kids_live_card_spoken">%1$s: %2$s, %3$s</string>
+    <string name="kids_live_later">Later · %1$s</string>
+    <string name="kids_live_later_spoken">Later, at %1$s: %2$s</string>
     <!-- 008 Phase 5: search, voice, favourites, library -->
     <string name="kids_voice_title">Speak to search</string>
     <string name="kids_voice_back">Press Back to stop</string>

@@ -34,15 +34,14 @@ import dev.aldoborrero.peke.R
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.kids.KidsModeState
 import dev.aldoborrero.peke.kids.LocalKidsMode
+import dev.aldoborrero.peke.kids.livetv.KidsLiveCard
+import dev.aldoborrero.peke.kids.livetv.liveCard
 import dev.aldoborrero.peke.kids.timer.KidsTimeLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarSetting
 import dev.aldoborrero.peke.kids.ui.KidsCardSurface
 import dev.aldoborrero.peke.kids.ui.KidsCardTitle
-import dev.aldoborrero.peke.kids.ui.KidsChannelPicture
-import dev.aldoborrero.peke.kids.ui.KidsLiveBadge
 import dev.aldoborrero.peke.kids.ui.KidsPictureCard
-import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.ui.LocalImageUrlService
 import dev.aldoborrero.peke.ui.theme.LocalPekeColors
 import dev.aldoborrero.peke.ui.theme.PekeIcon
@@ -206,8 +205,8 @@ private fun keepWatchingDescription(episode: KeepWatchingEpisode): String =
     ).joinToString(", ")
 
 /**
- * A kids home card of [kind] (HomeRailPekeTV), at its [cardSize]: wide for keep watching, a channel card for live, a
- * poster otherwise
+ * A kids home card of [kind] (HomeRailPekeTV), at its [cardSize]: wide for keep watching, a live card (spec 036) for
+ * Watch live, a poster otherwise
  */
 @Composable
 fun KidsHomeCard(
@@ -243,23 +242,11 @@ fun KidsHomeCard(
         }
 
         KidsCardKind.CHANNEL -> {
-            val imageUrlService = LocalImageUrlService.current
-            val picture = remember(item) { item?.let { channelPicture(it.data) } }
-            val imageUrl =
-                remember(picture) {
-                    picture?.tag?.let {
-                        imageUrlService.getItemImageUrl(
-                            itemId = picture.channelId,
-                            imageType = ImageType.PRIMARY,
-                            maxHeight = ImageUrlService.channelImageMaxHeight,
-                            tag = it,
-                        )
-                    }
-                }
-            KidsChannelCard(
-                id = picture?.channelId ?: item?.id,
-                name = item?.data?.channelName ?: item?.name,
-                imageUrl = imageUrl,
+            val card = remember(item) { item?.let { liveCard(it.data) } }
+            KidsLiveCard(
+                card = card,
+                width = size.width,
+                height = size.height,
                 onClick = onClick,
                 onLongClick = onLongClick,
                 modifier = modifier,
@@ -279,40 +266,6 @@ fun KidsHomeCard(
                 titleSize = 17,
                 modifier = modifier,
             )
-        }
-    }
-}
-
-/**
- * A live channel on the home: a surface card with the channel's picture on a coloured tile (Peke's TV when it has
- * none), the LIVE badge and the channel's name
- */
-@Composable
-fun KidsChannelCard(
-    id: UUID?,
-    name: String?,
-    imageUrl: String?,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    KidsCardSurface(
-        onClick = onClick,
-        onLongClick = onLongClick,
-        shape = RoundedCornerShape(24.cpx),
-        modifier = modifier.size(KidsCardKind.CHANNEL.cardSize),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.cpx),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxSize().padding(16.cpx),
-        ) {
-            KidsChannelPicture(id = id, imageUrl = imageUrl, name = name, size = 80.cpx, corner = 18.cpx)
-            Column(verticalArrangement = Arrangement.spacedBy(10.cpx)) {
-                KidsLiveBadge()
-                // The channel name is the card's own text, always in the text colour
-                KidsCardTitle(title = name, focused = true)
-            }
         }
     }
 }

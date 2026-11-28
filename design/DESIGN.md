@@ -75,7 +75,7 @@ Nunito (Google Fonts, OFL), bundled in the app. Weights 700, 800 and 900 only.
 | Section | 24 | 900 | Row titles ("Keep watching") |
 | Body | 20–22 | 800 | Card titles, list rows, buttons |
 | Supporting | 18–19 | 800 | Hints and secondary lines, in "text, secondary" |
-| Small | 15–16 | 800 | Badges ("LIVE"), episode labels; never smaller |
+| Small | 15–16 | 800 | Badges, episode labels; never smaller |
 
 Spanish runs 20 to 30% longer than English, so titles wrap to two lines rather than shrinking.
 
@@ -263,7 +263,7 @@ Both sets follow the same rules (`IconSpecTest` checks them on the SVGs):
 The canvas holds every screen and state the app has today; board names are in brackets.
 
 - **Kid's path:** who's watching, with avatars (1b); home with the sidebar closed and open (2b, 2c); show details (3);
-  player with the time warning (4); live TV (5); voice search, results, favourites, a library, seasons (13–17); next
+  player with the time warning (4); live TV (5, now the "B revisada" boards P031LiveB2*); voice search, results, favourites, a library, seasons (13–17); next
   episode countdown and the episodes-in-a-row end screen (18, 19); channel not available (20).
 - **Stops and the parent gate:** time's up, break, outside allowed hours, can't play (6a–6d); parent gate (7).
 - **Grown-ups:** parent menu, add time, a kid's settings, grown-up setup, Peke settings (8–12).
@@ -276,6 +276,20 @@ The canvas holds every screen and state the app has today; board names are in br
 Decided while testing the app:
 - **Sidebar:** the kids' home keeps Wholphin's nav drawer. It holds the kid's avatar, Search (if allowed), Home,
   Favourites, Live TV (if the kid has channels) and Grown-ups at the bottom. Libraries never show for kids.
+- **Watch live (spec 036, P031LiveB2*):** the home's live card is 320×180 with 24 px corners, like keep watching, and
+  shows what is on: the episode's still, or the series' poster in the middle of a dark card, or the channel's logo in a
+  navy pill on teal, or Peke's TV on lilac, in that order. Over the still or the poster the channel's logo sits in a
+  40 px navy pill at the top left; a channel without a logo has no pill, its name is in the line under the card. Inside
+  the bottom edge, 14 px in, a 10 px bar of what has aired, "time" yellow on see-through navy. Under the card: the
+  series (20 px, 900, one line with "…") and "PekeTV · 12 min left" (19 px, 800; the channel in "text, secondary", the
+  time in "time"). No "LIVE" mark anywhere: the row's title, the bar and the time left say it. Time texts: "12 min
+  left", "1 min left", "ending now" in the last minute, "1 h 20 min left" from an hour ("quedan 12 min", "queda 1 min",
+  "acaba ya", "quedan 1 h 20 min"); they move once a minute. A channel without a guide shows its logo and its name
+  alone, without the bar; every channel of the kid has a card, airing or not. TalkBack reads "PekeTV: Hey Duggee, 12
+  minutes left". The Live page has one full-width navy row per channel, 220 px tall, with the ring and no scale: now
+  on the left (the still at 320×180 with the pill and the bar), then the series at 32 px on up to two lines, the
+  episode ("Ep. 12 · The cake badge", 20 px, "text, secondary") and the channel with the time left; on the right
+  "Later · 19:55" (18 px, 900), its picture at 200×113 and its series (19 px).
 - **Back:** with the sidebar open, on any page, Back closes it and focus returns where it was on the page; Left opens
   it, Back never does. On the home with the sidebar closed, Back asks "Leave Peke?" ("Keep watching" focused, and
   "Leave"); Leave quits, Keep watching or Back stays. It asks, it doesn't lock: no parent code (spec 024). The parent

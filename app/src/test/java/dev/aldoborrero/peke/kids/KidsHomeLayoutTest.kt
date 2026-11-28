@@ -1,12 +1,10 @@
 package dev.aldoborrero.peke.kids
 
 import dev.aldoborrero.peke.data.model.HomeRowConfig
-import dev.aldoborrero.peke.kids.home.ChannelPicture
 import dev.aldoborrero.peke.kids.home.HomeTimeLeft
 import dev.aldoborrero.peke.kids.home.KeepWatchingEpisode
 import dev.aldoborrero.peke.kids.home.KidsCardKind
 import dev.aldoborrero.peke.kids.home.cardSize
-import dev.aldoborrero.peke.kids.home.channelPicture
 import dev.aldoborrero.peke.kids.home.focusRoom
 import dev.aldoborrero.peke.kids.home.homeTimeLeft
 import dev.aldoborrero.peke.kids.home.keepWatchingEpisode
@@ -96,31 +94,6 @@ class KidsHomeLayoutTest {
             val above = kind.cardSize.height.value * .035f + 10.5f * 1.07f
             assertTrue("$kind top", kind.focusRoom.top.value >= above + 4f)
         }
-    }
-
-    @Test
-    fun `a live card shows its channel's picture when Jellyfin has one`() {
-        val channel = UUID.randomUUID()
-        val programme =
-            BaseItemDto(
-                id = UUID.randomUUID(),
-                type = BaseItemKind.PROGRAM,
-                channelId = channel,
-                channelPrimaryImageTag = "tag",
-            )
-        assertEquals(ChannelPicture(channel, "tag"), channelPicture(programme))
-        assertEquals(ChannelPicture(channel, null), channelPicture(programme.copy(channelPrimaryImageTag = null)))
-
-        val tv =
-            BaseItemDto(
-                id = channel,
-                type = BaseItemKind.TV_CHANNEL,
-                imageTags = mapOf(ImageType.PRIMARY to "own"),
-            )
-        assertEquals(ChannelPicture(channel, "own"), channelPicture(tv))
-        assertEquals(ChannelPicture(channel, null), channelPicture(tv.copy(imageTags = null)))
-
-        assertNull(channelPicture(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.PROGRAM)))
     }
 
     @Test

@@ -24,6 +24,7 @@ import org.jellyfin.sdk.model.DeviceInfo
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.io.IOException
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -247,6 +248,24 @@ class KidsApi
             userId: UUID,
         ): KidsResult<KidsItemsResult> =
             call(baseUrl, "Kids/Users/$userId/LiveTv/Channels", caller) { decode(KidsItemsResult.serializer(), it) }
+
+        /**
+         * The guide of the kid's channels between [start] and [end] (`GET /Kids/Users/{id}/LiveTv/Programs`): the
+         * programmes that end after [start] and start before [end], ordered by start
+         */
+        suspend fun liveTvPrograms(
+            baseUrl: String,
+            caller: KidsCaller,
+            userId: UUID,
+            start: Instant,
+            end: Instant,
+        ): KidsResult<KidsItemsResult> =
+            call(
+                baseUrl,
+                "Kids/Users/$userId/LiveTv/Programs",
+                caller,
+                query = mapOf("startDate" to start.toString(), "endDate" to end.toString()),
+            ) { decode(KidsItemsResult.serializer(), it) }
 
         /**
          * Add [minutes] to the kid's today. With [KidsFeatures.BONUS_UNDO] the answer names the bonus, for [undoBonus].

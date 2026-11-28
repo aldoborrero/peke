@@ -950,7 +950,6 @@
     <string name="kids_code_cant_change">No hay código de padres que cambiar. Ponlo en Adultos como administrador del servidor.</string>
     <string name="kids_code_needs_grant">Vuelve a abrir Adultos para cambiar el código de padres</string>
     <!-- 008 Phase 1: the kids home -->
-    <string name="kids_live_badge">EN DIRECTO</string>
     <string name="kids_home_greeting">¡Hola, %1$s!</string>
     <string name="kids_home_question">¿Qué quieres ver?</string>
     <plurals name="kids_home_time_left_today">
@@ -995,7 +994,44 @@
     <string name="kids_episode_short">Ep. %1$d</string>
     <string name="kids_season_episode_short">T%1$d · Ep. %2$d</string>
     <!-- 008 Phase 4: live TV -->
-    <string name="kids_next_programme">Después: %1$s</string>
+    <!-- 036: the live card and the Live page say what is on and how long it has left -->
+    <plurals name="kids_live_minutes_left">
+        <item quantity="one">queda %1$d min</item>
+        <item quantity="many">quedan %1$d min</item>
+        <item quantity="other">quedan %1$d min</item>
+    </plurals>
+    <string name="kids_live_hours_left">quedan %1$d h %2$d min</string>
+    <plurals name="kids_live_hour_left">
+        <item quantity="one">queda %1$d h</item>
+        <item quantity="many">quedan %1$d h</item>
+        <item quantity="other">quedan %1$d h</item>
+    </plurals>
+    <string name="kids_live_ending">acaba ya</string>
+    <plurals name="kids_live_minutes_spoken">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="many">%1$d minutos</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <plurals name="kids_live_hours_spoken">
+        <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d horas</item>
+        <item quantity="other">%1$d horas</item>
+    </plurals>
+    <plurals name="kids_live_minutes_left_spoken">
+        <item quantity="one">queda %1$d minuto</item>
+        <item quantity="many">quedan %1$d minutos</item>
+        <item quantity="other">quedan %1$d minutos</item>
+    </plurals>
+    <plurals name="kids_live_hour_left_spoken">
+        <item quantity="one">queda %1$d hora</item>
+        <item quantity="many">quedan %1$d horas</item>
+        <item quantity="other">quedan %1$d horas</item>
+    </plurals>
+    <string name="kids_live_hours_minutes_spoken">quedan %1$s y %2$s</string>
+    <string name="kids_live_ending_spoken">acaba ya</string>
+    <string name="kids_live_card_spoken">%1$s: %2$s, %3$s</string>
+    <string name="kids_live_later">Luego · %1$s</string>
+    <string name="kids_live_later_spoken">Luego, a las %1$s: %2$s</string>
     <!-- 008 Phase 5: search, voice, favourites, library -->
     <string name="kids_voice_title">Habla para buscar</string>
     <string name="kids_voice_back">Pulsa Atrás para parar</string>

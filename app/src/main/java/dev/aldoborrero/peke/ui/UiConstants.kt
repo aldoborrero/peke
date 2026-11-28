@@ -93,7 +93,8 @@ val PhotoItemFields =
             ItemFields.HEIGHT,
         )
 
-val ProgramItemFields = DetailItemFields + listOf(ItemFields.CHANNEL_INFO)
+/** A programme's fields: its channel, and the channel's logo tag for the live cards (spec 034) */
+val ProgramItemFields = DetailItemFields + listOf(ItemFields.CHANNEL_INFO, ItemFields.CHANNEL_IMAGE)
 
 object Cards {
     const val HEIGHT_2X3_DP = 172

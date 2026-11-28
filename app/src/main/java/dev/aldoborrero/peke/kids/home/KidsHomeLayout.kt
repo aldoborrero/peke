@@ -6,6 +6,7 @@ import dev.aldoborrero.peke.kids.timer.KidsLimits
 import dev.aldoborrero.peke.kids.timer.KidsTimerBarPosition
 import dev.aldoborrero.peke.kids.ui.KidsMinCardGap
 import dev.aldoborrero.peke.kids.ui.barMinutes
+import dev.aldoborrero.peke.services.ImageUrlService
 import dev.aldoborrero.peke.ui.theme.FocusRoom
 import dev.aldoborrero.peke.ui.theme.cpx
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -23,7 +24,8 @@ enum class KidsCardKind {
     WIDE,
 
     /**
-     * Watch live: a card with the channel's picture, the LIVE badge and its name
+     * Watch live: the picture of what is on, 16:9 like keep watching, the series and the channel with the time left
+     * (spec 036)
      */
     CHANNEL,
 
@@ -82,13 +84,14 @@ fun homeTimeLeft(
 }
 
 /**
- * A kids home card's size (HomeRailPekeTV): 320×180 px for keep watching, 300×112 for a channel, 140×200 for a poster
+ * A kids home card's size (HomeRailPekeTV): 320×180 px for keep watching and live, 140×200 for a
+ * poster
  */
 val KidsCardKind.cardSize: DpSize
     get() =
         when (this) {
             KidsCardKind.WIDE -> DpSize(320.cpx, 180.cpx)
-            KidsCardKind.CHANNEL -> DpSize(300.cpx, 112.cpx)
+            KidsCardKind.CHANNEL -> DpSize(320.cpx, 180.cpx)
             KidsCardKind.POSTER -> DpSize(140.cpx, 200.cpx)
         }
 
@@ -137,22 +140,3 @@ private fun String.hasWords(): Boolean = any { it.isLetterOrDigit() }
  * series' thumb or backdrop
  */
 fun showsEpisodePicture(item: BaseItemDto): Boolean = item.type == BaseItemKind.EPISODE && item.imageTags?.get(ImageType.PRIMARY) != null
-
-/**
- * The channel whose picture a Watch live card shows, and the picture's tag when Jellyfin has one
- */
-data class ChannelPicture(
-    val channelId: UUID,
-    val tag: String?,
-)
-
-/**
- * The picture of a Watch live card's channel: a programme's channel, or the channel itself; null for a programme with
- * no channel
- */
-fun channelPicture(item: BaseItemDto): ChannelPicture? =
-    if (item.type == BaseItemKind.TV_CHANNEL) {
-        ChannelPicture(item.id, item.imageTags?.get(ImageType.PRIMARY))
-    } else {
-        item.channelId?.let { ChannelPicture(it, item.channelPrimaryImageTag) }
-    }
