@@ -2,9 +2,8 @@ package dev.aldoborrero.peke.services
 
 import dev.aldoborrero.peke.data.model.BaseItem
 import dev.aldoborrero.peke.data.model.HomeRowConfig
-import dev.aldoborrero.peke.kids.home.ChannelPicture
-import dev.aldoborrero.peke.kids.home.channelImageUrl
-import dev.aldoborrero.peke.kids.home.channelPicture
+import dev.aldoborrero.peke.kids.livetv.LivePicture
+import dev.aldoborrero.peke.kids.livetv.livePictureUrl
 import dev.aldoborrero.peke.ui.main.HomeState
 import dev.aldoborrero.peke.ui.main.isRefreshedOnReturn
 import dev.aldoborrero.peke.ui.main.liveProgrammes
@@ -21,6 +20,7 @@ import org.jellyfin.sdk.api.operations.ImageApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.GetProgramsDto
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
@@ -224,12 +224,15 @@ class LiveRowTest {
     }
 
     @Test
-    fun `programmes ask for their channel's logo`() {
-        assertTrue(ItemFields.CHANNEL_IMAGE in LiveRow.request(userId, 10).fields.orEmpty())
+    fun `programmes ask for their channel's logo, the episode's still and the series' poster`() {
+        val request = LiveRow.request(userId, 10)
+        assertTrue(ItemFields.CHANNEL_IMAGE in request.fields.orEmpty())
+        assertTrue(ImageType.THUMB in request.enableImageTypes.orEmpty())
+        assertTrue(ImageType.PRIMARY in request.enableImageTypes.orEmpty())
     }
 
     @Test
-    fun `the card's picture is the channel's logo by its tag, or none`() {
+    fun `the card's pictures are the programme's still and poster and the channel's logo, none for Peke's TV`() {
         val api = mockk<ApiClient>()
         every { api.baseUrl } returns "http://localhost"
         every { api.createUrl(any(), any(), any(), any()) } answers { callOriginal() }
@@ -237,16 +240,15 @@ class LiveRowTest {
         val service = ImageUrlService(api)
 
         val channel = UUID.randomUUID()
-        val programme =
-            BaseItemDto(
-                id = UUID.randomUUID(),
-                type = BaseItemKind.PROGRAM,
-                channelId = channel,
-                channelPrimaryImageTag = "logo",
-            )
-        val url = service.channelImageUrl(channelPicture(programme)!!)!!
-        assertTrue(url, url.contains("/Items/$channel/Images/Primary"))
-        assertTrue(url, url.contains("tag=logo"))
-        assertNull(service.channelImageUrl(ChannelPicture(channel, null)))
+        val programme = UUID.randomUUID()
+        val still = service.livePictureUrl(LivePicture.Still(programme, "still"), 270)!!
+        assertTrue(still, still.contains("/Items/$programme/Images/Thumb"))
+        assertTrue(still, still.contains("tag=still"))
+        val poster = service.livePictureUrl(LivePicture.Poster(programme, "poster"), 270)!!
+        assertTrue(poster, poster.contains("/Items/$programme/Images/Primary"))
+        val logo = service.livePictureUrl(LivePicture.Logo(channel, "logo"), 270)!!
+        assertTrue(logo, logo.contains("/Items/$channel/Images/Primary"))
+        assertTrue(logo, logo.contains("tag=logo"))
+        assertNull(service.livePictureUrl(LivePicture.PekeTv, 270))
     }
 }

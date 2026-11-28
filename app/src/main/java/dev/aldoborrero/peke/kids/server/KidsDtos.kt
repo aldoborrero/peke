@@ -118,6 +118,8 @@ data class KidsLiveTvItem(
     @SerialName("ChannelId") val channelId: String? = null,
     @SerialName("StartDate") val startDate: String? = null,
     @SerialName("EndDate") val endDate: String? = null,
+    @SerialName("EpisodeTitle") val episodeTitle: String? = null,
+    @SerialName("IndexNumber") val indexNumber: Int? = null,
     @SerialName("ImageTags") val imageTags: Map<String, String> = emptyMap(),
     @SerialName("CurrentProgram") val currentProgram: KidsLiveTvItem? = null,
 )

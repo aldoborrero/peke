@@ -8,6 +8,8 @@ import dev.aldoborrero.peke.kids.data.KidProfile
 import dev.aldoborrero.peke.kids.livetv.KidsChannel
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTv
 import dev.aldoborrero.peke.kids.livetv.KidsLiveTvService
+import dev.aldoborrero.peke.kids.livetv.KidsLiveViewModel
+import dev.aldoborrero.peke.kids.livetv.LiveProgramme
 import dev.aldoborrero.peke.kids.server.KidProfileMapper
 import dev.aldoborrero.peke.kids.server.KidsFeatures
 import dev.aldoborrero.peke.kids.server.KidsInfo
@@ -32,7 +34,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Kids live TV (plugin 0.0.6.0): the kid's channels, when live TV shows, the profile field and the kids UI
@@ -44,6 +51,18 @@ class KidsLiveTvTest {
     private val peke = UUID.fromString("7f3c0000-0000-0000-0000-000000000001")
     private val http = FakeKidsServer()
     private val channelsPath = "/Kids/Users/${kid.id}/LiveTv/Channels"
+    private val programsPath = "/Kids/Users/${kid.id}/LiveTv/Programs"
+
+    private val guide =
+        """
+        {"Items":[{"Id":"b1000000000000000000000000000001","Name":"Hey Duggee","Type":"Program",
+                   "ChannelId":"7f3c0000000000000000000000000001","ImageTags":{"Thumb":"t"},
+                   "StartDate":"2026-11-28T18:30:00.0000000Z","EndDate":"2026-11-28T18:52:00.0000000Z"},
+                  {"Id":"b1000000000000000000000000000002","Name":"Bluey","Type":"Program",
+                   "ChannelId":"7f3c0000000000000000000000000001",
+                   "StartDate":"2026-11-28T18:52:00.0000000Z","EndDate":"2026-11-28T18:59:00.0000000Z"}],
+         "TotalRecordCount":2}
+        """.trimIndent()
 
     // As in the contract: a channel with its program on now, plus items kids mode must leave out
     private val channels =
@@ -82,7 +101,7 @@ class KidsLiveTvTest {
     @Test
     fun `channels are mapped from the plugin's answer`() {
         val result = KidsJson.decodeFromString(KidsItemsResult.serializer(), channels)
-        assertEquals(listOf(KidsChannel(peke, "PekeTV", "1")), KidsLiveTv.channels(result))
+        assertEquals(listOf(KidsChannel(peke, "PekeTV", "1", imageTag = "c0ff")), KidsLiveTv.channels(result))
     }
 
     @Test
@@ -196,5 +215,54 @@ class KidsLiveTvTest {
         assertEquals(kidsNavDrawerItems(liveTv = true), customization.navDrawerItems)
         assertFalse(customization.allows(RestrictedFeature.LIVE_TV_RECORDINGS))
         assertEquals(listOf(NavDrawerItem.Favorites), kidsInterfaceCustomization(profile).navDrawerItems)
+    }
+
+    @Test
+    fun `the current kid's channels come with their logo`() =
+        runTest(UnconfinedTestDispatcher()) {
+            http.on("GET", channelsPath, 200, channels)
+            val service = service()
+            assertEquals(listOf(KidsChannel(peke, "PekeTV", "1", imageTag = "c0ff")), service.channels.value)
+        }
+
+    @Test
+    fun `the Live page reads three hours of the kid's guide in one request, not Jellyfin's 48 hours`() =
+        runTest(UnconfinedTestDispatcher()) {
+            http.on("GET", channelsPath, 200, channels)
+            http.on("GET", programsPath, 200, guide)
+            val service = service()
+            val before = http.requests.size
+            val read = service.guide(Instant.parse("2026-11-28T18:41:07.500Z"), ZoneOffset.UTC)!!
+            assertEquals(listOf("Hey Duggee", "Bluey"), read.map { it.name })
+            val asked = http.requests.drop(before)
+            assertEquals(listOf(programsPath), asked.map { it.path })
+            assertEquals(
+                "startDate=2026-11-28T18:41:07Z&endDate=2026-11-28T21:41:07Z",
+                java.net.URLDecoder.decode(asked.single().query, "UTF-8"),
+            )
+            assertTrue(asked.none { it.path.startsWith("/LiveTv") })
+
+            // A failed read says nothing, so the page keeps what it has; a refusal means no guide
+            http.on("GET", programsPath, 500)
+            assertNull(service.guide(Instant.now()))
+            http.on("GET", programsPath, 403)
+            assertEquals(emptyList<Any>(), service.guide(Instant.now()))
+        }
+
+    @Test
+    fun `the Live page reads its guide again when it runs out, a minute after a failure, and not in a busy loop`() {
+        val now = LocalDateTime.of(2026, 11, 28, 19, 0)
+        val channel = UUID.randomUUID()
+
+        fun programme(
+            start: Long,
+            end: Long,
+        ) = LiveProgramme(UUID.randomUUID(), channel, "p", null, null, now.plusMinutes(start), now.plusMinutes(end), null, null)
+        val guide = listOf(programme(-5, 10), programme(10, 30))
+        assertEquals(10.minutes + KidsLiveViewModel.GRACE, KidsLiveViewModel.nextRead(guide, guide, now))
+        assertEquals(KidsLiveViewModel.RETRY, KidsLiveViewModel.nextRead(null, guide, now))
+        assertNull(KidsLiveViewModel.nextRead(emptyList(), emptyList(), now))
+        // Never sooner than 15 s, whatever the clocks say
+        assertEquals(15.seconds, KidsLiveViewModel.nextRead(guide, guide, now.plusMinutes(10).minusSeconds(5)))
     }
 }

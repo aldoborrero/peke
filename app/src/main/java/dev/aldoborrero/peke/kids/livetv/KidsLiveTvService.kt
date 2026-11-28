@@ -26,6 +26,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
+import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,10 +39,13 @@ data class KidsChannel(
     val id: UUID,
     val name: String?,
     val number: String?,
+    /** The channel's logo (its Primary image), when it has one */
+    val imageTag: String? = null,
 )
 
 object KidsLiveTv {
     private const val TV_CHANNEL = "TvChannel"
+    private const val PRIMARY = "Primary"
 
     /**
      * The channels in [result], in the server's order. Items that are not channels or have no id are left out.
@@ -50,7 +55,7 @@ object KidsLiveTv {
     private fun channel(item: KidsLiveTvItem): KidsChannel? {
         if (item.type != null && !item.type.equals(TV_CHANNEL, ignoreCase = true)) return null
         val id = item.id?.toUUIDOrNull() ?: return null
-        return KidsChannel(id = id, name = item.name, number = item.channelNumber)
+        return KidsChannel(id = id, name = item.name, number = item.channelNumber, imageTag = item.imageTags[PRIMARY])
     }
 
     /**
@@ -117,6 +122,16 @@ class KidsLiveTvService
             }.distinctUntilChanged()
                 .stateIn(scope, SharingStarted.Eagerly, false)
 
+        /**
+         * The current kid's channels, as last read; empty while unknown or without live TV
+         */
+        val channels: StateFlow<List<KidsChannel>> =
+            combine(kidsModeService.state, pluginService.current, loaded) { state, plugin, loaded ->
+                val userRowId = (state as? KidsModeState.Active)?.user?.rowId
+                if (plugin.has(KidsFeatures.LIVE_TV)) loaded?.takeIf { it.key.userRowId == userRowId }?.channels.orEmpty() else emptyList()
+            }.distinctUntilChanged()
+                .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
         init {
             combine(kidsModeService.state, pluginService.current) { state, plugin ->
                 (state as? KidsModeState.Active)?.takeIf { plugin.has(KidsFeatures.LIVE_TV) }
@@ -146,6 +161,26 @@ class KidsLiveTvService
                     // Unknown: keep what was known for this kid, and ask again next time
                     previous.orEmpty()
                 }
+            }
+        }
+
+        /**
+         * The current kid's guide from [now] for [LiveGuideWindow.LENGTH] (spec 036): one request, the plugin's
+         * `LiveTv/Programs`, instead of Jellyfin's 48 hours. Null when it can't be read; empty without live TV.
+         */
+        suspend fun guide(
+            now: Instant,
+            zone: ZoneId = ZoneId.systemDefault(),
+        ): List<LiveProgramme>? {
+            if (!liveTvOffered) return emptyList()
+            val current = serverRepository.current.value ?: return null
+            val token = current.user.accessToken ?: return null
+            val (start, end) = LiveGuideWindow.from(now)
+            val result = kidsApi.liveTvPrograms(current.server.url, KidsCaller(token, current.user.id), current.user.id, start, end)
+            return when (result) {
+                is KidsResult.Ok -> result.value.items.mapNotNull { liveProgramme(it, zone) }
+                KidsResult.NotAKid, KidsResult.NotFound, KidsResult.Forbidden -> emptyList()
+                else -> null.also { Timber.d("Could not read the kid's guide: %s", result) }
             }
         }
 

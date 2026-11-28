@@ -34,6 +34,7 @@ object LiveRow {
     /**
      * What is airing now: a programme stays until its very end, and at a boundary the next one, which has started,
      * takes its place. No minimum end date, which would leave the row empty in a programme's last minute.
+     * The episode's still (Thumb) and the series' poster (Primary) are the live card's picture (spec 036).
      */
     fun request(
         userId: UUID,
@@ -44,7 +45,7 @@ object LiveRow {
         limit = limit,
         enableUserData = true,
         enableImages = true,
-        enableImageTypes = listOf(ImageType.PRIMARY, ImageType.LOGO),
+        enableImageTypes = listOf(ImageType.PRIMARY, ImageType.THUMB, ImageType.LOGO),
         imageTypeLimit = 1,
         isAiring = true,
     )

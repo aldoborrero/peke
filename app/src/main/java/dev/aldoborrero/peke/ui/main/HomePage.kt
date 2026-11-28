@@ -60,6 +60,8 @@ import dev.aldoborrero.peke.kids.home.KidsHomeHeader
 import dev.aldoborrero.peke.kids.home.focusRoom
 import dev.aldoborrero.peke.kids.home.kidsCardKind
 import dev.aldoborrero.peke.kids.isActive
+import dev.aldoborrero.peke.kids.livetv.KidsLiveChannelsViewModel
+import dev.aldoborrero.peke.kids.livetv.withKidsLiveChannels
 import dev.aldoborrero.peke.kids.playback.KidsDirectPlay
 import dev.aldoborrero.peke.preferences.UserPreferences
 import dev.aldoborrero.peke.ui.Cards
@@ -115,6 +117,7 @@ fun HomePage(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
+    liveChannelsViewModel: KidsLiveChannelsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     LifecycleStartEffect(Unit) {
@@ -124,7 +127,13 @@ fun HomePage(
     val state by viewModel.state.collectAsState()
     val loading = state.loadingState
     val refreshing = state.refreshState
-    val homeRows = state.homeRows
+    // Kids: the Watch live row has a card for each of the kid's channels, airing or not (spec 036)
+    val liveChannels by liveChannelsViewModel.channels.collectAsState()
+    val kidsHome = LocalKidsMode.current.isActive
+    val homeRows =
+        remember(state.homeRows, liveChannels, kidsHome) {
+            if (kidsHome) withKidsLiveChannels(state.homeRows, liveChannels) else state.homeRows
+        }
 
     when (val state = loading) {
         is LoadingState.Error -> {

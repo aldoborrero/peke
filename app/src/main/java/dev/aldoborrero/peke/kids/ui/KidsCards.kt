@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -105,7 +106,7 @@ fun KidsPictureCard(
     val shape = RoundedCornerShape(corner)
     Column(
         // The board's 10 px, widened so the focused card's scale-up, border and ring clear the title
-        verticalArrangement = Arrangement.spacedBy(maxOf(TitleGap, PekeFocus.clearance(height))),
+        verticalArrangement = Arrangement.spacedBy(kidsTitleGap(height)),
         modifier = modifier.width(width),
     ) {
         // The picture or its tile covers the whole card: the surface colour only shows while the picture loads, so it
@@ -149,12 +150,7 @@ private fun KidsPictureCardTitle(
     focused: () -> Boolean,
 ) {
     val hasFocus = focused()
-    val growth by animateFloatAsState(
-        targetValue = if (hasFocus) PekeFocus.scale(LocalPekeFocusScale.current) - 1 else 0f,
-        animationSpec = tween(PekeFocus.ANIMATION_MILLIS),
-        label = "card growth",
-    )
-    Column(Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 }) {
+    KidsUnderCard(width = width, focused = hasFocus) {
         KidsCardTitle(title = title, focused = hasFocus, size = size)
         if (subtitle != null) {
             // DESIGN's supporting line
@@ -170,6 +166,29 @@ private fun KidsPictureCardTitle(
         }
     }
 }
+
+/**
+ * What goes under a card of [width]: the focused card grows from its centre, and its text moves with its left edge
+ */
+@Composable
+fun KidsUnderCard(
+    width: Dp,
+    focused: Boolean,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val growth by animateFloatAsState(
+        targetValue = if (focused) PekeFocus.scale(LocalPekeFocusScale.current) - 1 else 0f,
+        animationSpec = tween(PekeFocus.ANIMATION_MILLIS),
+        label = "card growth",
+    )
+    Column(Modifier.graphicsLayer { translationX = -width.toPx() * growth / 2 }, content = content)
+}
+
+/**
+ * The room between a card of [height] and its title: the board's 10 px, widened so the focused card's scale-up,
+ * border and ring clear the title
+ */
+fun kidsTitleGap(height: Dp): Dp = maxOf(TitleGap, PekeFocus.clearance(height))
 
 /**
  * A card's clickable surface with Peke's focus and no tv-material scale or border
@@ -256,44 +275,6 @@ fun tileColor(
 }
 
 /**
- * A channel's picture on a tile in one of the theme's colours, or Peke's TV in "on primary" when it has none or it can't
- * load (LiveGuidePekeTV)
- */
-@Composable
-fun KidsChannelPicture(
-    id: UUID?,
-    imageUrl: String?,
-    name: String?,
-    size: Dp,
-    corner: Dp,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalPekeColors.current
-    var imageError by remember(imageUrl) { mutableStateOf(false) }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier.size(size).clip(RoundedCornerShape(corner)).background(tileColor(colors, id)),
-    ) {
-        if (imageUrl != null && !imageError) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = name,
-                contentScale = ContentScale.Fit,
-                onError = { imageError = true },
-                modifier = Modifier.size(size * .75f),
-            )
-        } else {
-            Icon(
-                painter = painterResource(PekeIcon.LIVE.outline),
-                contentDescription = null,
-                tint = colors.onPrimary,
-                modifier = Modifier.size(size * .55f),
-            )
-        }
-    }
-}
-
-/**
  * The title under a card: 20 px, bolder and in the text colour while the card has focus
  */
 @Composable
@@ -376,27 +357,6 @@ fun KidsFavouriteBadge(modifier: Modifier = Modifier) {
             modifier = Modifier.size(22.cpx),
         )
     }
-}
-
-/**
- * The LIVE badge: Small type in "on primary" on a primary rounded label
- */
-@Composable
-fun KidsLiveBadge(
-    modifier: Modifier = Modifier,
-    size: Int = 15,
-) {
-    val colors = LocalPekeColors.current
-    Text(
-        text = stringResource(R.string.kids_live_badge),
-        fontSize = size.csp,
-        fontWeight = FontWeight.W900,
-        color = colors.onPrimary,
-        modifier =
-            modifier
-                .background(colors.primary, RoundedCornerShape(10.cpx))
-                .padding(horizontal = 10.cpx, vertical = 2.cpx),
-    )
 }
 
 /**
